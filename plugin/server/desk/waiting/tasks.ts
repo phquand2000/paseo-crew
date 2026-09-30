@@ -1,11 +1,12 @@
 import { headSha } from "../../core/git.ts";
+import { midTurn } from "../../core/paseo.ts";
 import { AT_WORK, TASK } from "../../domain/task.ts";
 import { workKey } from "../claims.ts";
 import { holderOf } from "../copies/holder.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
-import { loadLedger } from "../store/ledger.ts";
+import { loadLedger, readLedger } from "../store/ledger.ts";
 import { fyi } from "../letters/envelope.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import { seatLetters } from "../letters/seat-letters.ts";
@@ -47,6 +48,16 @@ export async function startWaiting(
   }
 }
 
+/** A task held for the turn of the kept Peer it names starts as that turn ends, not at the next round. */
+export async function startAfterTurn(desk: DeskServices, agentId: string): Promise<void> {
+  for (const project of desk.projects.values()) {
+    const ledger = readLedger(project.state);
+    const from = ledger.agents[agentId]?.task;
+    const held = (task: Task) => task.status === "waiting" && !task.held?.tried && task.opening?.peer === from;
+    if (from && Object.values(ledger.tasks).some(held)) await startWaiting(desk, project, false);
+  }
+}
+
 /** Placed and claimed in one transaction, and back to waiting if its Peer cannot start; a Peer is new unless one kept is named. */
 async function tryStart(
   desk: DeskServices,
@@ -59,7 +70,9 @@ async function tryStart(
   const parallel = task.mode === "parallel";
   const serial = parallel ? await serialIn(kit, project, lane.worktree!) : [];
   const startSha = parallel ? undefined : await headSha(lane.worktree!, lane.branch);
-  let kept = await namedPeer(desk, project, task);
+  const asked = await namedPeer(desk, project, task);
+  if (asked && "why" in asked) return asked;
+  let kept = asked;
   const claimed = ledgers.transact(project, (ledger): Task | Refusal | undefined => {
     const entry = ledger.tasks[task.id];
     const now = ledger.lanes[lane.id];
@@ -81,8 +94,7 @@ async function tryStart(
     parent: lane.lead,
     kept,
   });
-  if (typeof started === "string")
-    return { why: started, next: "It is tried again when a task is merged or cut; cut it to drop it.", tried: true };
+  if (typeof started === "string") return failedStart(project, task, kept, started);
   const named = task.opening?.peer;
   const instead = named && !kept ? ` The Peer kept from ${named} could not take it, so a new one did.` : "";
   await announce(
@@ -95,17 +107,32 @@ async function tryStart(
   return undefined;
 }
 
-/** The kept Peer a task named, while it is seated and still kept from the task it worked. */
+/** The Peer kept from the task its Lead named, when it is there between turns; one in a turn holds the task until it ends. */
 async function namedPeer(
   desk: Pick<DeskServices, "roster">,
   project: Project,
   task: Task,
-): Promise<{ peer: string; from: string } | undefined> {
+): Promise<{ peer: string; from: string } | Holding | undefined> {
   const from = task.opening?.peer;
   if (!from) return undefined;
   const ledger = loadLedger(project.state);
   const kept = keptFor(ledger, ledger.tasks[from], task.opening!.role);
-  return typeof kept !== "string" && (await desk.roster.seated(kept.id)) ? { peer: kept.id, from } : undefined;
+  if (typeof kept === "string") return undefined;
+  const look = await desk.roster.look(kept.id).catch(() => undefined);
+  if (!look || look.archivedAt) return undefined;
+  if (!midTurn(look.status)) return { peer: kept.id, from };
+  return {
+    why: `The Peer kept from ${from} is in a turn; ${task.id} starts on it once that turn ends.`,
+    next: `Or release ${from}'s Peer, and a new one takes ${task.id}.`,
+  };
+}
+
+/** A start that failed waits for a merge or a cut, unless the kept Peer it named is gone: a new one takes it next round. */
+function failedStart(project: Project, task: Task, kept: { from: string } | undefined, why: string): Holding {
+  const ledger = loadLedger(project.state);
+  if (kept && typeof keptFor(ledger, ledger.tasks[kept.from], task.opening!.role) === "string")
+    return { why, next: "A new Peer takes it at the desk's next round; cut it to drop it." };
+  return { why, next: "It is tried again when a task is merged or cut; cut it to drop it.", tried: true };
 }
 
 /** Tells the Lead a task started, if `said`, and whoever writes in the lane's copy what a task beside it holds. */

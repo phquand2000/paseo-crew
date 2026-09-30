@@ -14,7 +14,7 @@ import type { DeskServices } from "../services.ts";
 
 const STEPS = 40;
 
-type Whose = { seat: string; name: string; lane: Lane; task?: Task };
+type Whose = { seat: string; name: string; lane: Lane; task?: Task; moved?: string };
 
 /** Whose record `of` names, if the caller may read it: a lane's Lead for whoever supervises, a task's worker for its lane's Lead too. */
 function whose(ledger: Ledger, caller: Caller, of: string): Whose | string {
@@ -30,11 +30,13 @@ function whose(ledger: Ledger, caller: Caller, of: string): Whose | string {
     return supervises ? `There is no lane or task ${of} in this project.` : `${of} is not a task in your lane.`;
   }
   if (!task.peer) return `Nobody has worked ${task.id} yet: it is ${task.status}.`;
+  const now = ledger.agents[task.peer]?.task;
   return {
     seat: task.peer,
     name: `${task.id} ${task.title}'s ${task.kind === "review" ? "reviewer" : "Peer"}`,
     lane: ledger.lanes[task.lane]!,
     task,
+    moved: now && now !== task.id ? now : undefined,
   };
 }
 
@@ -111,9 +113,11 @@ async function historyOf(
   return { rows: await roster.history(seat, limit), quirks: seatOf(kit, look.provider)?.harness.timeline ?? {} };
 }
 
-/** What the desk kept of a seat that is gone. */
-function kept({ name, lane, task }: Whose): string {
-  const gone = `${name} is gone, and reading its steps would start it again, so this is what the desk kept.`;
+/** What the desk kept of a seat that is gone, or of a task whose Peer has moved on to another. */
+function kept({ name, lane, task, moved }: Whose): string {
+  const gone = moved
+    ? `${name} works ${moved} now: record ${moved} for its steps. This is what the desk kept.`
+    : `${name} is gone, and reading its steps would start it again, so this is what the desk kept.`;
   if (!task) return `${gone} Lane ${lane.id} is ${lane.status}${lane.landed ? " and landed" : ""}.`;
   const back = task.handback;
   return [
@@ -132,6 +136,7 @@ export async function readRecord(
 ): Promise<ToolReply> {
   const found = whose(loadLedger(caller.project.state), caller, asked.of);
   if (typeof found === "string") return no(found);
+  if (found.moved) return ok(kept(found));
   const limit = asked.limit ?? STEPS;
   // Twice as many entries as steps: some are not the seat's doing, and a page of history cannot be counted in steps.
   const read = await historyOf(desk, found.seat, 2 * limit).catch((error: unknown) => errorText(error));

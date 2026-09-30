@@ -14,6 +14,7 @@ import { type Project, gitTimeout } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { backOnLane } from "../copies/sync.ts";
+import { closeIncidentsOf } from "../watch/notice.ts";
 
 type Copy = { id?: string; path: string; workspaceId?: string };
 
@@ -28,7 +29,7 @@ export async function startPeer(
   task: Task,
   how: { role: string; parent?: string; kept?: { peer: string; from: string } },
 ): Promise<{ peer: string; where: string } | string> {
-  const { kit, ledgers, agents, mail } = desk;
+  const { kit, agents, mail } = desk;
   try {
     const copy = await peerCopy(desk, project, lane, task);
     const now = loadLedger(project.state);
@@ -41,14 +42,11 @@ export async function startPeer(
         prompt: brief,
         labels: { "crew.lane": lane.id, "crew.task": task.id, "crew.role": how.role },
       }));
-    ledgers.transact(project, (ledger) => {
-      if (how.kept && ledger.agents[peer]?.task !== how.kept.from)
-        throw new Error(`the Peer kept from ${how.kept.from} took other work meanwhile`);
-      const entry = ledger.tasks[task.id];
-      if (entry) Object.assign(entry, { peer, updatedAt: Date.now() });
-      ledger.agents[peer] = { ...ledger.agents[peer], id: peer, role: how.role, lane: lane.id, task: task.id };
-    });
-    if (how.kept) await mail.post(peer, keptLetters.next(task, how.kept.from, brief));
+    bind(desk, project, lane, task, { ...how, peer });
+    if (how.kept) {
+      closeKept(desk, project, peer);
+      await mail.post(peer, keptLetters.next(task, how.kept.from, brief));
+    }
     const slot = copy.id ?? "in place";
     recordEvent(project, {
       kind: "task.started",
@@ -68,6 +66,35 @@ export async function startPeer(
     return `The Peer could not start: ${errorText(error)}`;
   } finally {
     desk.seating.release(workKey(project, task.id));
+  }
+}
+
+/** Binds the task and its Peer in one write; a kept Peer let go, or given other work, since it was named refuses. */
+function bind(
+  { ledgers }: Pick<DeskServices, "ledgers">,
+  project: Project,
+  lane: Lane,
+  task: Task,
+  how: { role: string; peer: string; kept?: { from: string } },
+): void {
+  const { peer, kept } = how;
+  ledgers.transact(project, (ledger) => {
+    if (kept && ledger.agents[peer]?.gone) throw new Error(`the Peer kept from ${kept.from} was let go meanwhile`);
+    if (kept && ledger.agents[peer]?.task !== kept.from)
+      throw new Error(`the Peer kept from ${kept.from} took other work meanwhile`);
+    const entry = ledger.tasks[task.id];
+    if (entry) Object.assign(entry, { peer, updatedAt: Date.now() });
+    ledger.agents[peer] = { ...ledger.agents[peer], id: peer, role: how.role, lane: lane.id, task: task.id };
+  });
+}
+
+/** What the watch saw of a kept Peer was about the task it leaves: closed, so a finding on the next one opens its own. */
+function closeKept(desk: DeskServices, project: Project, peer: string): void {
+  try {
+    closeIncidentsOf(desk, project, peer);
+  } catch (error) {
+    // Best effort: an incident book that cannot be read must not undo a start already bound.
+    desk.log(project, `the incidents of ${peer} could not be closed: ${errorText(error)}`);
   }
 }
 

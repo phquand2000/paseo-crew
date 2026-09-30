@@ -37,7 +37,7 @@ import { LedgerStore, type Sync } from "./store/ledger-store.ts";
 import { tidyRecords } from "./store/records.ts";
 import { MergeQueue } from "./tasks/merge-queue.ts";
 import { openWaiting } from "./waiting/lanes.ts";
-import { startWaiting } from "./waiting/tasks.ts";
+import { startAfterTurn, startWaiting } from "./waiting/tasks.ts";
 import type { Moment } from "./watch/checks.ts";
 import { type Noticed, closeIncidentsOf, notice, retell, reweigh } from "./watch/notice.ts";
 
@@ -208,6 +208,11 @@ export class Desk {
   async openWaiting(project: Project): Promise<void> {
     await openWaiting(this.services, project, false);
     await startWaiting(this.services, project, false);
+  }
+
+  /** A seat's turn ended: a task held for that turn, on the Peer kept from its last task, starts now. */
+  turnOver(agentId: string): Promise<void> {
+    return startAfterTurn(this.services, agentId);
   }
 
   async archiveFinished(project: Project, gone: (agentId: string) => boolean): Promise<void> {

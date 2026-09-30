@@ -277,9 +277,9 @@ an empty gate set there is never replaced.
 
 `add_tasks` records a Lead's tasks in one transaction, checking only their structure (keys, loops in `after`,
 what each holds). Each works on a branch of its own, `task/<id>-<title>`, with a new Peer unless its Lead
-names the idle Peer kept from a merged task in the lane's copy, which takes it with the brief as mail; the lane branch takes its work only by the desk's merge. A task starts once its `after` tasks
+names the idle Peer kept from a merged task in the lane's copy, which takes it with the brief as mail it must read before it hands the task back or asks, and closes what the watch saw of the task it leaves; one in a turn takes it as that turn ends. The lane branch takes its work only by the desk's merge. A task starts once its `after` tasks
 have merged, its lane is open with a Lead and not on hold, and its placement holds; one whose Peer fails to
-start waits again until a task merges or is cut, the lane resumes, or more are added.
+start waits again until a task merges or is cut, the lane resumes, or more are added, or, when the kept Peer it named was let go, for the next round and a new Peer.
 
 - **Lane mode**, the default: in the lane's copy, switched to its branch until it is merged or cut, one such
   task at a time, so those added together wait each for the one before. Its Peer finds where the change goes:

@@ -69,7 +69,7 @@ test("a Peer whose task is accepted is kept for rework until its Lead releases i
   assert.equal(message.ok, false);
   assert.match(
     message.text,
-    /^L1-T1 is merged, and its Peer is kept only to take rework: send rework if its work must change\./,
+    /^L1-T1 is merged, and its Peer is kept for rework or a task you start on it: send rework if its work must change\./,
     "not with the Peer said to be gone",
   );
   assert.match(await say("rework", { task: "L1-T1", text: "x" }), /L1-T2 holds the lane's working copy/);

@@ -70,7 +70,7 @@ export type Letter = { key: string; text: string; wakes?: false };
 
 export const keyOf = (kind: Kind, ids: (string | number)[]) => [kind, ...ids].join(":");
 
-const CHANGES_THE_WORK: ReadonlySet<string> = new Set<Kind>(["amended", "answer", "message", "rework"]);
+const CHANGES_THE_WORK: ReadonlySet<string> = new Set<Kind>(["amended", "answer", "brief", "message", "rework"]);
 
 /** Whether a letter changes the work its reader is on, so its hand-back or ask waits until it has read it. */
 export const heeded = (letter: { key: string; wakes?: false }) =>

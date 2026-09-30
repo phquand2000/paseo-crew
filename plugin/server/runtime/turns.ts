@@ -10,6 +10,7 @@ import { keyOf } from "../desk/letters/envelope.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { messageLetters } from "../desk/letters/message-letters.ts";
 import { watchLetters } from "../desk/letters/watch-letters.ts";
+import { seatName } from "../desk/seats/names.ts";
 import { type Project, projectOf } from "../desk/project/project.ts";
 import type { TeamSource } from "./team-source.ts";
 import { clearLimited, markLimited, meanwhileRoles, wakeTime } from "./limits.ts";
@@ -114,7 +115,7 @@ export class TurnRules {
     const owner = await this.ownerOf(project, agent.id, role);
     await this.deps.desk.post(
       owner.to,
-      seatLetters.permission(agent.id, agent.title ?? `${role.label} ${agent.id}`, request, owner.reader),
+      seatLetters.permission(agent.id, this.nameOf(project, agent, role), request, owner.reader),
     );
     if (request.id) this.mailed.add(`${agent.id}\n${request.id}`);
   }
@@ -127,7 +128,7 @@ export class TurnRules {
     const told = this.mailed.delete(`${agent.id}\n${requestId}`);
     if ((await this.deps.desk.withdraw(keyOf("permission", [agent.id, requestId]))) || !told) return;
     const owner = await this.ownerOf(projectOf(agent.cwd), agent.id, role);
-    const who = agent.title ?? `${role.label} ${agent.id}`;
+    const who = this.nameOf(projectOf(agent.cwd), agent, role);
     await this.deps.desk.post(
       owner.to,
       seatLetters.permissionAnswered(agent.id, who, requestId, resolution.behavior === "allow"),
@@ -169,7 +170,7 @@ export class TurnRules {
         seatLetters.failed(
           agent.id,
           event.turnId ?? Date.now(),
-          agent.title ?? `${role.label} ${agent.id}`,
+          this.nameOf(project, agent, role),
           outcome.error.message,
           owner.reader,
         ),
@@ -200,6 +201,10 @@ export class TurnRules {
     await this.silent(project, ledger.lanes[task.lane], task, event, text);
   }
 
+  private nameOf(project: Project, agent: HookAgent, role: RoleSpec): string {
+    return seatName(loadLedger(project.state), agent, role);
+  }
+
   /** Only a hand-back restarts the quiet count, or a stall its Lead was told of: an ask after each nudge once looped seven times. */
   private heard(project: Project, task: Task, recorded: boolean): void {
     if (!recorded || (task.status !== "stalled" && task.silent < QUIET)) return;
@@ -226,7 +231,7 @@ export class TurnRules {
     if (since === undefined || can(seat.role, "supervise")) return;
     const owner = await this.ownerOf(project, agent.id, seat.role);
     const meanwhile = meanwhileRoles(this.deps.source.teamFor(project), seat.role, seat.harness.id);
-    const who = agent.title ?? `${seat.role.label} ${agent.id}`;
+    const who = this.nameOf(project, agent, seat.role);
     await desk.post(owner.to, seatLetters.limited(agent.id, who, since, { resets, wakeAt }, meanwhile, owner.reader));
   }
 

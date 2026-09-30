@@ -15,7 +15,23 @@ export function markGone({ ledgers }: Pick<DeskBase, "ledgers">, project: Projec
   });
 }
 
-/** Lets a seat of the team go: its binding says so before Paseo archives it, which waits for a turn under way unless forced. */
+/** Marks the Peer kept from `task` gone in the write that finds it still there: false once it took another task meanwhile. */
+export function claimGone(
+  { ledgers }: Pick<DeskBase, "ledgers">,
+  project: Project,
+  peer: string,
+  task: string,
+): boolean {
+  return ledgers.transact(project, (ledger) => {
+    const bound = ledger.agents[peer];
+    if (bound?.task !== task) return false;
+    bound.gone = true;
+    delete bound.limited;
+    return true;
+  });
+}
+
+/** Lets a seat of the team go:its binding says so before Paseo archives it, which waits for a turn under way unless forced. */
 export async function letGo(
   desk: Pick<DeskBase, "ledgers">,
   roster: Roster,

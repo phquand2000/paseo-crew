@@ -2,7 +2,7 @@ import { landedRef } from "../../core/git.ts";
 import { IN_QUEUE } from "../../domain/task.ts";
 import { laneTask } from "../access.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str } from "../context.ts";
-import { letGo } from "./gone.ts";
+import { claimGone, letGo } from "./gone.ts";
 import { type AgentRef, type Ledger, findLane, findTask, tasksOf } from "../../domain/ledger.ts";
 import { keptLetters } from "../letters/kept-letters.ts";
 import type { Lane } from "../../domain/lane.ts";
@@ -149,12 +149,18 @@ async function releaseTaskPeer(
 ): Promise<ToolReply> {
   const kept = await keptToRelease(desk, ledger, task);
   if (typeof kept === "string") return no(kept);
+  const parallel = task.mode === "parallel";
+  // Checked where it is written: a task started on this Peer since the read above keeps it.
+  if (!parallel && !claimGone(desk, project, kept.peer, task.id)) {
+    const took = loadLedger(project.state).agents[kept.peer]?.task;
+    return no(`The Peer kept from ${task.id} took ${took} since: it is that task's Peer now.`);
+  }
   if (by) await desk.mail.post(lane.lead, keptLetters.released(task, kept.peer, by));
-  if (task.mode === "parallel") await desk.agents.retire(project, task, lane.branch);
-  else await letGo(desk, desk.roster, project, kept.peer);
+  if (parallel) await desk.agents.retire(project, task, lane.branch);
+  else await desk.roster.archive(kept.peer);
   recordEvent(project, { kind: "seat.released", seat: kept.peer, of: task.id });
   return ok(
-    `The Peer kept from ${task.id} is released${task.mode === "parallel" ? `, and its copy ${task.slot} is put away with it` : ""}.`,
+    `The Peer kept from ${task.id} is released${parallel ? `, and its copy ${task.slot} is put away with it` : ""}.`,
   );
 }
 

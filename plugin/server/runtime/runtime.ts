@@ -246,6 +246,8 @@ export class Runtime implements HostHooks {
       await this.desk.stopped(event.agent.id);
       if (archiving) return;
       await this.turns.ended(event);
+      // After the turn is weighed: started first, the task it takes would read that turn as its own silence.
+      await this.desk.turnOver(event.agent.id);
     } finally {
       await this.outbox.pump(event.agent.id);
     }
