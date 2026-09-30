@@ -122,6 +122,6 @@ export class ToolCalls {
     if (role.role !== request.role)
       return { error: `This agent is a ${role.label}, so ${request.role} tools are not available to it.` };
     const project = projectOf(seat.cwd ?? request.cwd);
-    return { id: request.agent, role, title: seat.title ?? request.agent, project };
+    return { id: request.agent, role, title: seat.title ?? request.agent, project, at: request.at };
   }
 }

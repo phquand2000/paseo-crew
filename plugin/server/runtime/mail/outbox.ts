@@ -34,6 +34,7 @@ export class Outbox {
   private readonly rules: Rules;
   private readonly awaiting = new Map<string, number>();
   private readonly sentKeys = new Map<string, number>();
+  private readonly heededAt = new Map<string, number>();
 
   /** Keyed on the reader too: desk ids are unique only per project, and this one file serves them all. */
   private static held(letter: { to: string; key: string }): string {
@@ -84,6 +85,7 @@ export class Outbox {
     }
     const stored: Letter = { ...letter, id: `${now}-${process.pid}-${++this.counter}`, at: now };
     this.save([...this.keep(waiting, now), stored]);
+    if (this.rules.heeded?.(stored)) this.heededAt.set(letter.to, now);
     const sent = await this.pump(letter.to, into);
     return sent.has(stored.id) ? "sent" : "held";
   }
@@ -99,6 +101,7 @@ export class Outbox {
 
   private gone(agentId: string): void {
     this.forget(agentId);
+    this.heededAt.delete(agentId);
     const letters = this.letters();
     const kept = letters.filter((letter) => letter.to !== agentId || letter.wakes !== false);
     if (kept.length < letters.length) this.save(kept);
@@ -136,6 +139,11 @@ export class Outbox {
     if (!seat || (seat.pendingPermissions?.length ?? 0) > 0 || this.rules.holding?.(seat)) return false;
     const quiet = this.rules.quietBefore?.(seat);
     return mine.some((letter) => this.rules.heeded?.(letter) && (quiet === undefined || letter.at >= quiet));
+  }
+
+  /** Whether mail the seat must heed was posted for it since `at`, sent at once or held. */
+  heededSince(to: string, at: number): boolean {
+    return (this.heededAt.get(to) ?? -Infinity) >= at;
   }
 
   /** The seat, when it is there to be sent mail: not archived. */

@@ -312,7 +312,8 @@ when its turn ends, and each round. The first row that fits decides:
 Nothing is sent into a running turn, on any agent, but a `message` sent with `now`, which takes everything held
 with it. A seat's own desk call takes everything held for it instead, word that asks nothing included, on its reply
 under "Mail the desk held for you"; not past a pending permission or a hold, and not on a call its harness stopped.
-`done` and `ask` are refused while an amendment, answer, message or rework is held for their seat, and carry it.
+`done` and `ask` are refused while an amendment, answer, brief, message or rework is held for their seat, and carry it;
+`done` is refused too when one was posted for its seat while it ran, sent `now` or held.
 
 | Timing | Value |
 |---|---|

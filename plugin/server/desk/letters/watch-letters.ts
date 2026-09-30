@@ -44,7 +44,7 @@ export const watchLetters = {
     }
     lines.push(
       "",
-      "A message never cuts into this seat's turn: it arrives when the turn ends, or with the reply to its next desk call; one stopped on a permission reads nothing until the Human decides. Only hold_lane cuts a turn short.",
+      "A message reaches this seat when its turn ends, or with the reply to its next desk call; message with now cuts its turn short where its agent allows it. One stopped on a permission reads nothing until the Human decides.",
       "",
       to === "lead"
         ? "This is a signal to look at, not a verdict: the Peer may be right. What to do is yours as its Lead, in the ordinary way: nothing, a message, a rework, or a cut."

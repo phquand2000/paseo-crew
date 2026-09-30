@@ -57,7 +57,9 @@ export const messageLetters = {
     const letter = [
       `RECONCILE ${lane.id}: the owner reached your Peer on ${task.id} directly.`,
       "",
-      "What reached them:",
+      sending.now
+        ? "What reached them, sent now: it cuts the Peer's turn short where its agent allows it."
+        : "What reached them:",
       clip(text, 1500),
       "",
       `Current intent: ${lane.outcome}`,

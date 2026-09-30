@@ -70,6 +70,11 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
   const work = await workOf(desk.kit, project, ledger, task, synced);
   const written = await write(desk, project, task, args, work);
   const summary = (task.kind === "review" ? args.answer : args.summary)?.trim() ?? "";
+  // Read where it is written: a message sent now cuts into this call's turn, and the hand-back must not outrun it.
+  if (desk.mail.heededSince(caller.id, caller.at))
+    return no(
+      "done was not carried out: mail that changes your work came while it ran. Weigh it, then call done again if it still stands.",
+    );
   const already = record(desk, project, task, written, work.commit, summary);
   if (already) {
     const queued = already !== "gone" && IN_QUEUE.includes(already);

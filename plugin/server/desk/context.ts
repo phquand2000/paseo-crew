@@ -12,7 +12,7 @@ export type ToolRequest = {
 };
 export type ToolReply = { ok: boolean; text: string };
 export type Args = Record<string, unknown>;
-export type Caller = { id: string; role: RoleSpec; title: string; project: Project };
+export type Caller = { id: string; role: RoleSpec; title: string; project: Project; at: number };
 
 export const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 export const strs = (value: unknown): string[] =>
@@ -47,4 +47,5 @@ export type Mailer = {
   post(letter: { to: string; key: string; text: string; wakes?: false }, into?: "interrupt"): Promise<Posted>;
   withdraw(key: string): Promise<boolean>;
   waiting(to: string): Promise<boolean>;
+  heededSince(to: string, at: number): boolean;
 };

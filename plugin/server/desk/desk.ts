@@ -78,6 +78,7 @@ export class Desk {
       mail: {
         post: async (to, letter, into) => (to ? options.outbox.post({ to, ...letter }, into) : "nobody"),
         waiting: (to) => options.outbox.waiting(to),
+        heededSince: (to, at) => options.outbox.heededSince(to, at),
       },
       log: options.log,
       teamFor: options.teamFor,

@@ -350,8 +350,9 @@ Peers finishing together reach their Lead as one message when its turn ends. The
 `now`, by whoever may cut that turn short, which takes everything held with it. A seat's own desk call takes what is
 held for it instead, word that asks nothing included, on the reply under "Mail the desk held for you", unless the
 call was stopped. A call that commits the seat (`done`, `ask`, marked `mailFirst`) is refused while an amendment, an
-answer, a message or a rework is held for it: that mail comes on the refusal, and the call counts only once it is
-made again on what the seat has read. It is:
+answer, a brief, a message or a rework is held for it: that mail comes on the refusal, and the call counts only once it is
+made again on what the seat has read. A `done` is refused too when such mail was posted for its seat while it ran, as a
+message sent `now` is. It is:
 
 - **held** while the seat waits on a permission, runs or starts, or its lane is on hold, and for up to 10
   minutes after its last mail, until it ends a turn;
