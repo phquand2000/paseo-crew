@@ -197,6 +197,12 @@ test("a failure not climbed out of in ten steps is noticed, ended only by the sa
     1,
     "unless it did more than look",
   );
+  const help = "cd /work && ./scripts/check.sh --help 2>&1 | head -40";
+  assert.deepEqual(
+    lost([run("help", 2, help, false), ...steps(12, 3)]),
+    [],
+    "asking a program how it is used only looks",
+  );
   assert.deepEqual(
     lost([run("f", 2, "npm test", false), run("p", 3, "npm test 2>&1 | tail -30", true), ...steps(12, 4)]),
     [],

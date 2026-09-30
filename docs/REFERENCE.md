@@ -441,7 +441,7 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 |---|---|---|
 | `irreversible` | page | A shell command matches the irreversible pattern, checked one command at a time: by default a forced push or a dropped or truncated table, which leave the machine |
 | `stuck` | attend | In the last 20 steps since the seat's latest instruction, ending with the newest: the same action and result `repeatsAt` + 1 times (4 by default), the same action failing `repeatsAt` times, the same words `repeatsAt` times, or two actions alternating `repeatsAt` times |
-| `no-recovery` | attend | Ten calls after a failed shell command, neither that program nor the gate has passed. Another command failing starts the count again. A command made only of looks, the ecosystem's `probe`, such as a `cat` or `grep` that finds nothing, is no failure |
+| `no-recovery` | attend | Ten calls after a failed shell command, neither that program nor the gate has passed. Another command failing starts the count again. A command made only of looks, the ecosystem's `probe`, such as a `cat` or `grep` that finds nothing or a program asked for its `--help`, is no failure |
 | `test-weakened` / `suppressed` | attend | An edit removes assertions from a test or adds a skip, or adds a suppression such as `@ts-ignore` |
 | `claim-contradicted` | attend | A Peer hands back `complete`, with no gate result from the desk, though the gate it last ran, after its last edit, failed. Needs a gate |
 | `long-turn` | attend | A running turn shows nothing new, no call, output or message, for `longTurnMinutes`; names the call still open |
