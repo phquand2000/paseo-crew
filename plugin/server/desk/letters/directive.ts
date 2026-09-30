@@ -1,7 +1,7 @@
 import { type Issue, fetchIssue } from "../../core/github.ts";
-import type { Lane } from "../../domain/lane.ts";
+import type { HumanClaim, Lane } from "../../domain/lane.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { capped, outside } from "../../core/text.ts";
+import { capped, clip, outside } from "../../core/text.ts";
 import { list } from "./envelope.ts";
 import type { Kit } from "../../catalog/kit/kit.ts";
 import { type Project, conceptFile, loadConfig, serialIn } from "../project/project.ts";
@@ -17,6 +17,16 @@ export const besideNote = (beside: Beside[], how: "opened" | "now works"): strin
   beside.length > 0
     ? ` It ${how} beside lanes that may write what it does: ${besideText(beside)}. Their Leads and its own are told; what two lanes both write meets when the second merges or lands, where its Lead settles it, and between lanes it is yours.`
     : "";
+
+/** Whose word stands behind a line the Human asked for: their answered question, or what they wrote. */
+export const humanCite = (claim: HumanClaim): string =>
+  `the Human's, ${claim.question ?? `"${clip(claim.quote ?? "", 160)}"`}`;
+
+/** The lane's lines, each the Human asked for marked with their word. */
+function cited(lane: Lane, lines: string[]): string {
+  const human = new Map((lane.human ?? []).filter((entry) => !entry.dropped).map((entry) => [entry.line, entry]));
+  return list(lines.map((line) => (human.has(line) ? `${line} (${humanCite(human.get(line)!)})` : line)));
+}
 
 /** `copy` is the lane's working copy, whose files decide which paths only one writer at a time may write. */
 export async function directiveFor(
@@ -78,13 +88,19 @@ export function directive(
     `Outcome: ${lane.outcome}`,
     "",
     "Acceptance:",
-    list(lane.acceptance),
+    cited(lane, lane.acceptance),
     "",
     `Appetite: ${lane.appetite ?? "not given"}`,
     `Deadline: ${lane.deadline ?? "none"}`,
     "",
     "Out of scope:",
-    list(lane.outOfScope),
+    cited(lane, lane.outOfScope),
+    ...(lane.human?.some((entry) => !entry.dropped)
+      ? [
+          "",
+          "A line marked the Human's is their own ask. Any other is a choice made for them: question it with evidence through ask when the work shows it wrong.",
+        ]
+      : []),
     "",
     ...writes(lane, serial, beside),
     "",

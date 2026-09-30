@@ -178,6 +178,14 @@ async function launchLead(
     ledger.agents[lead] = { id: lead, role: leadRole.role, lane: lane.id };
   });
   const slot = copy.id ?? "in place";
-  recordEvent(project, { kind: "lane.opened", lane: lane.id, lead, branch: lane.branch, base: lane.base, slot });
+  recordEvent(project, {
+    kind: "lane.opened",
+    lane: lane.id,
+    lead,
+    branch: lane.branch,
+    base: lane.base,
+    slot,
+    human: lane.human?.length ?? 0,
+  });
   return { slot: copy, lead, beside: directed.beside };
 }

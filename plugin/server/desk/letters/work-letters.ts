@@ -1,7 +1,8 @@
 import { capped, clip, hash } from "../../core/text.ts";
 import type { Amendment } from "../../domain/amendment.ts";
-import type { Lane } from "../../domain/lane.ts";
+import type { HumanClaim, HumanLine, Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
+import { humanCite } from "./directive.ts";
 import { type Letter, fyi, list, mail } from "./envelope.ts";
 
 const waited = (entry: Lane | Task, what: string): string => {
@@ -72,9 +73,16 @@ export const workLetters = {
     return mail("report", [lane.id, hash(`${text}\n${next}`)], text, next);
   },
 
-  amended(entry: Lane | Task, amendment: Amendment, reader: "lead" | "worker"): Letter {
+  /** `human` is whose word the change put behind lines of a lane, and the lines it took from the Human without it. */
+  amended(
+    entry: Lane | Task,
+    amendment: Amendment,
+    reader: "lead" | "worker",
+    human: { claims: HumanClaim[]; dropped: HumanLine[] } = { claims: [], dropped: [] },
+  ): Letter {
     const now = entry as unknown as Record<string, string | string[]>;
     const show = (value: string | string[]) => (Array.isArray(value) ? list(value) : value || "none");
+    const cite = (lines: HumanClaim[]) => list(lines.map((line) => `${line.line} (${humanCite(line)})`));
     const text = [
       `AMENDED ${entry.id} (${entry.title}): ${amendment.why}`,
       ...Object.entries(amendment.was).flatMap(([field, was]) => [
@@ -84,7 +92,13 @@ export const workLetters = {
         `${field}, now:`,
         show(now[field]!),
       ]),
-      ...(reader === "lead" ? ["", "A READY you reported before this no longer stands."] : []),
+      ...(human.claims.length > 0 ? ["", "The Human's own ask, on their word:", cite(human.claims)] : []),
+      ...(human.dropped.length > 0
+        ? ["", "The Human asked for these, and this changes them without their word:", cite(human.dropped)]
+        : []),
+      ...(reader === "lead" && Object.keys(amendment.was).length > 0
+        ? ["", "A READY you reported before this no longer stands."]
+        : []),
     ].join("\n");
     const next =
       reader === "lead"

@@ -24,7 +24,7 @@
           },
           "acceptance": {
             "type": "array",
-            "description": "Checks that show the outcome done, including the decisions you made, one per item, like \"a 10% code takes 10% off the total\".",
+            "description": "Checks that show the outcome done, one per item, like \"a 10% code takes 10% off the total\". Name the Human's in human.",
             "items": {
               "type": "string"
             }
@@ -43,6 +43,31 @@
               "type": "string"
             },
             "description": "Limits the outcome doesn't already hold: what this lane must leave alone, not build, or not decide."
+          },
+          "human": {
+            "type": "array",
+            "description": "Lines of acceptance or outOfScope the Human asked for, each with a question they answered or their quote here; the Lead sees them marked.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "line": {
+                  "type": "string",
+                  "description": "The line, word for word."
+                },
+                "question": {
+                  "type": "string",
+                  "description": "A question of theirs they answered, like H3."
+                },
+                "quote": {
+                  "type": "string",
+                  "description": "Their words, exactly as they wrote them in this chat."
+                }
+              },
+              "required": [
+                "line"
+              ],
+              "additionalProperties": false
+            }
           },
           "issue": {
             "type": "string",
@@ -279,6 +304,31 @@
               "type": "string"
             },
             "description": "Every lane it waits for now, while it still waits to open; [] to open as soon as nothing else holds it."
+          },
+          "human": {
+            "type": "array",
+            "description": "Lines the Human asked for, as they stand now or dropped at their word, each with their word. One changed without it is told.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "line": {
+                  "type": "string",
+                  "description": "The line, word for word."
+                },
+                "question": {
+                  "type": "string",
+                  "description": "A question of theirs they answered, like H3."
+                },
+                "quote": {
+                  "type": "string",
+                  "description": "Their words, exactly as they wrote them in this chat."
+                }
+              },
+              "required": [
+                "line"
+              ],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -864,7 +914,9 @@
           },
           "scope": {
             "type": "string",
-            "enum": ["lane"],
+            "enum": [
+              "lane"
+            ],
             "description": "lane: the review of the whole lane against its acceptance, which READY and landing count. Left out with no task: an open question."
           },
           "focus": {

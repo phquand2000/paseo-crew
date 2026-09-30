@@ -13,9 +13,9 @@ export type DeskEvent =
   | { kind: "call.malformed"; agent: string; role: string; tool: string; error: string }
   | { kind: "lane.waiting"; lane: string; after: string[] }
   | { kind: "lane.held"; lane: string; reason: string }
-  | { kind: "lane.opened"; lane: string; lead: string; branch: string; base: string; slot: string }
+  | { kind: "lane.opened"; lane: string; lead: string; branch: string; base: string; slot: string; human: number }
   | { kind: "lane.halfOpen"; lane: string; status: LaneStatus; lead: string | null }
-  | { kind: "lane.amended"; lane: string; fields: string[]; by: string }
+  | { kind: "lane.amended"; lane: string; fields: string[]; by: string; humanDropped: number }
   | {
       kind: "lane.report";
       lane: string;

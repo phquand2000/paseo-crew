@@ -8,6 +8,7 @@ import { fileKinds, testMarkers, weakened } from "../../catalog/kit/patterns.ts"
 import { openWork } from "../../domain/task.ts";
 import { loadIncidents } from "../store/incidents.ts";
 import type { Lane } from "../../domain/lane.ts";
+import { humanCite } from "../letters/directive.ts";
 import { type Ledger, tasksOf } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { type Project, configFile, loadConfig, serialOnlyOf } from "../project/project.ts";
@@ -231,5 +232,12 @@ function recordFacts(project: Project, ledger: Ledger, lane: Lane): string[] {
       .filter((task) => task.kind === "review" && task.handback)
       .map((task) => `${task.id} review: ${task.handback!.outcome}.`),
     ...reviewFacts(ledger, lane),
+    ...(lane.human ?? []).flatMap((entry) =>
+      entry.dropped
+        ? [
+            `The Human asked for "${entry.line}" (${humanCite(entry)}), and ${entry.dropped.by} changed it without their word.`,
+          ]
+        : [],
+    ),
   ];
 }

@@ -17,6 +17,9 @@ export const LANE = new Lifecycle<LaneStatus, LaneMove>(MOVES);
 /** A lane's copy, the project's own, waiting to come back off `branch`, then dropped `into` its lane; only while still on it, since a later lane may own it. */
 type Restoring = { writers: string[]; base: string; branch: string; into?: string };
 
+/** A line of the lane's acceptance or out of scope that the Human asked for, with their words; `dropped` once a change took it without them. */
+export type HumanLine = { line: string; question?: string; quote?: string; dropped?: { at: number; by: string } };
+
 /** A lane of work on the record: what it is for, where it runs, who leads it, and how far it has got. */
 export type Lane = {
   id: string;
@@ -26,6 +29,7 @@ export type Lane = {
   appetite?: string;
   deadline?: string;
   outOfScope: string[];
+  human?: HumanLine[];
   issue?: string;
   base: string;
   branch: string;
@@ -75,4 +79,32 @@ export type Lane = {
 export function loseReady(lane: Lane): void {
   delete lane.ready;
   lane.readyLost = (lane.readyLost ?? 0) + 1;
+}
+
+/** The lines the Human's word stands behind, cited as it came: an answered question, or what they wrote. */
+export type HumanClaim = { line: string; question?: string; quote?: string };
+
+/**
+ * Keeps the Human's lines in step with what the lane asks now: `claims` are theirs, and one gone that no claim covers
+ * stays on record as dropped. Returns the lines dropped now, or the claim that names no line.
+ */
+export function carryHuman(lane: Lane, claims: HumanClaim[], by: string, at = Date.now()): HumanLine[] | HumanClaim {
+  const now = new Set([...lane.acceptance, ...lane.outOfScope]);
+  const named = new Set(claims.map((claim) => claim.line));
+  const kept = lane.human ?? [];
+  const live = kept.filter((entry) => !entry.dropped);
+  const stray = claims.find((claim) => !now.has(claim.line) && !live.some((entry) => entry.line === claim.line));
+  if (stray) return stray;
+  const dropped = live
+    .filter((entry) => !now.has(entry.line) && !named.has(entry.line))
+    .map((entry) => ({ ...entry, dropped: { at, by } }));
+  const human = [
+    ...kept.filter((entry) => entry.dropped),
+    ...dropped,
+    ...live.filter((entry) => now.has(entry.line) && !named.has(entry.line)),
+    ...claims.filter((claim) => now.has(claim.line)),
+  ];
+  if (human.length > 0) lane.human = human;
+  else delete lane.human;
+  return dropped;
 }

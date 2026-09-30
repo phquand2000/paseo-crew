@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { openLane as open } from "../lanes/open-lane.ts";
 import { defineTool } from "../services.ts";
+import { humanLines } from "./human-lines.ts";
 
 export const openLane = defineTool({
   name: "open_lane",
@@ -11,6 +12,7 @@ export const openLane = defineTool({
     appetite: z.string().optional(),
     deadline: z.string().optional(),
     outOfScope: z.array(z.string()).optional(),
+    human: humanLines,
     issue: z.string().optional(),
     isolate: z.boolean().optional(),
     base: z.string().optional(),

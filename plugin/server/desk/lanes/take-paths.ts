@@ -26,7 +26,7 @@ export async function takePaths(
   const serial = await serialIn(desk.kit, project, project.root);
   const done = take(desk, caller, lane.id, strs(args.paths), { serial, why: str(args.why) });
   if (typeof done === "string") return no(done);
-  recordEvent(project, { kind: "lane.amended", lane: lane.id, fields: ["writeSet"], by: caller.id });
+  recordEvent(project, { kind: "lane.amended", lane: lane.id, fields: ["writeSet"], by: caller.id, humanDropped: 0 });
   const supervisor = await desk.roster.supervisorFor(project, done.lane.opener);
   const note = besideNote(done.beside, "now works");
   if (supervisor) await desk.mail.post(supervisor, workLetters.taken(done.lane, done.amendment, note));

@@ -8,8 +8,8 @@ import { readJsonFile, writeJson } from "../core/store.ts";
 /** Run in order at plugin start, before anything reads a kept file. */
 type StateStep = { to: number; machine?: (root: string) => void; project?: (state: string) => void };
 
-// State 1 is the format 3.0.0 locked; the first change to a kept file after it adds its step here.
-const STEPS: StateStep[] = [];
+// State 1 is the format 3.0.0 locked. State 2 lets a lane cite the Human for its lines, which state 1 files never do.
+const STEPS: StateStep[] = [{ to: 2 }];
 
 const MACHINE_FILES = ["state.json", "settings.json", "outbox.json", "content.json", "intents.json", "keys.json"];
 const PROJECT_FILES = ["ledger.json", "incidents.json", "project.json", "meta.json", "settings.json"];

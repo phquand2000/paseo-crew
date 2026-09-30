@@ -79,7 +79,7 @@ test("files kept before 3.0.0 are state 1, whatever number a build before it lef
   const stamped = readJson<Record<string, unknown>>(join(shop, "ledger.json"), {});
   assert.deepEqual([stamped.format, stamped.version], [1, undefined], "the earlier number goes with the stamp");
   assert.deepEqual([backupsIn(root), backupsIn(shop)], [[], []]);
-  assert.equal(loadLedger(shop).tasks["L1-T1"]!.status, "merged");
+  assert.deepEqual((stamped.tasks as Record<string, { status: string }>)["L1-T1"]?.status, "merged");
 });
 
 test("a step carries every project and the machine, keeps a copy of the files first, and runs once", () => {

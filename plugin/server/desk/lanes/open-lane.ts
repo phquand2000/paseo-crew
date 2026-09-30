@@ -22,6 +22,7 @@ import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { afterIds, waitsFor } from "../waiting/rules.ts";
+import { type Claimed, humanClaims, strayLine } from "./human-lines.ts";
 import { openedReply, startLead } from "./lead-seat.ts";
 import { placement } from "./placement.ts";
 
@@ -33,6 +34,7 @@ type OpenLaneCall = {
   appetite?: string;
   deadline?: string;
   outOfScope?: string[];
+  human?: Claimed[];
   issue?: string;
   isolate?: boolean;
   base?: string;
@@ -61,8 +63,13 @@ type Plan = {
 /** Opens a lane now, or records it waiting for the lanes it names; a Lead is started for one that opens. */
 export async function openLane(desk: DeskServices, caller: Caller, asked: OpenLaneCall): Promise<ToolReply> {
   const { project } = caller;
+  const claims = await humanClaims(desk, caller, asked.human);
+  if (typeof claims === "string") return no(claims);
+  const lines = new Set([...strs(asked.acceptance), ...strs(asked.outOfScope)]);
+  const stray = claims.find((claim) => !lines.has(claim.line));
+  if (stray) return no(strayLine(stray));
   const config = loadConfig(project.state);
-  const plan = await planOpen(project, config, asked);
+  const plan = await planOpen(project, config, { ...asked, human: claims });
   if (typeof plan === "string") return no(plan);
   const fault = seedGate(desk.kit, project, config);
   if (fault) return no(fault);
@@ -234,6 +241,7 @@ function laneOf(
     appetite: str(args.appetite) || undefined,
     deadline: str(args.deadline) || undefined,
     outOfScope: strs(args.outOfScope),
+    human: args.human?.length ? args.human : undefined,
     issue: issue?.url,
     base: place.base,
     branch: place.branch ?? `lane/${id.toLowerCase()}-${slugify(title, 24)}`,
