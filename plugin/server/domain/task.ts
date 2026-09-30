@@ -40,6 +40,12 @@ export function openWork(task: { kind?: string; status: TaskStatus }): boolean {
 }
 export const IN_QUEUE: readonly TaskStatus[] = ["queued", "merging"];
 export const AT_WORK: readonly TaskStatus[] = ["running", "rework"];
+// A Peer that still owes its task a hand-back, stalled included: its Lead may hold it until another task lands.
+export const OWES_HANDBACK: readonly TaskStatus[] = [...AT_WORK, "stalled"];
+
+/** Held by its Lead, while its Peer works it, until the tasks of its `after` land. */
+export const heldAtWork = (task: Pick<Task, "status" | "held">): boolean =>
+  OWES_HANDBACK.includes(task.status) && task.held !== undefined;
 // A task in the lane's copy has it on its own branch from its start until it is merged or cut, a failed merge included.
 export const HOLDS_COPY: readonly TaskStatus[] = [
   "running",

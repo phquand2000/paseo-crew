@@ -1,6 +1,6 @@
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
-import type { Task } from "../../domain/task.ts";
+import { OWES_HANDBACK, type Task, heldAtWork } from "../../domain/task.ts";
 
 /** The ids an `after` names, as the ledger keys them, each once. */
 export const afterIds = (ids: string[]): string[] => [...new Set(ids.map((id) => id.trim().toUpperCase()))];
@@ -80,13 +80,21 @@ export function laneAfterProblem(ledger: Ledger, lane: Lane, after: string[]): s
   return loop ? `Lane ${lane.id} would wait for itself through ${loop}, so it could never open.` : undefined;
 }
 
-/** Why a task cannot wait on `after` instead: it no longer waits, one of them cannot be waited for, or it would loop. */
+/** Why a task cannot wait on `after` instead: it neither waits nor is worked, one cannot be waited for, or it would loop. */
 export function taskAfterProblem(ledger: Ledger, task: Task, after: string[]): string | undefined {
-  if (task.status !== "waiting")
-    return `${task.id} is ${task.status}; after orders only a task still waiting to start.`;
+  const atWork = OWES_HANDBACK.includes(task.status);
+  if (task.status !== "waiting" && !atWork)
+    return `${task.id} is ${task.status}; after orders a task still waiting to start, or one its Peer is at work on.`;
   const pending = taskWaitsFor(ledger, task.lane, after);
   if (typeof pending === "string") return `${pending} Take it out of after.`;
-  const waiting = (id: string) => (ledger.tasks[id]?.status === "waiting" ? ledger.tasks[id].after : undefined);
+  if (atWork && after.length > 0 && pending.length === 0)
+    return `${after.join(", ")} merged already; ${task.id} has nothing of it to wait for.`;
+  const waiting = (id: string) => {
+    const entry = ledger.tasks[id];
+    return entry && (entry.status === "waiting" || heldAtWork(entry)) ? entry.after : undefined;
+  };
   const loop = loopThrough(task.id, after, waiting);
-  return loop ? `${task.id} would wait for itself through ${loop}, so it could never start.` : undefined;
+  return loop
+    ? `${task.id} would wait for itself through ${loop}, so it could never ${atWork ? "go on" : "start"}.`
+    : undefined;
 }

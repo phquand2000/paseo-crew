@@ -1,4 +1,4 @@
-import { DECIDED } from "../../domain/task.ts";
+import { DECIDED, OWES_HANDBACK } from "../../domain/task.ts";
 import { laneTask } from "../access.ts";
 import { type Args, type Caller, type ToolReply, given, no, ok, str } from "../context.ts";
 import { repeatsIncident } from "../store/incidents.ts";
@@ -39,8 +39,15 @@ export async function amendTask(desk: DeskServices, caller: Caller, args: Args):
     if (done.amendment.was.after) await startWaiting(desk, caller.project, true);
     return ok(`${done.task.id} is amended; it starts as it is now.${note}`);
   }
-  const posted = await desk.mail.post(done.task.peer, workLetters.amended(done.task, done.amendment, "worker"));
-  const told = posted === "nobody" ? ", and it has no Peer to tell" : "; its Peer has it at its next turn";
+  const waits = done.task.held ? done.task.after : undefined;
+  const letter = workLetters.amended(done.task, done.amendment, "worker", undefined, waits);
+  const posted = await desk.mail.post(done.task.peer, letter);
+  const told =
+    posted === "nobody"
+      ? ", and it has no Peer to tell"
+      : waits
+        ? `; its Peer waits for ${waits.join(", ")} unnudged, and is told when they land`
+        : "; its Peer has it at its next turn";
   return ok(`${done.task.id} is amended${told}.${note}`);
 }
 
@@ -92,6 +99,8 @@ function record(
     if (!amendment) return `Nothing about ${task.id} would change; pass the fields it asks differently now.`;
     task.updatedAt = Date.now();
     if (amendment.was.after) delete task.held;
+    if (amendment.was.after && OWES_HANDBACK.includes(task.status) && task.after?.length)
+      task.held = { why: `waits for ${task.after.join(", ")}` };
     const note = hinted ? hintedNote(task.id, hinted) : holds && outsideNote(lane, task.id, holds);
     return { task: { ...task }, amendment, note };
   });

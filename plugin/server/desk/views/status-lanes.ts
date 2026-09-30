@@ -90,8 +90,10 @@ export function seatLine(seats: Seats, id: string | undefined, now: number): str
 
 /** How a task stands on its line: who works it, what it waits for, its hand-back, and its Peer while kept after it. */
 function taskDetail(ledger: Ledger, task: Task, seats: Seats, now: number, doing?: Watched): string {
-  if (AT_WORK.includes(task.status))
-    return `, Peer ${seatLine(seats, task.peer, now)}${turnLine(seats, task.peer, now, doing)}`;
+  if (AT_WORK.includes(task.status)) {
+    const waits = task.held ? `, held until ${task.after?.join(", ")} land` : "";
+    return `, Peer ${seatLine(seats, task.peer, now)}${turnLine(seats, task.peer, now, doing)}${waits}`;
+  }
   if (task.status === "waiting") {
     const after = task.after?.length ? `, after ${task.after.join(", ")}` : "";
     return `${after}${task.held ? `. Not started: ${task.held.why}` : ""}`;

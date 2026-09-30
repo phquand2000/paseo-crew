@@ -79,6 +79,7 @@ export const workLetters = {
     amendment: Amendment,
     reader: "lead" | "worker",
     human: { claims: HumanClaim[]; dropped: HumanLine[] } = { claims: [], dropped: [] },
+    waits?: string[],
   ): Letter {
     const now = entry as unknown as Record<string, string | string[]>;
     const show = (value: string | string[]) => (Array.isArray(value) ? list(value) : value || "none");
@@ -103,7 +104,9 @@ export const workLetters = {
     const next =
       reader === "lead"
         ? "Carry it into the tasks it touches (amend_task a moved goal; cut and restart a task whose contract changed), then report ready once the lane meets it."
-        : "Work to it as it stands now; if what you have done no longer fits it, say so in your hand-back.";
+        : waits
+          ? `Wait for ${waits.join(", ")}: end your turn and leave your work as it is; the desk tells you when they land.`
+          : "Work to it as it stands now; if what you have done no longer fits it, say so in your hand-back.";
     return mail("amended", [entry.id, entry.amended?.length ?? 0], text, next);
   },
 
@@ -124,6 +127,21 @@ export const workLetters = {
       [entry.id, hash(why)],
       waited(entry, `${"lane" in entry ? "it has not started" : "it is not open"}: ${why}`),
       next,
+    );
+  },
+
+  /** What a Peer its Lead held was waiting for has landed, or was cut and never will. */
+  landed(task: Task, merged: string[], cut: string | undefined): Letter {
+    const what = cut
+      ? `${cut}: what your Lead had you wait for will not land.`
+      : `${merged.join(", ")} merged, what your Lead had you wait for.`;
+    return mail(
+      "landed",
+      [task.id, hash(what)],
+      `GO ON ${task.id} (${task.title}): ${what}`,
+      cut
+        ? "Go on without it if your task still stands on its own; else ask your Lead."
+        : "Go on from where you stopped; bring the lane into your branch first if you build on it.",
     );
   },
 

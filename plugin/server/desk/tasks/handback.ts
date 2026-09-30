@@ -228,6 +228,8 @@ function record(
     if (!entry) return "gone";
     if (!TASK.move(entry, "handBack")) return entry.status;
     entry.silent = 0;
+    // Handed back, it waits for nothing its Lead held it for: what comes next is the Lead's call.
+    delete entry.held;
     const gate = written.gate ? { gate: { ...written.gate, sha: commit } } : {};
     entry.handback = {
       file: written.file,

@@ -18,6 +18,7 @@ import { keptFor } from "../seats/kept.ts";
 import { startPeer } from "../tasks/peer-seat.ts";
 import { taskPlacement } from "../tasks/placement.ts";
 import { type Holding, noteHeld } from "./held.ts";
+import { wakeHeld } from "./held-work.ts";
 import { taskWaitsFor } from "./rules.ts";
 
 /**
@@ -30,6 +31,7 @@ export async function startWaiting(
   retryHeld: boolean,
   answered: ReadonlySet<string> = new Set(),
 ): Promise<void> {
+  await wakeHeld(desk, project);
   await putBackHalfStarted(desk, project);
   const ledger = loadLedger(project.state);
   const due = Object.values(ledger.tasks).filter(

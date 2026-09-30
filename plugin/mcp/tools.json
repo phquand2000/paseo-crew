@@ -1168,7 +1168,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Every task it waits for now, while it still waits to start; [] to start as soon as nothing else holds it."
+            "description": "Every task it waits for now: one waiting starts once they merge; one at work waits unnudged, told when they land. [] ends the wait."
           }
         },
         "required": [

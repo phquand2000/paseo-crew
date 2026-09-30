@@ -287,7 +287,7 @@ test("tasks that wait are recorded, amended, held while the lane's copy is taken
   );
   const reorder = (task: string, after: string[]) =>
     h.call(lead, "lead", "amend_task", { task, why: "the order changed", after });
-  assert.match((await reorder("L1-T3", [])).text, /L1-T3 is running; after orders only a task still waiting to start/);
+  assert.match((await reorder("L1-T3", ["L1-T1"])).text, /L1-T1 merged already; L1-T3 has nothing of it to wait for/);
   await add("w", "Wait", { hints: ["e.txt"], after: ["L1-T5"] });
   assert.match(
     (await reorder("L1-T5", ["l1-t6"])).text,

@@ -198,6 +198,8 @@ export class TurnRules {
     if (this.deps.desk.inFlight(event.agent.id)) return;
     // Told to end its turn once it asked: it is waiting, and the ask round keeps the wait in its reader's sight.
     if (openAskOf(ledger, event.agent.id, task.id)) return;
+    // Held by its Lead until another task lands: the desk wakes it then.
+    if (task.held) return;
     await this.silent(project, ledger.lanes[task.lane], task, event, text);
   }
 
