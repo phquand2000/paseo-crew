@@ -90,13 +90,17 @@ Roles are data in `plugin/roles.json`, not code, and each has the tools listed i
 Any role can sit on any of these five agents. You pick one per role in the panel, with its model and
 thinking level where the agent offers them.
 
-| Agent | Before its first seat | Sandbox | Mail into a running turn |
-|---|---|---|---|
-| Claude Code | `claude` signed in | yes | yes |
-| Codex | `codex login` once; the `codex` CLI must be on the machine that runs the daemon | yes | yes |
-| Pi | `pi` signed in, and `pi install npm:pi-mcp-adapter` once: the adapter is how a Pi seat reaches the desk | no | yes |
-| Oh My Pi | `omp` signed in once, outside any seat (`/login`) | no | no, it waits for the turn to end |
-| OpenCode | `opencode auth login` once, outside any seat | no | yes |
+| Agent | Before its first seat | Sandbox |
+|---|---|---|
+| Claude Code | `claude` signed in | yes |
+| Codex | `codex login` once; the `codex` CLI must be on the machine that runs the daemon | yes |
+| Pi | `pi` signed in, and `pi install npm:pi-mcp-adapter` once: the adapter is how a Pi seat reaches the desk | no |
+| Oh My Pi | `omp` signed in once, outside any seat (`/login`) | no |
+| OpenCode | `opencode auth login` once, outside any seat | no |
+
+No agent is sent mail inside a running turn: a seat's letters wait for its turn to end, or come with
+the reply to its next desk call, as one message that lists them first. Only holding a lane cuts a
+turn short.
 
 Every seat reads your project's own instructions: Claude Code reads `CLAUDE.md`, or `AGENTS.md` when
 the project has no `CLAUDE.md`, and the others read `AGENTS.md`. Every seat's `PATH` refuses the

@@ -91,7 +91,7 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   await h.idle(peer);
   const watched = h.agents.get(peer)!;
   assert.deepEqual(
-    [...watched.sent, ...watched.steered].filter((text) => /INCIDENT|irreversible|--force|incident/i.test(text)),
+    watched.sent.filter((text) => /INCIDENT|irreversible|--force|incident/i.test(text)),
     [],
     "nor reaches it when its turn ends",
   );

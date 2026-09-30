@@ -18,10 +18,9 @@ type Handle = {
   cwd?: string | null;
   archivedAt?: string | null;
   pendingPermissions?: PendingPermission[];
-  activeTurn?: { startedAt?: string | null } | null;
   refresh(): Promise<unknown>;
   current(): { id?: string; provider?: string; cwd?: string | null; title?: string | null } | null | undefined;
-  send(text: string, options?: { messageId?: string; activeTurnBehavior?: "steer" | "interrupt" }): Promise<unknown>;
+  send(text: string, options?: { messageId?: string; activeTurnBehavior?: "interrupt" }): Promise<unknown>;
   respondToPermission(options: { requestId: string; response: PermissionResponse }): Promise<unknown>;
   archive(): Promise<unknown>;
   timeline: TimelineHandle;
@@ -43,7 +42,6 @@ function lookOf(handle: Handle): SeatLook {
     status: handle.status ?? null,
     archivedAt: handle.archivedAt ?? null,
     pendingPermissions: handle.pendingPermissions ?? [],
-    turnStartedAt: handle.activeTurn?.startedAt ?? null,
   };
 }
 
@@ -85,7 +83,7 @@ export function seatsOn(bound: Bound): Seats {
       await handle.refresh();
       return lookOf(handle);
     },
-    async send(id: string, text: string, kinds: string[], into?: "steer" | "interrupt"): Promise<void> {
+    async send(id: string, text: string, kinds: string[], into?: "interrupt"): Promise<void> {
       // The daemon takes `activeTurnBehavior` though the SDK's type leaves it out; the id is how `typed` and `sentBy` know the desk sent it.
       await ref(id).send(text, { messageId: deskId(kinds), ...(into ? { activeTurnBehavior: into } : {}) });
     },

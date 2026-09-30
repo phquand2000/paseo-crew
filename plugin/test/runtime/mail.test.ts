@@ -7,7 +7,7 @@ import { sentBy } from "../../server/core/sent-by.ts";
 import { contracts } from "../../shared/rpc.ts";
 import { reported } from "../console.ts";
 import { tempDir } from "../tempdir.ts";
-import { harness } from "./harness.ts";
+import { harness, laneWithPeer } from "./harness.ts";
 import { book } from "./noticed.ts";
 
 type Harness = ReturnType<typeof harness>;
@@ -307,68 +307,47 @@ test("a call that runs longer than a seat can wait is answered once by mail, and
   assert.match(heard(h, lead), new RegExp(`Gate: ${gate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} passed`));
 });
 
-test("mail reaches a running seat inside its turn where its harness can take it there, and waits where it cannot", async (t) => {
-  const h = harness();
-  // omp takes mail only between turns.
-  writeFileSync(
-    join(h.project.state, "settings.json"),
-    JSON.stringify({ roles: { peer: { harness: "omp", model: "glm-5" } } }),
-  );
-  const sup = h.add(SUPERVISOR, h.root, "sup");
-  const { lead, peer } = await lane(h, sup, "Pricing", "Round");
-  assert.deepEqual([h.agents.get(lead)!.status, h.agents.get(peer)!.status], ["running", "running"]);
-
-  // Paseo turns a steer the provider cannot take yet into replacing the turn, so a new turn is left alone.
-  t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
-  await h.beginTurn(lead);
-  await h.beginTurn(peer);
-  // The plugin reloads mid-turn: when a turn began is Paseo's to say, not the plugin's memory.
-  h.restart();
-  const early = await h.call(sup, "supervisor", "message", { to: "L1", text: "Is the premise right?" });
-  assert.match(early.text, /Queued for the Lead of L1/);
-  t.mock.timers.tick(2 * 60_000);
-  await h.tick();
-  assert.match(h.agents.get(lead)!.steered.join("\n"), /Is the premise right\?/, "delivered once the turn has settled");
-
-  const toLead = await h.call(sup, "supervisor", "message", { to: "L1", text: "Stop: the premise is wrong." });
-  assert.match(toLead.text, /Delivered to the Lead of L1/);
-  assert.match(h.agents.get(lead)!.steered.join("\n"), /the premise is wrong/, "the Lead's harness takes it mid-turn");
-  const toPeer = await h.call(lead, "lead", "message", { to: "L1-T1", text: "Stop: the premise is wrong." });
-  assert.match(toPeer.text, /Queued for the Peer on L1-T1/);
-  assert.deepEqual(h.agents.get(peer)!.sent, [], "the Peer's harness cannot, and sending would replace its turn");
-});
-
-test("a running Lead is steered only word that bears on its turn: its Peers' hand-backs wait, and reach it together when the turn ends", async (t) => {
-  const h = harness();
-  const sup = h.add(SUPERVISOR, h.root, "sup");
-  const { lead } = await lane(h, sup, "Pricing");
-  for (const [title, holds] of [
-    ["Rates", "a.txt"],
-    ["Quotes", "b.txt"],
-  ] as const)
-    await h.call(lead, "lead", "add_tasks", { tasks: [{ ...task(title, holds), holds: [holds], parallel: true }] });
+test("a running Lead is never cut into, whatever its agent: a message and its Peer's hand-back wait, and reach it as one when its turn ends", async (t) => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  await h.idle(lead);
   const seat = h.agents.get(lead)!;
+  const before = seat.sent.length;
   seat.status = "running";
   t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
   await h.beginTurn(lead);
-  for (const id of ["L1-T1", "L1-T2"]) {
-    t.mock.timers.tick(2 * 60_000);
-    const handing = h.ledger().tasks[id]!;
-    h.commit(handing.worktree!, handing.hints[0]!, `${id}\n`);
-    const done = await h.call(handing.peer!, "peer", "done", { outcome: "complete", summary: id });
-    assert.equal(done.ok, true, done.text);
-    await h.tick();
-  }
-  const steered = () => seat.steered.join("\n");
-  assert.doesNotMatch(steered(), /HANDBACK/, "a hand-back asks nothing of the turn the Lead is in");
+  t.mock.timers.tick(10 * 60_000);
+  const told = await h.call(sup, "supervisor", "message", { to: "L1", text: "Stop: the premise is wrong." });
+  assert.match(told.text, /Queued for the Lead of L1/, "however long its turn has run");
+  h.commit(h.ledger().tasks["L1-T1"]!.worktree!, "a.txt", "A\n");
+  assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" })).ok, true);
+  await h.tick();
+  assert.equal(seat.sent.length, before, "nothing cuts into a turn it thinks or writes in");
+  await h.idle(lead);
+  assert.match(seat.sent.at(-1)!, /^2 messages[^]*the premise is wrong[^]*HANDBACK L1-T1 /, "both, in one message");
+});
 
-  await h.call(sup, "supervisor", "message", { to: "L1", text: "Stop: the premise is wrong." });
-  assert.match(steered(), /the premise is wrong/, "word that bears on the turn goes into it");
-  assert.doesNotMatch(steered(), /HANDBACK/, "alone");
-
-  seat.status = "idle";
-  await h.endTurn(lead, "weighed the premise");
-  assert.match(seat.sent.at(-1) ?? "", /HANDBACK L1-T1[\s\S]*HANDBACK L1-T2/, "both in one message");
+test("word held for a seat rides the reply to its own call inside a turn, and wakes nobody", async () => {
+  const h = harness();
+  const sup = h.add(SUPERVISOR, h.root, "sup");
+  let n = 0;
+  const status = (stop = new AbortController()) =>
+    h.runtime.answer(
+      { id: `c${++n}`, agent: sup, role: "supervisor", tool: "status", args: {}, cwd: h.root, at: Date.now() },
+      stop.signal,
+    );
+  await h.idle(sup);
+  await h.runtime.outbox.post({ to: sup, key: "land:L1:landed", text: "LANDED L1 (Cart)", wakes: false });
+  h.agents.get(sup)!.status = "running";
+  await h.beginTurn(sup);
+  const stopped = new AbortController();
+  stopped.abort();
+  assert.doesNotMatch((await status(stopped)).text, /LANDED L1/, "a reply nobody will read carries nothing");
+  assert.match((await status()).text, /\n\n---\n\nMail the desk held for you:\n\n[^]*LANDED L1 \(Cart\)/);
+  assert.deepEqual(h.runtime.outbox.pending(sup), []);
+  h.agents.get(sup)!.status = "idle";
+  await h.endTurn(sup, "L1 has landed.");
+  assert.deepEqual(h.agents.get(sup)!.sent, [], "nothing is sent to start another turn");
 });
 
 test("word a Peer had not read when it handed back waits for the next letter that asks something of it", async () => {

@@ -1,6 +1,5 @@
 import { recordEvent } from "../store/event-log.ts";
 import type { Attention } from "../../../shared/views.ts";
-import { seatOf } from "../../catalog/kit/roles.ts";
 import { type Finding, type Held, deliveryOf, hold, tell, unheard } from "../../domain/incident.ts";
 import { type Moment, momentCases } from "./checks.ts";
 import {
@@ -179,9 +178,7 @@ async function deliver(
   sending: Incident[],
   now: number,
 ): Promise<string[]> {
-  const { kit, incidents, mail } = services;
-  const harness = seatOf(kit, seat.provider)?.harness;
-  const steers = harness?.steers === true;
+  const { incidents, mail } = services;
   const told: string[] = [];
   for (const level of ["page", "attend"] as const) {
     const batch = sending.filter((incident) => incident.level === level);
@@ -211,7 +208,7 @@ async function deliver(
     });
     for (const incident of batch) {
       try {
-        await mail.post(to, watchLetters.incident(incident, place, steers, as));
+        await mail.post(to, watchLetters.incident(incident, place, as));
       } catch (error) {
         recordEvent(project, { kind: "incident.post-failed", id: incident.id, error: errorText(error) });
       }

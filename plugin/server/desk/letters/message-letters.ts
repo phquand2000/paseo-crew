@@ -1,7 +1,7 @@
 import { clip, hash, outside } from "../../core/text.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { IN_QUEUE, type Task } from "../../domain/task.ts";
-import { type Letter, mail, steering } from "./envelope.ts";
+import { type Letter, mail } from "./envelope.ts";
 
 /** A call a seat was told to stop waiting for: the one identity its late answer and its lost answer share. */
 type Waited = { agent: string; tool: string; started: number };
@@ -24,15 +24,13 @@ export const messageLetters = {
       "",
       reply.ok ? reply.text : `It was refused: ${reply.text}`,
     ].join("\n");
-    return steering(
-      mail(
-        "later",
-        [hash(call.agent, call.tool, String(call.started))],
-        text,
-        reply.ok
-          ? "Go on from this answer as if the call had just returned it."
-          : "Read why it was refused before you call it again.",
-      ),
+    return mail(
+      "later",
+      [hash(call.agent, call.tool, String(call.started))],
+      text,
+      reply.ok
+        ? "Go on from this answer as if the call had just returned it."
+        : "Read why it was refused before you call it again.",
     );
   },
 
@@ -51,7 +49,7 @@ export const messageLetters = {
       reader === "worker"
         ? "Carry it into your work from now on, and answer what it asks in your hand-back, or with ask if a reply cannot wait."
         : "Carry it into your lane from now on, and answer what it asks with report, or with ask if you need a decision back first.";
-    return steering(mail("message", sendingIds(sending, text), [`MESSAGE from ${from}`, "", text].join("\n"), next));
+    return mail("message", sendingIds(sending, text), [`MESSAGE from ${from}`, "", text].join("\n"), next);
   },
 
   /** The Supervisor may reach a Peer directly but never out of the Lead's sight: this carries what the Lead needs to put its picture right. */
@@ -71,13 +69,11 @@ export const messageLetters = {
           ? `Integration and acceptance: you have already accepted ${task.id} and it is waiting to merge; nothing here changed that.`
           : `Integration and acceptance: unchanged. Accepting ${task.id} is still yours to judge, and nothing here accepted it.`,
     ].join("\n");
-    return steering(
-      mail(
-        "reconcile",
-        ["message", ...sendingIds(sending, text)],
-        letter,
-        "If this changes what you were going to do, say so in your next report.",
-      ),
+    return mail(
+      "reconcile",
+      ["message", ...sendingIds(sending, text)],
+      letter,
+      "If this changes what you were going to do, say so in your next report.",
     );
   },
 

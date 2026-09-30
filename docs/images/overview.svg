@@ -38,8 +38,8 @@
 <text class="sub" x="358.0" y="334.0" text-anchor="middle">merges · gates · letters</text>
 <rect class="node" x="458" y="282" width="176" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
 <text class="title" x="546.0" y="298.0" text-anchor="middle" style="fill:var(--teal-ink)">outbox</text>
-<text class="sub" x="546.0" y="317.0" text-anchor="middle">letters out: steer,</text>
-<text class="sub" x="546.0" y="334.0" text-anchor="middle">hold, keep or send</text>
+<text class="sub" x="546.0" y="317.0" text-anchor="middle">letters out: hold,</text>
+<text class="sub" x="546.0" y="334.0" text-anchor="middle">keep, send or ride</text>
 <rect class="node" x="270" y="360" width="176" height="58" rx="10" style="fill:var(--teal-fill);stroke-opacity:0.55;stroke:var(--teal)"/>
 <text class="title" x="358.0" y="376.0" text-anchor="middle" style="fill:var(--teal-ink)">patrol</text>
 <text class="sub" x="358.0" y="395.0" text-anchor="middle">every 30 s: lanes,</text>

@@ -341,13 +341,11 @@ to the seat, and a change reaches it as a changed tool list.
 
 **Out.** Every letter goes into one `outbox.json`. A seat's mail is pumped when a letter is posted, when its
 turn ends and after each patrol round, and goes as one message, with the asks waiting on the seat listed last.
-It is:
+Nothing goes into a running turn, on any agent: a seat cut into while it thinks or writes loses the thought, so
+Peers finishing together reach their Lead as one message when its turn ends. A seat's own desk call takes what is
+held for it instead, word that asks nothing included, on the reply under "Mail the desk held for you", unless the
+call was stopped. It is:
 
-- **steered** into a running turn only when a letter bears on that turn (`steer`: a message, the Lead's word that its
-  Peer was reached, an amendment, the answer to its own ask or call, the Human's answer, a page), the agent takes a steer (`steers`), the turn has
-  run 60 s since Paseo says it began, and the seat waits on no desk call. Only those letters go in: a
-  hand-back, report or merge waits for the turn to end, so Peers finishing together reach their Lead as one
-  message rather than splitting its turn;
 - **held** while the seat waits on a permission, runs or starts, or its lane is on hold, and for up to 10
   minutes after its last mail, until it ends a turn;
 - **kept** while every letter for it asks nothing of it (`wakes: false`), such as a task started or a landing

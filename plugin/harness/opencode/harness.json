@@ -6,7 +6,6 @@
   "configDirEnv": "XDG_CONFIG_HOME",
   "contextFile": "opencode/AGENTS.md",
   "skillsDir": "opencode/skills",
-  "steers": true,
   "mcp": {
     "file": "opencode/opencode.json",
     "delivery": "launch",

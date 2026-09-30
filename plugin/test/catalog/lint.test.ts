@@ -137,7 +137,7 @@ test("every tool has a title, says what it changes and describes each field with
   }
 });
 
-test("seat text shouts nothing, never says mail waits for a running turn to end, and never makes one task a lane's norm", () => {
+test("seat text shouts nothing, never says mail comes into a running turn, and never makes one task a lane's norm", () => {
   const texts = [...files(join(PLUGIN, "content"), ".md"), ...deltas].map(
     (file) => [file, readFileSync(file, "utf-8")] as const,
   );
@@ -151,9 +151,9 @@ test("seat text shouts nothing, never says mail waits for a running turn to end,
   for (const [file, text] of texts) {
     assert.deepEqual(text.match(/\b(IMPORTANT|CRITICAL|MUST|NEVER|ALWAYS|DO NOT)\b/g), null, `${file} shouts`);
     assert.deepEqual(
-      text.match(/between (your|its|their) turns|never interrupt|if in doubt/gi),
+      text.match(/inside a running turn|steer(s|ed)? into|arrives mid-turn|if in doubt/gi),
       null,
-      `${file}: mail steers into a running turn on the agents that take that, and a text saying otherwise was believed`,
+      `${file}: mail never comes into a running turn, only at its end or with a desk call's reply, and a text saying otherwise is believed`,
     );
     assert.deepEqual(
       text.match(/usually (just )?one task|one task (per|to a|for the whole) lane/gi),

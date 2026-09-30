@@ -1,5 +1,3 @@
-import type { Kit } from "../../catalog/kit/kit.ts";
-import { seatOf } from "../../catalog/kit/roles.ts";
 import { daemonLog } from "../../core/logger.ts";
 import type { Seats } from "../../core/ports.ts";
 import { HOUR_MS } from "../../core/time.ts";
@@ -21,15 +19,13 @@ export async function composeMail(seats: Seats, to: string, list: Letter[]): Pro
   }
 }
 
-/** Mail waits on a seat's open call to the desk, its lane's hold, its agent's steering and its hand-back; a letter given up on is logged. */
-export function mailRules(kit: Kit, calling: (agentId: string) => boolean): Rules {
+/** Mail waits on its lane's hold and a seat's hand-back; a letter given up on is logged. */
+export function mailRules(): Rules {
   return {
     dropped: (letter, at) =>
       daemonLog.error(
         `a letter for ${letter.to} (${letter.key}) was never taken and has been given up on after ${Math.round((at - letter.at) / HOUR_MS)} hours`,
       ),
-    steers: (seat) => seatOf(kit, seat.provider)?.harness.steers === true,
-    calling,
     holding: (seat) => Boolean(seat.cwd && laneOnHold(projectOf(seat.cwd).state, seat.id)),
     quietBefore: (seat) => (seat.cwd ? handedBackAt(projectOf(seat.cwd).state, seat.id) : undefined),
   };

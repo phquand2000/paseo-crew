@@ -145,7 +145,7 @@ export async function answerAsk(
     told: waiting ?? lead ?? null,
     kept: ask.kept ?? null,
   });
-  const has = posted === "sent" ? "has it" : "reads it as soon as it can take it";
+  const has = posted === "sent" ? "has it" : "reads it when its turn ends, or with the reply to its next desk call";
   const told = waiting ? " Whoever it was waiting on has been told what it was answered with." : "";
   const led = lead ? " Its lane's Lead has been told what it was answered with." : "";
   return ok(`Answered ${ask.id}; the asker ${has}.${told}${led}`);

@@ -15,7 +15,6 @@ export const HarnessFile = z
     profileRoot: text,
     contextFile: text.optional(),
     skillsDir: text,
-    steers: z.boolean().optional(),
     stateWrites: Grant.optional(),
     hideSkills: z.strictObject({ roots: z.array(text).min(1), setting: text }).optional(),
     projectContextOption: text.optional(),

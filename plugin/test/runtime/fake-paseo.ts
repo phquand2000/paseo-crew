@@ -21,7 +21,6 @@ type Fake = {
   updatedAt: string;
   sent: string[];
   sentIds: string[];
-  steered: string[];
   interrupted: string[];
   pending: Pending[];
   answered: {
@@ -66,9 +65,6 @@ export function fakePaseo() {
       get pendingPermissions() {
         return agent?.pending ?? [];
       },
-      get activeTurn() {
-        return timelineOf(id).activeTurn;
-      },
       async refresh() {},
       current() {
         return agent ? { id: agent.id, provider: agent.provider, cwd: agent.cwd, title: agent.title } : null;
@@ -76,7 +72,6 @@ export function fakePaseo() {
       async send(text: string, options?: { activeTurnBehavior?: string; messageId?: string }) {
         agent?.sent.push(text);
         if (options?.messageId) agent?.sentIds.push(options.messageId);
-        if (options?.activeTurnBehavior === "steer") agent?.steered.push(text);
         if (options?.activeTurnBehavior === "interrupt") agent?.interrupted.push(text);
       },
       async respondToPermission({ requestId, response }: Fake["answered"][number]) {
@@ -118,7 +113,6 @@ export function fakePaseo() {
       updatedAt: new Date().toISOString(),
       sent: [],
       sentIds: [],
-      steered: [],
       interrupted: [],
       pending: [],
       answered: [],

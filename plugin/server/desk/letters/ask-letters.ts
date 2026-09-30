@@ -1,7 +1,7 @@
 import type { Question } from "../../domain/question.ts";
 import type { Ask } from "../../domain/ask.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Letter, firstLine, fyi, mail, steering } from "./envelope.ts";
+import { type Letter, firstLine, fyi, mail } from "./envelope.ts";
 
 const theirDefault = (ask: Ask): string[] => (ask.default ? ["", `Their default: ${ask.default}`] : []);
 
@@ -65,13 +65,11 @@ export const askLetters = {
     if (question.answer?.text) lines.push("", "Their note, their own words:", question.answer.text);
     if (lane?.onHold) lines.push("", `Lane ${lane.id} is still on hold for it.`);
     const next = answeredNext(question) + (carried.length ? `; answer ${carried.join(", ")}, which it carries` : "");
-    return steering(
-      mail(
-        "humananswered",
-        [question.id],
-        lines.join("\n"),
-        lane?.onHold ? `${next}; then resume_lane ${lane.id}.` : `${next}.`,
-      ),
+    return mail(
+      "humananswered",
+      [question.id],
+      lines.join("\n"),
+      lane?.onHold ? `${next}; then resume_lane ${lane.id}.` : `${next}.`,
     );
   },
 
@@ -79,17 +77,15 @@ export const askLetters = {
   answered(ask: Ask, carried: string[] = [], leads = false): Letter {
     const names = carried.join(", ");
     const amend = leads ? "amend_task any task whose acceptance it changes, " : "";
-    return steering(
-      mail(
-        "answer",
-        [ask.id],
-        [`ANSWER to your ask ${ask.id}`, "", ask.answer ?? ""].join("\n"),
-        carried.length
-          ? `It carries ${names}: answer ${names} for its Peer from it, ${amend}then go on with your work.`
-          : leads
-            ? `From it, ${amend}then go on with your work.`
-            : "Go on with your work from it.",
-      ),
+    return mail(
+      "answer",
+      [ask.id],
+      [`ANSWER to your ask ${ask.id}`, "", ask.answer ?? ""].join("\n"),
+      carried.length
+        ? `It carries ${names}: answer ${names} for its Peer from it, ${amend}then go on with your work.`
+        : leads
+          ? `From it, ${amend}then go on with your work.`
+          : "Go on with your work from it.",
     );
   },
 
@@ -123,13 +119,11 @@ export const askLetters = {
   /** Whoever supervises sees a Peer's default overruled by its Lead, without being woken for it. */
   /** A decision that cannot be undone waits for the Human: the Lead keeps off what it decides and plans the rest around it. */
   pending(question: Question): Letter {
-    return steering(
-      mail(
-        "pending",
-        [question.id],
-        `DECISION PENDING ${question.id}, the Human's to make: ${firstLine(question.question)}\n\nNothing it decides goes ahead until they answer; what it does not touch goes on.`,
-        "Keep the lane off what it decides, and carry on with the rest; the Supervisor carries their answer into the lane.",
-      ),
+    return mail(
+      "pending",
+      [question.id],
+      `DECISION PENDING ${question.id}, the Human's to make: ${firstLine(question.question)}\n\nNothing it decides goes ahead until they answer; what it does not touch goes on.`,
+      "Keep the lane off what it decides, and carry on with the rest; the Supervisor carries their answer into the lane.",
     );
   },
 

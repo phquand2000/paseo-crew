@@ -303,11 +303,14 @@ when its turn ends, and each round. The first row that fits decides:
 | The seat is archived | Never sent, nor passed to another seat. `status.md` lists them, with when each is given up on, until they age out |
 | The seat has a pending permission | Held |
 | The seat's lane is on hold | Held until `resume_lane`, or until the lane is dropped |
-| Running, a letter for it bears on the turn (MESSAGE, RECONCILE, AMENDED, ANSWER, HUMAN ANSWERED, DECISION PENDING, a call's late answer, a page incident), its agent `steers`, the turn started at least 60 s ago, and it waits on no desk call | Those letters alone are **steered** into the turn; the rest wait for it to end |
 | Running or starting | Held |
 | Mailed less than 10 minutes ago, with no turn end since | Held |
 | Every letter for it asks nothing of it, or was posted before the Peer handed its task back and it has not been sent back to work since | Held until one that does |
 | Otherwise | Sent: every letter waiting for it in one message, with the open asks put to it |
+
+Nothing is sent into a running turn, on any agent. A seat's own desk call takes everything held for it instead,
+word that asks nothing included, on its reply under "Mail the desk held for you"; not past a pending permission or
+a hold, and not on a call its harness stopped.
 
 | Timing | Value |
 |---|---|
@@ -545,7 +548,6 @@ named, except inside the blocks passed to the agent as they are: `mcp.seed`, `mc
 | `projectContextOption` | The provider option that receives the working directory |
 | `sockets` | The sandbox setting that receives the unix sockets a role that writes code may reach, at launch or in the settings file |
 | `tempDirEnv` | The variable that points the agent's commands at the seat's own temp directory: `TMPDIR`, or Claude Code's `CLAUDE_CODE_TMPDIR`, which sets it |
-| `steers` | Whether mail may be steered into a running turn |
 | `mcpCall`, `mcpServerField` | How the agent names a call to an MCP server, or the field that holds the server's name, so a call to the desk is known as one |
 | `timeline` | Where the agent's timeline differs: where it keeps a command's exit code when not in the call, calls it sends that are not the seat's, and the marks of a call input that was not JSON |
 | `checks` | Files the Health tab looks for |
@@ -792,7 +794,6 @@ it never reached the desk; only Claude marks such calls.
 
 ## Known limits
 
-- **Oh My Pi can't be steered through Paseo.** Mail to a running omp seat waits for its turn to end.
 - **Pi, Oh My Pi and OpenCode have no sandbox.** Pi has no command rules either: a Pi seat is held by its tools and by
   what its `PATH` refuses (the desk's git commands, `gh` and `paseo`), but not by another agent's command, since its own
   agent starts through that same `PATH`. Oh My Pi and OpenCode have command denials, such as `git push`, `gh` and every
@@ -818,8 +819,6 @@ it never reached the desk; only Claude marks such calls.
   a whole folder, so the seat gets one `[[skills.config]]` entry per `SKILL.md` it finds there, by path; by name would
   hide the seat's own skill of that name too. A skill added later shows in the seat until it is rebuilt. A repository's
   own `.agents/skills` stays visible: it belongs to the repository.
-- **A steer Paseo can't hand over replaces the turn.** A Claude seat that is compacting refuses a steer the same way.
-- **A turn running before a daemon restart or a plugin reload** is steered by when Paseo says it began, but read at
-  its end as having started 30 minutes ago.
+- **A turn running before a daemon restart or a plugin reload** is read at its end as having started 30 minutes ago.
 - **A project-layer save** does not rewrite the Paseo providers.
 - **The watch can't see a sub-agent's work.** It is not on the seat's timeline.

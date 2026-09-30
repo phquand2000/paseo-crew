@@ -6,7 +6,6 @@
   "configDirEnv": "PI_CODING_AGENT_DIR",
   "contextFile": "AGENTS.md",
   "skillsDir": "skills",
-  "steers": true,
   "mcp": {
     "file": "mcp.json",
     "delivery": "file",

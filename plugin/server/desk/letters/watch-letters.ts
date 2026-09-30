@@ -3,7 +3,7 @@ import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import type { Finding } from "../../domain/incident.ts";
 import type { Incident } from "../store/incidents.ts";
-import { type Letter, mail, steering } from "./envelope.ts";
+import { type Letter, mail } from "./envelope.ts";
 
 /** The three moments SLP wakes whoever supervises for, as the desk sees them happen. */
 export type Moment = "ARCHITECTURE" | "STRUGGLING" | "TURNING";
@@ -20,12 +20,7 @@ const MOMENT_NEXT: Record<Moment, string> = {
 /** What the watch raises with whoever supervises: an incident, or a moment SLP wakes them for. */
 export const watchLetters = {
   /** `to` is who reads it: a Lead is sent those about its own Peers, and acts on them as their Lead. */
-  incident(
-    incident: Incident,
-    place: { lane?: Lane; task?: Task },
-    steers: boolean,
-    to: "lead" | "supervisor" = "supervisor",
-  ): Letter {
+  incident(incident: Incident, place: { lane?: Lane; task?: Task }, to: "lead" | "supervisor" = "supervisor"): Letter {
     const lines = [
       `INCIDENT ${incident.id} (${oneLine(incident.kind, 40)}, ${incident.level}) on ${oneLine(incident.where, 160)}, agent ${incident.seat}.`,
       "",
@@ -49,9 +44,7 @@ export const watchLetters = {
     }
     lines.push(
       "",
-      steers
-        ? "A message reaches this seat inside a turn that has run a minute; otherwise when the turn ends. One stopped on a permission reads nothing until the Human decides."
-        : "This seat reads mail only when its turn ends; a message waits until then.",
+      "A message never cuts into this seat's turn: it arrives when the turn ends, or with the reply to its next desk call; one stopped on a permission reads nothing until the Human decides. Only hold_lane cuts a turn short.",
       "",
       to === "lead"
         ? "This is a signal to look at, not a verdict: the Peer may be right. What to do is yours as its Lead, in the ordinary way: nothing, a message, a rework, or a cut."
@@ -66,8 +59,7 @@ export const watchLetters = {
           : place.lane
             ? "If it may reach past the lane unasked, hold_lane it and tell the Human; then read the record and mark_incident it."
             : "Tell the Human what it did; then read the record and mark_incident it.";
-    const letter = mail("incident", [incident.id, incident.opened, incident.level], lines.join("\n"), next);
-    return incident.level === "page" ? steering(letter) : letter;
+    return mail("incident", [incident.id, incident.opened, incident.level], lines.join("\n"), next);
   },
 
   /** A page the incident book could not keep, told all the same: it is irreversible and often done already. */
@@ -83,7 +75,7 @@ export const watchLetters = {
     const next = place.lane
       ? "If it may reach past the lane unasked, hold_lane it and tell the Human."
       : "Tell the Human what it did.";
-    return steering(mail("incident", ["unbooked", seat, page.kind, page.quote], text, next));
+    return mail("incident", ["unbooked", seat, page.kind, page.quote], text, next);
   },
 
   moment(heading: Moment, task: Task, what: string): Letter {

@@ -150,7 +150,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     seatLetters.gone(task, "lead"),
     seatLetters.failed("agent-3", 1, "Peer agent-3", "overloaded", "lead"),
     seatLetters.permission("agent-3", "Peer agent-3", { id: "p1", name: "Bash", title: "npm install" }, "lead"),
-    watchLetters.incident(incident, { lane, task }, true, "lead"),
+    watchLetters.incident(incident, { lane, task }, "lead"),
     workLetters.amended(lane, amendment, "lead"),
     seatLetters.notStarted(task),
     workLetters.held(task, "L1-T1 is not accepted yet.", "It starts by itself."),

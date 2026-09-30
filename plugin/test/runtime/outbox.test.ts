@@ -12,9 +12,7 @@ type FakeAgent = {
   pendingPermissions: { title?: string; name?: string }[];
   archivedAt: string | null;
   sent: string[];
-  steered: string[];
   kinds: string[][];
-  turnStartedAt?: string;
 };
 
 function fakeSeats(agents: Record<string, FakeAgent>): Pick<Seats, "look" | "send"> {
@@ -26,13 +24,11 @@ function fakeSeats(agents: Record<string, FakeAgent>): Pick<Seats, "look" | "sen
         status: agent.status,
         pendingPermissions: agent.pendingPermissions,
         archivedAt: agent.archivedAt,
-        turnStartedAt: agent.turnStartedAt,
       };
     },
-    async send(id: string, text: string, kinds: string[], into?: "steer" | "interrupt") {
+    async send(id: string, text: string, kinds: string[]) {
       agents[id]!.sent.push(text);
       agents[id]!.kinds.push(kinds);
-      if (into === "steer") agents[id]!.steered.push(text);
     },
   };
 }
@@ -42,35 +38,26 @@ const agent = (status: string, more: Partial<FakeAgent> = {}): FakeAgent => ({
   pendingPermissions: [],
   archivedAt: null,
   sent: [],
-  steered: [],
   kinds: [],
   ...more,
 });
 
 test("a letter goes to its seat when the seat can take it, and until then is held and kept, never sent twice and never waking a seat for nothing", async () => {
-  const settled = new Date(Date.now() - 2 * 60_000).toISOString();
   const agents = {
     sup: agent("idle"),
     busy: agent("running"),
     asking: agent("idle", { pendingPermissions: [{}] }),
     archived: agent("idle", { archivedAt: "2026-01-01" }),
     real: agent("idle"),
-    lead: agent("running", { turnStartedAt: settled }),
-    fresh: agent("running", { turnStartedAt: new Date().toISOString() }),
-    unseen: agent("running"),
-    peer: agent("running", { turnStartedAt: settled }),
-    stopped: agent("running", { pendingPermissions: [{ title: "Which?" }], turnStartedAt: settled }),
+    lead: agent("running"),
+    peer: agent("running"),
+    stopped: agent("running", { pendingPermissions: [{ title: "Which?" }] }),
     quiet: agent("idle"),
   };
-  // Whether a seat's harness takes mail into a running turn is its own: here, by the seat.
-  const steering = new Set(["lead", "fresh", "unseen", "stopped"]);
   const file = join(tempDir(), "outbox.json");
-  const outbox = new Outbox(file, (_to, list) => list.map((letter) => letter.text).join("|"), fakeSeats(agents), {
-    steers: (seat) => steering.has(seat.id),
-  });
-  const post = (to: string, key: string, text: string, more: { wakes?: false; steer?: true } = {}) =>
+  const outbox = new Outbox(file, (_to, list) => list.map((letter) => letter.text).join("|"), fakeSeats(agents));
+  const post = (to: string, key: string, text: string, more: { wakes?: false } = {}) =>
     outbox.post({ to, key, text, ...more });
-  const steer = { steer: true } as const;
 
   assert.equal(await post("sup", "k1", "one"), "sent", "an idle seat is sent a letter at once");
   assert.deepEqual(agents.sup.sent, ["one"]);
@@ -101,17 +88,28 @@ test("a letter goes to its seat when the seat can take it, and until then is hel
   assert.equal(await post("real", "y", "and this still goes out"), "sent");
   assert.deepEqual(agents.real.sent, ["and this still goes out"]);
 
-  assert.equal(await post("lead", "a", "the owner says stop", steer), "sent");
-  assert.deepEqual(agents.lead.steered, ["the owner says stop"], "into a settled turn, not in place of it");
-  // A steer the provider cannot take yet is turned into replacing the turn by the daemon.
-  assert.equal(await post("fresh", "a", "t", steer), "held");
-  // Nor one Paseo gives no start for, which may have begun a moment ago.
-  assert.equal(await post("unseen", "a", "t", steer), "held");
-  assert.equal(await post("peer", "a", "t", steer), "held", "a harness that cannot take mail mid-turn waits");
-  assert.equal(await post("stopped", "a", "t", steer), "held", "stopped until the permission is decided");
+  for (const [key, text] of [
+    ["done:L1-T1", "L1-T1 handed back"],
+    ["message:L1", "the owner says stop"],
+  ] as const)
+    assert.equal(
+      await post("lead", key, text),
+      "held",
+      "never into a running turn, however long it has run: a Lead cut into while it thinks or writes loses the thought",
+    );
+  assert.equal(await post("peer", "a", "t"), "held");
+  assert.equal(await post("stopped", "a", "t"), "held", "stopped until the permission is decided");
   assert.deepEqual(
-    [agents.fresh, agents.unseen, agents.peer, agents.stopped].flatMap((seat) => seat.sent),
+    [agents.lead, agents.peer, agents.stopped].flatMap((seat) => seat.sent),
     [],
+  );
+  agents.lead.status = "idle";
+  outbox.turnEnded("lead");
+  await outbox.pump("lead");
+  assert.deepEqual(
+    agents.lead.sent,
+    ["L1-T1 handed back|the owner says stop"],
+    "its queue goes as one when the turn ends",
   );
 
   assert.equal(
@@ -153,4 +151,33 @@ test("a letter Paseo will not take is kept for the next try, and the post that w
   await outbox.pump("lead");
   assert.deepEqual(agents.lead.sent, ["merged"]);
   assert.deepEqual(outbox.pending("lead"), []);
+});
+
+test("held mail rides the reply to a seat's own call, word that asks nothing included, but never past a hold", async () => {
+  const agents = {
+    sup: agent("running"),
+    asking: agent("running", { pendingPermissions: [{}] }),
+    held: agent("running"),
+    gone: agent("running"),
+  };
+  const outbox = new Outbox(
+    join(tempDir(), "outbox.json"),
+    (_to, list) => list.map((letter) => letter.text).join("|"),
+    fakeSeats(agents),
+    { holding: (seat) => seat.id === "held" },
+  );
+  await outbox.post({ to: "sup", key: "landed:L1", text: "LANDED L1", wakes: false });
+  await outbox.post({ to: "sup", key: "ask:A1", text: "a question" });
+  assert.equal(await outbox.take("sup"), "LANDED L1|a question");
+  assert.deepEqual(outbox.pending("sup"), [], "taken once: its turn ending sends nothing more");
+  assert.equal(await outbox.post({ to: "sup", key: "ask:A1", text: "a question" }), "duplicate");
+  assert.equal(await outbox.take("sup"), undefined);
+  for (const id of ["asking", "held"]) {
+    await outbox.post({ to: id, key: "x", text: "t" });
+    assert.equal(await outbox.take(id), undefined, `${id}: kept as the outbox keeps it`);
+    assert.equal(outbox.pending(id).length, 1);
+  }
+  await outbox.post({ to: "gone", key: "x", text: "t" });
+  assert.equal(await outbox.take("gone", () => false), undefined, "a reply nobody reads carries none of it");
+  assert.equal(outbox.pending("gone").length, 1);
 });

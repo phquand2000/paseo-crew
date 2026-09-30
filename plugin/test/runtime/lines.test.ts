@@ -97,7 +97,7 @@ test("a seat's line to the desk carries its choices and its calls, and a call st
   const choices = heard.find((said) => said.type === "choices");
   assert.equal(skills(choices).includes("ide-index-mcp"), false, "without the server, its skill is no choice");
 
-  // As seen live: a Lead well into a long turn accepts, and word that bears on its turn comes before that turn ends.
+  // As seen live: a Lead well into a long turn accepts, and word for it waits for that turn to end.
   await h.call(lead, "lead", "add_tasks", {
     tasks: [{ key: "t", title: "Clean build", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["z"] }],
   });
@@ -106,24 +106,21 @@ test("a seat's line to the desk carries its choices and its calls, and a call st
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" });
   h.agents.get(peer)!.status = "idle";
   seat.status = "running";
-  h.timelineOf(lead).activeTurn = { turnId: "t", startedAt: new Date(Date.now() - 2 * 60_000).toISOString() };
   say({ type: "call", id: "accept", tool: "accept", args: { task: "L1-T1" } });
   assert.match((await result("accept")).text ?? "", /L1-T1 is in the merge queue/);
   await h.runtime.desk.settled(h.project);
   await h.call(sup, "supervisor", "message", { to: "L1", text: "Hold the next merge." });
-  const told = () => [...seat.steered, ...seat.sent].filter((text) => /Hold the next merge/.test(text));
+  const told = () => seat.sent.filter((text) => /Hold the next merge|MERGED L1-T1/.test(text));
   assert.deepEqual(told(), [], "a text arriving while a call waits is taken as the call being cut short");
   await h.tick();
   assert.deepEqual(told(), [], "answered is not taken: the harness has not read it yet");
   say({ type: "taken", id: "accept" });
   assert.ok(await within(2000, () => !socket.calling(lead)));
   await h.tick();
-  assert.match(seat.steered.join("\n"), /Hold the next merge/, "the next round delivers what waited");
-  assert.doesNotMatch(
-    seat.steered.join("\n"),
-    /MERGED L1-T1/,
-    "a merge asks nothing of the turn: it waits for its end",
-  );
+  assert.deepEqual(told(), [], "nor once the call is done: the turn is still its own to think and write in");
+  await h.idle(lead);
+  assert.match(told().join("\n"), /Hold the next merge/, "what waited goes once its turn ends");
+  assert.match(told().join("\n"), /MERGED L1-T1/);
 
   const mailed = (tool: string) =>
     within(5000, () =>

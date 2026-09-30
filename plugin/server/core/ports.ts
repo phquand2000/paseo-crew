@@ -10,7 +10,6 @@ export type SeatLook = {
   status?: string | null;
   archivedAt?: string | null;
   pendingPermissions?: PendingPermission[];
-  turnStartedAt?: string | null;
 };
 
 export type SeatSpec = {
@@ -52,8 +51,8 @@ export type Seats = {
   /** Every agent Paseo still holds, archived ones too; throws rather than list them short. */
   existing(): Promise<Set<string>>;
   look(id: string): Promise<SeatLook>;
-  /** Into a running turn only as `into` says: steered in beside it, or the turn cut short for it. */
-  send(id: string, text: string, kinds: string[], into?: "steer" | "interrupt"): Promise<void>;
+  /** Never into a running turn, unless `into` cuts that turn short for it. */
+  send(id: string, text: string, kinds: string[], into?: "interrupt"): Promise<void>;
   /** The last `limit` entries of the seat's history, whole, as Paseo projects them; an archived seat is started again to read it. */
   history(id: string, limit: number): Promise<StreamRow[]>;
   respond(id: string, requestId: string, response: PermissionResponse): Promise<void>;

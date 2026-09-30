@@ -21,7 +21,7 @@ async function handTo(
   const seat = await roster.look(to.target).catch(() => undefined);
   if ((seat?.pendingPermissions?.length ?? 0) > 0)
     return `Queued for ${to.who}, which is stopped on a permission only the Human can give; it reads this once that is decided.`;
-  return `Queued for ${to.who}; it reads this as soon as it can take it.`;
+  return `Queued for ${to.who}; it reads this when its turn ends, or with the reply to its next desk call.`;
 }
 
 const unread = (who: string) => `${who} is not seated any more, so a message would wait for nobody.`;

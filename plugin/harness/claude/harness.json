@@ -12,7 +12,6 @@
     },
     "limit": "^You've (?:hit|reached) your [a-z ]*limit\\b.*?(?:resets (?<resets>.+?))?\\s*$"
   },
-  "steers": true,
   "mcp": {
     "file": ".claude.json",
     "delivery": "launch",
