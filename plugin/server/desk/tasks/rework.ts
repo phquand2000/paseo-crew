@@ -54,10 +54,9 @@ export async function reworkTask(desk: DeskServices, caller: Caller, args: Rewor
     if (!switched)
       await bringLaneIn({ ...result, worktree: result.worktree, branch: result.branch }, asked.lane, timeout);
   }
-  // Keyed by the rework's count, each letter is its own: none is dropped as a repeat.
   await desk.mail.post(result.peer, workLetters.rework(result, text));
-  recordEvent(caller.project, { kind: "task.reworked", task: result.id, by: caller.id, round: result.reworks ?? 1 });
-  if (result.reworks === 2)
+  recordEvent(caller.project, { kind: "task.reworked", task: result.id, by: caller.id, round: result.reworks ?? 0 });
+  if (sentBack(result) && result.reworks === 2)
     await tellMoment(
       desk,
       caller.project,
@@ -73,6 +72,9 @@ function laneCopyToReopen(ledger: Ledger, lane: Lane, task: Task): string | unde
   if (task.status !== "merged" || task.mode === "parallel" || holderOf(ledger, lane, task.id)) return undefined;
   return lane.worktree;
 }
+
+/** Unblocking a Peer answers it; only work it called done or partial and got back counts as a sending-back. */
+const sentBack = (task: Task): boolean => task.handback?.outcome !== "blocked";
 
 /** Moves the task back to rework under the lock, or says what stops it: a hold, its status, its Peer or copy gone, another writer. */
 function sendBack({ ledgers }: Pick<DeskServices, "ledgers">, caller: Caller, id: string): Task | string {
@@ -92,7 +94,7 @@ function sendBack({ ledgers }: Pick<DeskServices, "ledgers">, caller: Caller, id
     TASK.move(task, "rework");
     if (reopened) loseReady(lane);
     task.silent = 0;
-    task.reworks = (task.reworks ?? 0) + 1;
+    if (sentBack(task)) task.reworks = (task.reworks ?? 0) + 1;
     task.updatedAt = Date.now();
     return { ...task };
   });

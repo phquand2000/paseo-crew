@@ -46,6 +46,21 @@ test("a Lead widening what a task beside others holds, or turning a task to anot
 
 test("a task sent back a second time, gone quiet until it stalls, or stopped on a refused call wakes whoever supervises once", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();
+  const blocked = { outcome: "blocked", summary: "stuck" };
+  assert.equal((await h.call(peer, "peer", "done", blocked)).ok, true);
+  await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "unblocked, round 1" });
+  await h.idle(peer);
+  assert.equal((await h.call(peer, "peer", "done", blocked)).ok, true);
+  await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: "unblocked, round 2" });
+  await h.idle(peer);
+  assert.equal(
+    h
+      .heard(peer)
+      .join("\n")
+      .match(/REWORK requested by your lead\n\nunblocked, round 2/g)?.length,
+    1,
+    "each answer to a blocked hand-back reaches its Peer",
+  );
   for (const round of [1, 2, 3]) {
     await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
     await h.call(lane.lead!, "lead", "rework", { task: "L1-T1", text: `not yet, round ${round}` });
@@ -64,7 +79,7 @@ test("a task sent back a second time, gone quiet until it stalls, or stopped on 
   assert.equal(
     said().match(/STRUGGLING L1-T1/g)!.length,
     2,
-    "a third sending-back, or a third quiet turn, is the same struggle",
+    "unblocking is no sending-back; a third one, or a third quiet turn, is the same struggle",
   );
 
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [parser] });

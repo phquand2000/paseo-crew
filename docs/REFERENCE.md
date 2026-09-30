@@ -461,7 +461,7 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 
 | Fact | Fires when |
 |---|---|
-| `rework-loop` | One task not yet merged or cut was sent back `reworksAt` times (3 by default) |
+| `rework-loop` | One task not yet merged or cut was sent back `reworksAt` times (3 by default); a rework answering a blocked hand-back is no sending-back |
 | `patched-not-fixed` | That many sendings-back are spread over two or more tasks not yet merged or cut |
 | `reviews-unconverged` | `reviewsAt` reviews (3 by default) of one task not yet merged or cut, whatever their verdicts |
 | `certainty-only` | A review's focus asks only for what the Reviewer is sure of |

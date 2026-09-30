@@ -28,11 +28,11 @@ export const workLetters = {
     );
   },
 
-  /** Keyed by the task's count, not the words: a repeated instruction is a second instruction, not a duplicate. */
+  /** Keyed by when it was sent, not the words: a repeated instruction is a second instruction, not a duplicate. */
   rework(task: Task, text: string): Letter {
     return mail(
       "rework",
-      [task.id, task.reworks ?? 0],
+      [task.id, task.reworks ?? 0, task.updatedAt],
       ["REWORK requested by your lead", "", text].join("\n"),
       "Change what it names, commit on your branch, then call done again.",
     );
