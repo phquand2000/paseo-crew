@@ -138,6 +138,23 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
   assert.equal(h.ledger().asks[endpoint]!.to, next);
 });
 
+test("with nobody supervising seated, an ask is kept and reaches whoever sits down first, with the asks it carries", async () => {
+  const h = harness();
+  const sup = h.add(SUPERVISOR, h.root, "sup");
+  const { lead, peer } = await lane(h, sup, "Kept asks", "Parse");
+  await h.call(peer, "peer", "ask", { question: "Which config file wins?", tried: "read the loader" });
+  archive(h, sup);
+  const need = await h.call(lead, "lead", "ask", { kind: "need", text: "Which?", default: "new", carries: ["A1"] });
+  assert.match(need.text, /Asked as A2[^]*nobody supervising is seated[^]*Leave A1 open/);
+  archive(h, lead);
+  const question = await h.call(peer, "peer", "ask", { question: "Skip blank lines?", tried: "read the parser" });
+  assert.match(question.text, /Asked as A3[^]*nobody can answer now/);
+  const back = h.add(SUPERVISOR, h.root, "sup-2");
+  await h.tick();
+  assert.match(heard(h, back), /ASK A2 \(need\)[^]*Which\?[^]*Carries A1[^]*ASK A3 \(question\)[^]*Skip blank lines\?/);
+  assert.deepEqual([h.ledger().asks.A2!.to, h.ledger().asks.A3!.to], [back, back]);
+});
+
 test("a Peer's silence is counted until it hands back, nudged, then told to its Lead, and a word from it undoes the stall", async () => {
   const h = harness();
   const sup = h.add(SUPERVISOR, h.root, "sup");

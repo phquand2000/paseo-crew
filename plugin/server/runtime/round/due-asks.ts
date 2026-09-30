@@ -8,7 +8,7 @@ import type { Project } from "../../desk/project/project.ts";
 import { loadIncidents, openFor, saidBefore } from "../../desk/store/incidents.ts";
 import type { Ask } from "../../domain/ask.ts";
 import type { Lane } from "../../domain/lane.ts";
-import type { Ledger } from "../../domain/ledger.ts";
+import { type Ledger, carriedOf } from "../../domain/ledger.ts";
 import type { TeamSource } from "../team-source.ts";
 import { fact } from "../watch/fact-kinds.ts";
 import { decide } from "../watch/findings.ts";
@@ -79,10 +79,10 @@ async function moveAsk(
     if (!entry || entry.status !== "open" || entry.to !== ask.to) return undefined;
     entry.to = to;
     entry.movedAt = now;
-    return { ...entry };
+    return { entry: { ...entry }, carried: carriedOf(current, entry.id).map((id) => ({ ...current.asks[id]! })) };
   });
   const from = ask.task
     ? `the Peer on ${ask.task}, whose reader is gone`
     : `the Lead of ${ask.lane ?? "a lane"}, whose reader is gone`;
-  if (moved) await desk.post(to, askLetters.askTo(moved, from, "supervisor"));
+  if (moved) await desk.post(to, askLetters.askTo(moved.entry, from, "supervisor", moved.carried));
 }
