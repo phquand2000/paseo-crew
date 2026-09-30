@@ -238,6 +238,14 @@ test("a kind most of whose last ten marks were noise is held on probation, and a
     ],
     "the panel shows how each kind's last ten were marked, a page too, which nothing holds",
   );
+  for (let n = 10; n < 60; n++) await notice(h, seat(n), "loop");
+  await notice(h, seat(60), "stuck");
+  const many = (await h.call(sup, "supervisor", "incidents", {})).text;
+  assert.match(
+    many,
+    /Peer \(peer-60\)[^]*… and 4 older ones not shown\./,
+    "the newest is listed however noisy its kind",
+  );
   marks(5, 10, 3);
   await notice(h, seat(3), "stuck");
   assert.ok(told(3), "half of the last ten useful is not probation, and a mark of unknown says nothing either way");

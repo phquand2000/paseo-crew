@@ -201,6 +201,14 @@ test("a failure not climbed out of in ten steps is noticed, ended only by the sa
   assert.deepEqual(lost([compared, ...steps(12, 3)]), [], "files that differ are an answer too");
   const stopped = again(failedCat, "int", 2, (detail) => Object.assign(detail, { command: "npm test", exitCode: 130 }));
   assert.deepEqual(lost([stopped, ...steps(12, 3)]), [], "a run a signal stopped is not a failure of the work");
+  for (const exitCode of [128, 255]) {
+    const fatal = again(failedCat, "int", 2, (detail) => Object.assign(detail, { command: "git pull", exitCode }));
+    assert.equal(
+      lost([fatal, ...steps(10, 3)]).length,
+      1,
+      `exit ${exitCode} is git's or ssh's own failure, not a signal`,
+    );
+  }
   const help = "cd /work && ./scripts/check.sh --help 2>&1 | head -40";
   assert.deepEqual(
     lost([run("help", 2, help, false), ...steps(12, 3)]),

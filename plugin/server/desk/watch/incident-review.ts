@@ -80,8 +80,8 @@ export function listIncidents(caller: Caller, withClosed: boolean): ToolReply {
   const marks = lastMarks(read.incidents);
   // A kind its last marks call mostly noise goes below the rest: the one still worth a look is read first.
   const noisy = (item: Incident) => (marks.get(item.kind)?.noisy ? 1 : 0);
-  const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => noisy(a) - noisy(b) || b.last - a.last);
-  const shown = waiting.slice(0, 50);
+  const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => b.last - a.last);
+  const shown = waiting.slice(0, 50).sort((a, b) => noisy(a) - noisy(b));
   const lines = [waiting.length > 0 ? `${waiting.length} not yet marked:` : "Nothing waiting to be marked."];
   lines.push(...shown.map(line));
   if (waiting.length > shown.length) lines.push(`… and ${waiting.length - shown.length} older ones not shown.`);

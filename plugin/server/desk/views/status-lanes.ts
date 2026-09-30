@@ -106,6 +106,6 @@ function taskDetail(ledger: Ledger, task: Task, seats: Seats, now: number, doing
 function turnLine(seats: Seats, id: string | undefined, now: number, doing?: Watched): string {
   const seen = id && seats.get(id)?.status === "running" ? doing?.(id) : undefined;
   if (!seen) return "";
-  const last = seen.last ? `, last: ${seen.last}, ${minutesSince(now, seen.heard)} min ago` : "";
+  const last = seen.last ? `, last: ${seen.last}; heard from ${minutesSince(now, seen.heard)} min ago` : "";
   return ` ${minutesSince(now, seen.since)} min into its turn${last}`;
 }

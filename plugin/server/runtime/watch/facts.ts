@@ -242,8 +242,9 @@ export class Recovery {
   step(call: Call, rules: Rules): Fact[] {
     const shell = call.detail.type === "shell";
     const command = str(call.detail.command);
-    // Past 127 a signal ended it: the seat or its timeout stopped it, and nothing it wrote failed.
-    const stopped = typeof call.detail.exitCode === "number" && call.detail.exitCode > 127;
+    // 128 plus a signal's number (1 to 64): the seat or its timeout stopped it; 128 and 255 are git's and ssh's own failures.
+    const stopped =
+      typeof call.detail.exitCode === "number" && call.detail.exitCode > 128 && call.detail.exitCode <= 192;
     const bad = failed(call) && !stopped;
     if (
       shell &&
