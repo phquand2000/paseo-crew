@@ -173,6 +173,25 @@ test("what waited on a turn when the plugin stopped goes on at its first round",
   );
 });
 
+test("a permission asked while the plugin was down reaches its owner at the first round, and its answer is followed up", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  const request = { id: "p-down", kind: "tool", name: "Bash", title: "make" };
+  h.restart();
+  h.agents.get(peer)!.pending.push(request);
+  await h.tick();
+  await h.idle(lead);
+  const waiting = () => h.heard(lead).join("\n").split("WAITING FOR PERMISSION").length - 1;
+  assert.equal(waiting(), 1, "no hook said so, and a seat stopped mid-turn never ends one to be seen");
+  await h.tick();
+  await h.idle(lead);
+  assert.equal(waiting(), 1, "told once");
+  h.agents.get(peer)!.pending.splice(0);
+  await h.resolved(peer, request.id, { behavior: "allow" });
+  await h.idle(lead);
+  assert.match(h.heard(lead).join("\n"), /PERMISSION ANSWERED: [^]*was allowed in Paseo/);
+});
+
 test("an answer promised as mail that a stop lost is owned up to once the plugin starts again, and one that came is not", async (t) => {
   const go = join(tempDir("crew-promise-"), "go");
   t.after(() => writeFileSync(go, ""));

@@ -138,6 +138,12 @@ export class Patrol {
     } catch (error) {
       daemonLog.error("what waited on a turn when the plugin stopped could not be taken up:", error);
     }
+    // A seat stopped on a permission is mid-turn, so no turn's end would ever show it: what was asked meanwhile is heard now.
+    for (const seat of seats.values())
+      for (const request of seat.pendingPermissions ?? [])
+        await this.deps.turns.permission({ agent: seat, request }).catch((error: unknown) => {
+          daemonLog.error(`the permission ${seat.id} waits on could not be told:`, error);
+        });
     const live = new Set(seats.keys());
     for (const project of this.deps.source.known()) {
       await this.step(project, "the merges queued when the plugin stopped could not be taken up", () =>
