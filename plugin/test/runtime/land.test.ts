@@ -95,6 +95,25 @@ test("a red gate or a red rehearsal holds a landing until the Supervisor lands o
   assert.ok(onMain("src/db/001.sql"));
 });
 
+test("a gate the plugin stops as it stops says so, and is recorded as stopped rather than failed", async () => {
+  const { h, sup, lane } = await laneWith({ "a.txt": "cart\n" });
+  const started = join(tempDir("crew-gate-"), "started");
+  await h.call(sup, "supervisor", "set_project", { gate: `touch '${started}'; while :; do sleep 0.02; done` });
+  const report = h.call(lane.lead!, "lead", "report", { summary: "again", ready: true });
+  for (let tries = 0; !existsSync(started); tries++) {
+    assert.ok(tries < 250, "the gate never started");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  h.runtime.dispose();
+  assert.equal((await report).ok, true);
+  assert.match(h.heard(sup).join("\n"), /was stopped as the plugin stopped on the lane branch/);
+  assert.deepEqual(
+    h.events("gate.stopped").map((event) => event.command),
+    [`touch '${started}'; while :; do sleep 0.02; done`],
+  );
+  assert.equal(h.events("gate.failed").length, 0, "a stopped gate is no evidence the work fails");
+});
+
 test("work nobody committed in a lane's copy never lands, over the gate or not, and the desk never deletes it: READY waits for it, landing stops, a drop keeps the copy", async () => {
   const { h, sup, lane, land } = await laneWith({ "a.txt": "cart\n" }, [], true);
   const copy = lane.worktree!;

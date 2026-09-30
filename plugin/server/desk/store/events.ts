@@ -33,7 +33,7 @@ export type DeskEvent =
   | { kind: "lead.replaced"; lane: string; was: string | null; lead: string; adopted: boolean }
   | { kind: "land.held"; lane: string; signals: number }
   | { kind: "land.approved" | "land.sentBack"; lane: string }
-  | { kind: "gate.passed" | "gate.failed"; lane: string; seconds: number; command: string }
+  | { kind: "gate.passed" | "gate.failed" | "gate.stopped"; lane: string; seconds: number; command: string }
   | { kind: "gate.overridden"; lane: string; by: string; task?: string; reason?: string }
   | { kind: "restore.held"; base: string; branch: string | null; why: string }
   | { kind: "tasks.added"; lane: string; tasks: string[] }

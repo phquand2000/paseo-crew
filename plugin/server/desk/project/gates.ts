@@ -24,7 +24,7 @@ async function onLane(
   const logFile = join(project.state, "gates", `${lane.id}-${Date.now()}.log`);
   const result = await runGate(command, lane.worktree, logFile, minutes * 60_000, stopping);
   recordEvent(project, {
-    kind: result.ok ? "gate.passed" : "gate.failed",
+    kind: result.ok ? "gate.passed" : result.stopped ? "gate.stopped" : "gate.failed",
     lane: lane.id,
     seconds: result.seconds,
     command,
