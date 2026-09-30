@@ -359,7 +359,7 @@ call was stopped. It is:
 HOLD alone goes past the outbox, as an interrupt that cuts a running turn short where the agent allows it. A
 repeat of a letter's kind and ids for the same seat is dropped while the first waits and for 30 minutes after.
 A letter untaken in 7 days is given up on; a gone seat's mail goes to no other seat, and `status.md` lists it
-until then. The desk picks each `Next:` line from what it knows (a red gate, an ask's kind, a Lead gone, the
+until then, but for word that asks nothing, which goes with the seat. The desk picks each `Next:` line from what it knows (a red gate, an ask's kind, a Lead gone, the
 lane's last task merged), so no prompt holds a table of letters ([mail](REFERENCE.md#mail)).
 
 **Reading turns.** A turn end archives a seat that waited for it, finishes teardowns it held up, sends CAN

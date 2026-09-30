@@ -204,10 +204,10 @@ export class Runtime implements HostHooks {
   }
 
   async archived(agent: HookAgent): Promise<void> {
-    this.outbox.archived(agent.id);
     this.turns.forget(agent.id);
     this.watches.drop(agent.id);
     this.desk.archived(projectOf(agent.cwd), agent.id, this.watches.watched(agent.provider));
+    await this.outbox.archived(agent.id);
   }
 
   start(): void {

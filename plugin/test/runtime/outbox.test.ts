@@ -83,6 +83,17 @@ test("a letter goes to its seat when the seat can take it, and until then is hel
   assert.equal(await post("asking", "x", "t"), "held", "a seat with a pending permission receives nothing");
   assert.equal(await post("archived", "y", "t"), "held", "nor does an archived one");
   assert.deepEqual([outbox.pending("asking").length, outbox.pending("archived").length], [1, 1], "neither's is lost");
+  await post("archived", "closed:L1", "lane closed", { wakes: false });
+  assert.deepEqual(
+    outbox.pending("archived").map((letter) => letter.key),
+    ["y"],
+    "word that asks nothing goes with an archived seat, as nothing will wake it to read it",
+  );
+  await post("quiet", "beside:L1", "a lane beside", { wakes: false });
+  agents.quiet.archivedAt = "2026-01-01";
+  await outbox.archived("quiet");
+  assert.deepEqual(outbox.pending("quiet"), [], "and with one archived while it waits");
+  agents.quiet.archivedAt = null;
   assert.equal(await post("gone", "x", "a report nobody can read yet"), "held", "an address is no failure");
   assert.equal(outbox.pending("gone").length, 1);
   assert.equal(await post("real", "y", "and this still goes out"), "sent");

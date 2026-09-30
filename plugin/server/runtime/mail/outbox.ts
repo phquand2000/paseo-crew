@@ -90,8 +90,16 @@ export class Outbox {
     this.forget(agentId);
   }
 
-  archived(agentId: string): void {
+  /** Word that asks nothing waits for a letter that wakes its seat, and an archived seat is never woken: it goes too. */
+  archived(agentId: string): Promise<void> {
+    return this.perSeat.run(agentId, async () => this.gone(agentId));
+  }
+
+  private gone(agentId: string): void {
     this.forget(agentId);
+    const letters = this.letters();
+    const kept = letters.filter((letter) => letter.to !== agentId || letter.wakes !== false);
+    if (kept.length < letters.length) this.save(kept);
   }
 
   private forget(agentId: string): void {
@@ -124,7 +132,7 @@ export class Outbox {
     // Held, not thrown: mail must not be lost, and one unanswerable address must not stop the round.
     const seat = await this.seats.look(to).catch(() => undefined);
     if (!seat?.archivedAt) return seat;
-    this.archived(to);
+    this.gone(to);
     return undefined;
   }
 

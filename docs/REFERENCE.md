@@ -301,7 +301,7 @@ when its turn ends, and each round. The first row that fits decides:
 |---|---|
 | Nobody to send it to, such as no Supervisor seated | Not kept. LANE IDLE, LEAD GONE and a held incident are tried again next round |
 | Paseo can't look the seat up | Held |
-| The seat is archived | Never sent, nor passed to another seat. `status.md` lists them, with when each is given up on, until they age out |
+| The seat is archived | Never sent, nor passed to another seat. Word that asks nothing is dropped; `status.md` lists the rest, with when each is given up on, until they age out |
 | The seat has a pending permission | Held |
 | The seat's lane is on hold | Held until `resume_lane`, or until the lane is dropped |
 | Running or starting | Held |
