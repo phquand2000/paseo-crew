@@ -93,7 +93,7 @@ export type Task = {
   updatedAt: number;
   handback?: Handback;
   after?: string[];
-  opening?: { role: string };
+  opening?: { role: string; peer?: string };
   held?: { why: string; tried?: boolean };
   amended?: Amendment[];
   reworks?: number;

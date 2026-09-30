@@ -23,11 +23,15 @@ type ReworkCall = { task: string; text: string };
 /** Sends a task back to its Peer with what must change; a merged task goes back only to a Peer kept on it. */
 export async function reworkTask(desk: DeskServices, caller: Caller, args: ReworkCall): Promise<ToolReply> {
   const text = str(args.text);
-  const asked = laneTask(loadLedger(caller.project.state), caller, str(args.task));
+  const ledger = loadLedger(caller.project.state);
+  const asked = laneTask(ledger, caller, str(args.task));
   if (typeof asked === "string") return no(asked);
   const refused = repeatsIncident(caller.project.state, asked.task.peer, text);
   if (refused) return no(refused);
   if (!asked.task.peer) return no(`${asked.task.id} has no Peer.`);
+  const moved = ledger.agents[asked.task.peer]?.task;
+  if (moved && moved !== asked.task.id)
+    return no(`The Peer kept from ${asked.task.id} took ${moved} since: add a task for what must change.`);
   // Asked before anything moves: a task sent back to a seat that is gone would wait for nobody.
   if (!(await desk.roster.seated(asked.task.peer)))
     return no(

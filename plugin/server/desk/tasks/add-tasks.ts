@@ -5,6 +5,7 @@ import { type Team, skillDirsFor } from "../../catalog/team/team.ts";
 import { clip, plural, slugify } from "../../core/text.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
 import { holdRefusal } from "../lanes/hold.ts";
+import { keptFor } from "../seats/kept.ts";
 import { type Lane, loseReady } from "../../domain/lane.ts";
 import { type Ledger, laneOfLead, nextTaskId } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
@@ -99,6 +100,8 @@ function record(
       const list = problems.map((problem) => `- ${problem}`).join("\n");
       return `No task was added, since ${these} would put two writers on one path:\n${list}`;
     }
+    const unkept = keptProblems(ledger, now, plan, roles);
+    if (unkept.length > 0) return `No task was added:\n${unkept.map((problem) => `- ${problem}`).join("\n")}`;
     const ids = new Map<string, string>();
     for (const task of plan) {
       const after = task.after.map((id) => ids.get(id) ?? id);
@@ -110,6 +113,24 @@ function record(
   });
 }
 
+/** Why a task cannot start on the kept Peer it names: one in the lane's copy, whose Peer no other task is promised. */
+function keptProblems(ledger: Ledger, lane: Lane, plan: Planned[], roles: Map<string, string>): string[] {
+  const promised = new Map<string, string>();
+  for (const task of Object.values(ledger.tasks))
+    if (task.status === "waiting" && task.opening?.peer) promised.set(task.opening.peer, task.id);
+  return plan.flatMap(({ key, args, parallel }) => {
+    const named = str(args.peer).trim().toUpperCase();
+    if (!named) return [];
+    if (parallel) return [`${key} runs beside others in a copy of its own, and a kept Peer works in the lane's.`];
+    const source = ledger.tasks[named]?.lane === lane.id ? ledger.tasks[named] : undefined;
+    const kept = keptFor(ledger, source, roles.get(key)!);
+    if (typeof kept === "string") return [`${key} names the Peer kept from ${named}, which ${kept}.`];
+    const other = promised.get(named);
+    promised.set(named, key);
+    return other ? [`${key} names the Peer kept from ${named}, which ${other} starts on already.`] : [];
+  });
+}
+
 /** Puts the task as asked for on record in `ledger`, waiting for what it names, and gives its id; `startWaiting` starts it. */
 function recordTask(
   ledger: Ledger,
@@ -117,6 +138,7 @@ function recordTask(
   { args, parallel, hints, holds }: Planned,
   waits: { after: string[]; role: string },
 ): string {
+  const peer = str(args.peer).trim().toUpperCase() || undefined;
   const title = str(args.title);
   const id = nextTaskId(lane, "code");
   const now = Date.now();
@@ -141,7 +163,7 @@ function recordTask(
     status: "waiting",
     after: waits.after,
     // Who takes it, kept for when it starts: the call that asked for it is long gone by then.
-    opening: { role: waits.role },
+    opening: { role: waits.role, peer },
     openedAt: now,
     updatedAt: now,
     silent: 0,

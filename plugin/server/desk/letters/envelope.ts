@@ -55,6 +55,7 @@ type Kind =
   | "permission"
   | "permissionanswered"
   | "reconcile"
+  | "released"
   | "report"
   | "resumed"
   | "rework"

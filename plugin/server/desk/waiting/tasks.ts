@@ -13,6 +13,7 @@ import { type Project, serialIn } from "../project/project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
+import { keptFor } from "../seats/kept.ts";
 import { startPeer } from "../tasks/peer-seat.ts";
 import { taskPlacement } from "../tasks/placement.ts";
 import { type Holding, noteHeld } from "./held.ts";
@@ -46,7 +47,7 @@ export async function startWaiting(
   }
 }
 
-/** Placed and claimed in one transaction, and back to waiting if its Peer cannot start; every task gets a Peer of its own. */
+/** Placed and claimed in one transaction, and back to waiting if its Peer cannot start; a Peer is new unless one kept is named. */
 async function tryStart(
   desk: DeskServices,
   project: Project,
@@ -54,16 +55,19 @@ async function tryStart(
   task: Task,
   told: boolean,
 ): Promise<Holding | undefined> {
-  const { kit, ledgers, seating, mail } = desk;
+  const { kit, ledgers, seating } = desk;
   const parallel = task.mode === "parallel";
   const serial = parallel ? await serialIn(kit, project, lane.worktree!) : [];
   const startSha = parallel ? undefined : await headSha(lane.worktree!, lane.branch);
+  let kept = await namedPeer(desk, project, task);
   const claimed = ledgers.transact(project, (ledger): Task | Refusal | undefined => {
     const entry = ledger.tasks[task.id];
     const now = ledger.lanes[lane.id];
     if (!entry || !now || now.onHold || !TASK.may(entry.status, "start")) return undefined;
     const problem = taskPlacement(ledger, now, entry.holds, parallel, serial);
     if (problem) return problem;
+    if (kept && keptFor(ledger, ledger.tasks[kept.from], task.opening!.role) !== ledger.agents[kept.peer])
+      kept = undefined;
     TASK.move(entry, "start");
     Object.assign(entry, { startSha, updatedAt: Date.now() });
     seating.take(workKey(project, entry.id));
@@ -72,25 +76,57 @@ async function tryStart(
   if (!claimed) return undefined;
   if ("why" in claimed)
     return { why: claimed.why, next: "It starts by itself once that clears; amend it, or cut it to drop it." };
-  const started = await startPeer(desk, project, lane, claimed, { role: claimed.opening!.role, parent: lane.lead });
+  const started = await startPeer(desk, project, lane, claimed, {
+    role: claimed.opening!.role,
+    parent: lane.lead,
+    kept,
+  });
   if (typeof started === "string")
     return { why: started, next: "It is tried again when a task is merged or cut; cut it to drop it.", tried: true };
-  ledgers.setTask(project, task.id, (entry) => {
+  const named = task.opening?.peer;
+  const instead = named && !kept ? ` The Peer kept from ${named} could not take it, so a new one did.` : "";
+  await announce(
+    desk,
+    project,
+    lane,
+    claimed,
+    told ? `Started ${task.id} ${started.where} with Peer ${started.peer}.${instead}` : undefined,
+  );
+  return undefined;
+}
+
+/** The kept Peer a task named, while it is seated and still kept from the task it worked. */
+async function namedPeer(
+  desk: Pick<DeskServices, "roster">,
+  project: Project,
+  task: Task,
+): Promise<{ peer: string; from: string } | undefined> {
+  const from = task.opening?.peer;
+  if (!from) return undefined;
+  const ledger = loadLedger(project.state);
+  const kept = keptFor(ledger, ledger.tasks[from], task.opening!.role);
+  return typeof kept !== "string" && (await desk.roster.seated(kept.id)) ? { peer: kept.id, from } : undefined;
+}
+
+/** Tells the Lead a task started, if `said`, and whoever writes in the lane's copy what a task beside it holds. */
+async function announce(
+  { ledgers, mail }: Pick<DeskServices, "ledgers" | "mail">,
+  project: Project,
+  lane: Lane,
+  claimed: Task,
+  said: string | undefined,
+): Promise<void> {
+  ledgers.setTask(project, claimed.id, (entry) => {
     delete entry.held;
   });
-  if (told)
-    await mail.post(
-      lane.lead,
-      workLetters.started(claimed, `Started ${task.id} ${started.where} with Peer ${started.peer}.`),
-    );
+  if (said) await mail.post(lane.lead, workLetters.started(claimed, said));
   // The lane's copy has one writer, briefed before this task held anything: what it holds is news to that Peer, now if at work.
-  const writer = parallel ? holderOf(loadLedger(project.state), lane) : undefined;
+  const writer = claimed.mode === "parallel" ? holderOf(loadLedger(project.state), lane) : undefined;
   if (writer?.peer)
     await mail.post(
       writer.peer,
       AT_WORK.includes(writer.status) ? workLetters.beside(claimed) : fyi(workLetters.beside(claimed)),
     );
-  return undefined;
 }
 
 /**

@@ -53,7 +53,7 @@ The Human may be away. Each row is a verb a seat calls, or something the desk re
 | Who | Verb or event | On record | Mailed |
 |---|---|---|---|
 | Supervisor | `open_lane` | a lane, `open` with a working copy, a branch and a Lead the desk seats, or `waiting` until its `after` lanes land | the Lead starts from its OWNER DIRECTIVE |
-| Lead | `add_tasks` | tasks, `waiting`; each goes `running` with a Peer of its own once what it waits for has merged | each Peer starts from its TASK brief |
+| Lead | `add_tasks` | tasks, `waiting`; each goes `running` once what it waits for has merged, with a new Peer or the kept one it names | each Peer starts from its TASK brief |
 | Peer | `done` | the task `done`, with a hand-back file and the gate's verdict | HANDBACK to the Lead, or to the Supervisor once the Lead is gone |
 | Lead | `accept` | `queued`, then `merging` and `merged` through the lane's merge queue | MERGED, MERGE RED, MERGE CONFLICT, MERGE WAITS or MERGE FAILED to the Lead |
 | Lead | `rework`, `amend_task`, `cut` | the task back in `rework` for its Peer, changed, or `cut` | REWORK or AMENDED to the Peer; STRUGGLING, ARCHITECTURE or TURNING to the Supervisor at the moments SLP names |
@@ -256,8 +256,8 @@ The rest the desk reads goes with REPORT, the Supervisor's reply and the Human's
 files and lines, deleted or weakened tests, files outside the write set, tasks accepted over a red gate, open
 incidents, what reviews leave standing, whether it was reported ready as it stands.
 
-**Who stays.** A Peer stays after its task merges, in its own copy if parallel, until its Lead `release`s it
-or the lane closes, which lets every Peer go. The Lead stays, with the lane's slot if it had one, until the
+**Who stays.** A Peer stays after its task merges, in its own copy if parallel, until its Lead or whoever supervises
+`release`s it, it starts a task its Lead names it for, or the lane closes, which lets every Peer go. The Lead stays, with the lane's slot if it had one, until the
 Supervisor `release`s it or it is archived in Paseo; the next round then puts the copy away, as for a gone
 Peer. The project's checkout goes back to base, or stays on the Human's branch for `onBranch`; a task still on
 its branch in the lane's copy leaves it, its branch kept only if it holds commits nothing else has.
@@ -276,8 +276,8 @@ an empty gate set there is never replaced.
 ![A task, from brief to merge](images/task-lifecycle.svg)
 
 `add_tasks` records a Lead's tasks in one transaction, checking only their structure (keys, loops in `after`,
-what each holds). Each works on a branch of its own, `task/<id>-<title>`, with a Peer of its own that never
-takes another; the lane branch takes its work only by the desk's merge. A task starts once its `after` tasks
+what each holds). Each works on a branch of its own, `task/<id>-<title>`, with a new Peer unless its Lead
+names the idle Peer kept from a merged task in the lane's copy, which takes it with the brief as mail; the lane branch takes its work only by the desk's merge. A task starts once its `after` tasks
 have merged, its lane is open with a Lead and not on hold, and its placement holds; one whose Peer fails to
 start waits again until a task merges or is cut, the lane resumes, or more are added.
 

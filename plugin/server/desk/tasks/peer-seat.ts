@@ -4,6 +4,7 @@ import { mergeBranch } from "../../core/git-merge.ts";
 import { dropMerged, git, headSha, switchTo } from "../../core/git.ts";
 import { TASK } from "../../domain/task.ts";
 import { besideOf, taskBrief } from "../letters/briefs.ts";
+import { keptLetters } from "../letters/kept-letters.ts";
 import { workKey } from "../claims.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
@@ -16,34 +17,51 @@ import { backOnLane } from "../copies/sync.ts";
 
 type Copy = { id?: string; path: string; workspaceId?: string };
 
-/** Seats the Peer of a task recorded running; a failure gives back its copy, sets it waiting again, and is the reason. */
+/**
+ * Seats the Peer of a task recorded running, or briefs the kept Peer it starts on; a failure gives back its copy, sets it
+ * waiting again, and is the reason.
+ */
 export async function startPeer(
   desk: DeskServices,
   project: Project,
   lane: Lane,
   task: Task,
-  how: { role: string; parent?: string },
+  how: { role: string; parent?: string; kept?: { peer: string; from: string } },
 ): Promise<{ peer: string; where: string } | string> {
-  const { kit, ledgers, agents } = desk;
+  const { kit, ledgers, agents, mail } = desk;
   try {
     const copy = await peerCopy(desk, project, lane, task);
     const now = loadLedger(project.state);
-    const peer = await agents.start(project, copy, how.role, {
-      parent: how.parent,
-      title: seatTitle.of(task, roleNamed(kit, how.role)!),
-      prompt: taskBrief(now.tasks[task.id] ?? task, lane, besideOf(now, task)),
-      labels: { "crew.lane": lane.id, "crew.task": task.id, "crew.role": how.role },
-    });
+    const brief = taskBrief(now.tasks[task.id] ?? task, lane, besideOf(now, task));
+    const peer =
+      how.kept?.peer ??
+      (await agents.start(project, copy, how.role, {
+        parent: how.parent,
+        title: seatTitle.of(task, roleNamed(kit, how.role)!),
+        prompt: brief,
+        labels: { "crew.lane": lane.id, "crew.task": task.id, "crew.role": how.role },
+      }));
     ledgers.transact(project, (ledger) => {
+      if (how.kept && ledger.agents[peer]?.task !== how.kept.from)
+        throw new Error(`the Peer kept from ${how.kept.from} took other work meanwhile`);
       const entry = ledger.tasks[task.id];
       if (entry) Object.assign(entry, { peer, updatedAt: Date.now() });
-      ledger.agents[peer] = { id: peer, role: how.role, lane: lane.id, task: task.id };
+      ledger.agents[peer] = { ...ledger.agents[peer], id: peer, role: how.role, lane: lane.id, task: task.id };
     });
-    recordEvent(project, { kind: "task.started", task: task.id, peer, mode: task.mode, slot: copy.id ?? "in place" });
+    if (how.kept) await mail.post(peer, keptLetters.next(task, how.kept.from, brief));
+    const slot = copy.id ?? "in place";
+    recordEvent(project, {
+      kind: "task.started",
+      task: task.id,
+      peer,
+      mode: task.mode,
+      slot,
+      keptFrom: how.kept?.from,
+    });
     const where =
       task.mode === "parallel"
         ? `in its own working copy ${copy.id} on ${task.branch}`
-        : `in the lane's working copy on ${task.branch}`;
+        : `in the lane's working copy on ${task.branch}${how.kept ? `, on the Peer kept from ${how.kept.from}` : ""}`;
     return { peer, where };
   } catch (error) {
     await putBack(desk, project, lane, task);

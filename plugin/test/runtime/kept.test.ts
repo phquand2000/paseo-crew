@@ -53,7 +53,7 @@ test("a Peer whose task is accepted is kept for rework until its Lead releases i
   assert.match(await acceptWork(h, lead, peer, "L1-T1"), /^L1-T1 is in the merge queue\./);
   const second = h.ledger().tasks["L1-T2"]!;
   assert.equal(second.status, "running");
-  assert.notEqual(second.peer, peer, "a task never goes to a Peer that worked another");
+  assert.notEqual(second.peer, peer, "a task goes to a Peer that worked another only when its Lead names it");
   assert.deepEqual(live(h), [peer, second.peer], "and the Peer kept is not let go for it");
   assert.match(
     h.heard(lead).join("\n"),
@@ -154,6 +154,51 @@ test("a Peer whose task is accepted is kept for rework until its Lead releases i
     "the second task's work\n",
     "the lane's copy is not reset under the task writing in it now",
   );
+});
+
+test("a task its Lead gives the Peer kept from a merged one starts on that Peer, which whoever supervises can let go", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const lead = lane.lead!;
+  const say = async (tool: string, args: Record<string, unknown>) => (await h.call(lead, "lead", tool, args)).text;
+  assert.match(
+    await say("add_tasks", { tasks: [task("u", "Second", "a.txt", { peer: "L1-T1" })] }),
+    /^No task was added:\n- U names the Peer kept from L1-T1, which has no Peer kept: it is not merged/,
+  );
+  await acceptWork(h, lead, peer, "L1-T1");
+  assert.match(
+    await say("add_tasks", {
+      tasks: [task("u", "Second", "a.txt", { peer: "L1-T1" }), task("v", "Other", "a.txt", { peer: "L1-T1" })],
+    }),
+    /- V names the Peer kept from L1-T1, which U starts on already\./,
+  );
+  const added = await say("add_tasks", { tasks: [task("u", "Second", "a.txt", { peer: "L1-T1" })] });
+  const second = h.ledger().tasks["L1-T2"]!;
+  assert.match(added, new RegExp(`- U is L1-T2 Second: running, Peer ${peer}$`, "m"));
+  assert.deepEqual([second.status, second.peer, live(h)], ["running", peer, [peer]], "no new Peer is made for it");
+  assert.equal(h.git(lane.worktree!, "branch", "--show-current").trim(), second.branch, "on the task's own branch");
+  assert.match(
+    h.heard(peer).join("\n"),
+    /TASK L1-T2: Second[^]*Your Lead gives you this after L1-T1: you are in the same working copy/,
+  );
+  assert.match(await say("rework", { task: "L1-T1", text: "x" }), /The Peer kept from L1-T1 took L1-T2 since/);
+  assert.match(await say("release", { task: "L1-T1" }), /The Peer kept from L1-T1 took L1-T2 since/);
+  await acceptWork(h, lead, peer, "L1-T2");
+  const status = await say("status", {});
+  assert.match(status, kept("L1-T2", peer));
+  assert.doesNotMatch(status, kept("L1-T1", peer));
+
+  await say("add_tasks", {
+    tasks: [task("v", "Third"), task("w", "Fourth", "a.txt", { after: ["v"], peer: "L1-T2" })],
+  });
+  const released = await h.call(sup, "supervisor", "release", { task: "L1-T2" });
+  assert.equal(released.ok, true, released.text);
+  assert.ok(h.agents.get(peer)!.archivedAt);
+  assert.match(h.heard(lead).join("\n"), new RegExp(`RELEASED ${peer}, the Peer kept from L1-T2 \\(Second\\): ${sup}`));
+  await acceptWork(h, lead, h.ledger().tasks["L1-T3"]!.peer!, "L1-T3");
+  const fourth = h.ledger().tasks["L1-T4"]!;
+  assert.equal(fourth.status, "running");
+  assert.notEqual(fourth.peer, peer);
+  assert.match(h.heard(lead).join("\n"), /The Peer kept from L1-T2 could not take it, so a new one did\./);
 });
 
 /** A task beside L1-T1, with `text` committed to `file` in its own copy, handed back, accepted and merged. */

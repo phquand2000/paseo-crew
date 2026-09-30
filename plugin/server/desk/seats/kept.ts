@@ -3,8 +3,10 @@ import { IN_QUEUE } from "../../domain/task.ts";
 import { laneTask } from "../access.ts";
 import { type Args, type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import { letGo } from "./gone.ts";
-import { type AgentRef, type Ledger, findLane, tasksOf } from "../../domain/ledger.ts";
+import { type AgentRef, type Ledger, findLane, findTask, tasksOf } from "../../domain/ledger.ts";
+import { keptLetters } from "../letters/kept-letters.ts";
 import type { Lane } from "../../domain/lane.ts";
+import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
@@ -14,14 +16,25 @@ import { recordEvent } from "../store/event-log.ts";
 export function keptPeers(ledger: Ledger, laneId: string): AgentRef[] {
   return Object.values(ledger.agents).filter((agent) => {
     const task = ledger.tasks[agent.task ?? ""];
-    return (
-      agent.lane === laneId &&
-      !agent.gone &&
-      task?.peer === agent.id &&
-      task.kind === "code" &&
-      task.status === "merged"
-    );
+    return agent.lane === laneId && task !== undefined && keptFrom(ledger, task) === agent;
   });
+}
+
+/** The Peer kept from a merged task, while it is not gone and has not taken another task. */
+function keptFrom(ledger: Ledger, task: Task): AgentRef | undefined {
+  const agent = task.peer ? ledger.agents[task.peer] : undefined;
+  return agent && !agent.gone && agent.task === task.id && task.kind === "code" && task.status === "merged"
+    ? agent
+    : undefined;
+}
+
+/** The Peer kept from `source` that a task of `role` may start on: one that worked in the lane's copy, as the task will. */
+export function keptFor(ledger: Ledger, source: Task | undefined, role: string): AgentRef | string {
+  if (!source) return "is no task of this lane";
+  if (source.mode === "parallel") return `ran in a copy of its own, and its Peer cannot move into the lane's`;
+  const agent = keptFrom(ledger, source);
+  if (!agent) return "has no Peer kept: it is not merged, or its Peer is gone or took another task";
+  return agent.role === role ? agent : `was a ${agent.role}'s, not a ${role}'s`;
 }
 
 /** The copy of its own a closed lane's Lead still holds: kept at close for that Lead, and not yet on its way out. */
@@ -49,7 +62,7 @@ function stillWriting(desk: DeskServices, ledger: Ledger, lane: Lane): string[] 
 }
 
 /** Lets a closed lane's kept Lead go, and its copy once nobody is writing in it; what that did, or nothing if neither was left. */
-async function releaseKept(desk: DeskServices, project: Project, lane: Lane): Promise<string | undefined> {
+async function releaseClosedLead(desk: DeskServices, project: Project, lane: Lane): Promise<string | undefined> {
   const { roster, teardowns } = desk;
   const lead = lane.lead && (await roster.seated(lane.lead)) ? lane.lead : undefined;
   const ledger = loadLedger(project.state);
@@ -101,29 +114,45 @@ export async function reapKept(desk: DeskServices, project: Project, live: Set<s
 
 /** A Lead lets go of the Peer kept from a task it accepted, and of a copy of its own with it. */
 export async function releaseKeptPeer(desk: DeskServices, caller: Caller, args: Args): Promise<ToolReply> {
-  const { roster, agents } = desk;
-  const { project } = caller;
-  const ledger = loadLedger(project.state);
+  const ledger = loadLedger(caller.project.state);
   const found = laneTask(ledger, caller, str(args.task));
-  if (typeof found === "string") return no(found);
-  const { lane, task } = found;
-  if (task.kind === "review") return no(`${task.id} is a review: its reviewer goes when you cut it.`);
-  if (task.status === "cut") return no(`${task.id} was cut, and its Peer stopped with it.`);
-  if (IN_QUEUE.includes(task.status))
-    return no(`${task.id} is in the merge queue: release its Peer once MERGED arrives.`);
+  return typeof found === "string" ? no(found) : releaseTaskPeer(desk, caller.project, ledger, found);
+}
+
+/** Why the Peer kept from `task` cannot go now, or that Peer. */
+async function keptToRelease(desk: DeskServices, ledger: Ledger, task: Task): Promise<string | { peer: string }> {
+  if (task.kind === "review") return `${task.id} is a review: its reviewer goes when you cut it.`;
+  if (task.status === "cut") return `${task.id} was cut, and its Peer stopped with it.`;
+  if (IN_QUEUE.includes(task.status)) return `${task.id} is in the merge queue: release its Peer once MERGED arrives.`;
   if (task.status !== "merged")
-    return no(`${task.id} is ${task.status}: accept it first, or cut it, which stops its Peer.`);
+    return `${task.id} is ${task.status}: accept it first, or cut it, which stops its Peer.`;
   const peer = task.peer!;
-  if (!(await roster.seated(peer))) return no(`The Peer kept from ${task.id} is gone already.`);
+  const moved = ledger.agents[peer]?.task;
+  if (moved && moved !== task.id)
+    return `The Peer kept from ${task.id} took ${moved} since: it is that task's Peer now.`;
+  if (!(await desk.roster.seated(peer))) return `The Peer kept from ${task.id} is gone already.`;
   const reading = Object.values(ledger.tasks).find(
     (other) =>
       other.kind === "review" && other.of === task.id && other.slot === task.slot && other.status === "running",
   );
-  if (task.mode === "parallel" && reading)
-    return no(`${reading.id} still reviews ${task.id} in its copy: cut it first.`);
-  if (task.mode === "parallel") await agents.retire(project, task, lane.branch);
-  else await letGo(desk, roster, project, peer);
-  recordEvent(project, { kind: "seat.released", seat: peer, of: task.id });
+  if (task.mode === "parallel" && reading) return `${reading.id} still reviews ${task.id} in its copy: cut it first.`;
+  return { peer };
+}
+
+/** Lets the Peer kept from `task` go, its Lead told first when `by` is whoever supervises and not that Lead. */
+async function releaseTaskPeer(
+  desk: DeskServices,
+  project: Project,
+  ledger: Ledger,
+  { lane, task }: { lane: Lane; task: Task },
+  by?: string,
+): Promise<ToolReply> {
+  const kept = await keptToRelease(desk, ledger, task);
+  if (typeof kept === "string") return no(kept);
+  if (by) await desk.mail.post(lane.lead, keptLetters.released(task, kept.peer, by));
+  if (task.mode === "parallel") await desk.agents.retire(project, task, lane.branch);
+  else await letGo(desk, desk.roster, project, kept.peer);
+  recordEvent(project, { kind: "seat.released", seat: kept.peer, of: task.id });
   return ok(
     `The Peer kept from ${task.id} is released${task.mode === "parallel" ? `, and its copy ${task.slot} is put away with it` : ""}.`,
   );
@@ -142,14 +171,23 @@ async function releaseOpenLead(desk: DeskServices, project: Project, lane: Lane)
 }
 
 /**
- * Whoever supervises lets go of a lane's Lead: one kept from a closed lane with the copy it kept, or the Lead of a lane
- * still open, which stays where it stands for another.
+ * Whoever supervises lets go of a lane's Lead, or of the Peer kept from a task in any lane: a Lead kept from a closed lane
+ * goes with the copy it kept, and one of a lane still open leaves the lane where it stands for another.
  */
-export async function releaseKeptLead(desk: DeskServices, caller: Caller, args: Args): Promise<ToolReply> {
-  const lane = findLane(loadLedger(caller.project.state), str(args.lane));
+export async function releaseKept(desk: DeskServices, caller: Caller, args: Args): Promise<ToolReply> {
+  const ledger = loadLedger(caller.project.state);
+  if (!args.lane === !args.task)
+    return no("Name a lane to release its Lead, or a task to release the Peer kept from it.");
+  if (args.task) {
+    const task = findTask(ledger, str(args.task));
+    const lane = task && ledger.lanes[task.lane];
+    if (!task || !lane) return no(`There is no task ${str(args.task)}.`);
+    return releaseTaskPeer(desk, caller.project, ledger, { lane, task }, caller.id);
+  }
+  const lane = findLane(ledger, str(args.lane));
   if (!lane) return no(`There is no lane ${str(args.lane)}.`);
   if (lane.status === "waiting") return no(`Lane ${lane.id} is waiting, and has no Lead yet.`);
   if (lane.status === "open") return releaseOpenLead(desk, caller.project, lane);
-  const released = await releaseKept(desk, caller.project, lane);
+  const released = await releaseClosedLead(desk, caller.project, lane);
   return released ? ok(released) : no(`Lane ${lane.id}'s Lead is gone already, and nothing of it is kept.`);
 }

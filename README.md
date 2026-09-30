@@ -43,7 +43,7 @@ changes on top. It is not affiliated with or endorsed by the Seatworks author; t
    work.
 2. **The team works, and you may leave.** The Supervisor opens each lane with an outcome and
    acceptance criteria, and the plugin starts its Lead. The Lead splits the lane into tasks, each
-   done by a Peer of its own on a branch of its own, has Reviewers read the work, and accepts it,
+   done by a Peer on a branch of its own, has Reviewers read the work, and accepts it,
    sends it back or cuts it. A Lead with a question asks the Supervisor and carries on with its
    default meanwhile; a Peer asks its Lead, with its best guess. A decision only you can make goes
    on your question queue, with the Supervisor's recommendation and what goes ahead while you are
@@ -79,7 +79,7 @@ yours.
 |---|---|---|---|
 | Supervisor | Your intent, across lanes: opens, lands and drops them, answers Leads, and is the only seat that asks you anything | You start it | Claude Code · `claude-opus-5` · high |
 | Lead | One lane: its tasks, their order, and what is accepted | Started with its lane; stays after the lane closes until the Supervisor releases it | Claude Code · `claude-opus-5` · medium |
-| Peer | One task, and the engineering judgement inside it | Started with its task; stays after the task is accepted until its Lead releases it or the lane closes, and never takes another | Claude Code · `claude-opus-5` · medium |
+| Peer | One task, and the engineering judgement inside it | Started with its task; stays after the task is accepted until it is released or the lane closes, and takes another only when its Lead names it | Claude Code · `claude-opus-5` · medium |
 | Reviewer | A read-only review of one change | Started with its review; ends when its Lead cuts the review or the lane closes | Claude Code · `claude-opus-5` · medium |
 | Pager | One page, said back word for word so Paseo pushes it to your phone | Started for its page | Claude Code · `claude-opus-5` · low |
 

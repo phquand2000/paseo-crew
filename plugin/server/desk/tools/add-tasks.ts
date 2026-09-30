@@ -16,6 +16,7 @@ const Asked = z.strictObject({
   takeBase: z.boolean().optional(),
   after: z.array(z.string()).optional(),
   role: z.string().optional(),
+  peer: z.string().optional(),
 });
 
 /** Adds tasks to the Lead's lane in one go, each waiting for what it names; a layout holding one path twice is refused. */

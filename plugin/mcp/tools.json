@@ -551,8 +551,8 @@
     },
     {
       "name": "release",
-      "title": "Release a kept Lead",
-      "description": "Let go of a lane's Lead, archived after the turn it is in. One kept from a closed lane goes once its work is done or the Human asks, and the copy it kept is put away with a landed lane's branch; an open lane stays where it stands for replace_lead.",
+      "title": "Release a kept Lead or Peer",
+      "description": "Let go of a lane's Lead, archived after the turn it is in, or of the Peer kept from a task, its Lead told first. A closed lane's Lead goes once its work is done, with the copy it kept and a landed lane's branch; an open lane stays where it stands for replace_lead.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -565,11 +565,12 @@
           "lane": {
             "type": "string",
             "description": "Lane id, like L1."
+          },
+          "task": {
+            "type": "string",
+            "description": "A task id, like L1-T2, to release the Peer kept from it instead of a Lead."
           }
-        },
-        "required": [
-          "lane"
-        ]
+        }
       }
     },
     {
@@ -882,6 +883,10 @@
                 "role": {
                   "type": "string",
                   "description": "The role to take it when the kit has several that write; left out, the first. Best-of-n uses it for two kinds of Peer."
+                },
+                "peer": {
+                  "type": "string",
+                  "description": "A merged task of this lane whose kept Peer takes this one, in the lane's copy, with what it learned; left out, a new Peer."
                 }
               },
               "required": [
@@ -1231,7 +1236,7 @@
     {
       "name": "release",
       "title": "Release a kept Peer",
-      "description": "Let go of the Peer kept from a task that merged, once that task needs nothing more from it: it is archived, and a parallel task's own copy is put away with it. A task never goes to a Peer that worked another, and the lane's Peers all go when it closes.",
+      "description": "Let go of the Peer kept from a task that merged, once that task needs nothing more from it: it is archived, and a parallel task's own copy is put away with it. A kept Peer takes a later task only when add_tasks names it, and the lane's Peers all go when it closes.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
