@@ -3,6 +3,7 @@ import { weakened } from "../../catalog/kit/patterns.ts";
 import { covers, normalize } from "../../core/scope.ts";
 import { oneLine } from "../../core/text.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
+import { shellWords } from "./shell-words.ts";
 import type { Call, Unit } from "./window.ts";
 
 /** `skipped` and `assertion` are global, since they are counted; `runners` are the commands whose first word says little; `probe` a command that only looks. */
@@ -206,11 +207,7 @@ function head(command: string, runners: Set<string>): string {
       .map((part) => part.trim())
       .filter((part) => part && !/^cd\s/.test(part))
       .at(-1) ?? command;
-  const words = main
-    .split("|")[0]!
-    .trim()
-    .split(/\s+/)
-    .filter((word) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word));
+  const words = shellWords(main.split("|")[0]!).filter((word) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word));
   if (!runners.has(words[0] ?? "")) return words[0] ?? "";
   return words.slice(0, /^(run|exec|-m|x|dlx)$/.test(words[1] ?? "") ? 3 : 2).join(" ");
 }

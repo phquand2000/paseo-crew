@@ -2,6 +2,7 @@ import { isAbsolute, normalize, relative } from "node:path";
 import { oneLine, within } from "../../core/text.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
 import { type Rules } from "./facts.ts";
+import { shellWords } from "./shell-words.ts";
 import type { Call } from "./window.ts";
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
@@ -17,36 +18,6 @@ const QUOTED = /(?<!<<-?\s*)(["'])(?:(?!\1).)*\1/g;
 /** Words before a command that only say when it runs: a loop, a branch, a group or a function's head. */
 const PREFIX = /^(?:do|then|else|elif|if|while|until|!|time|\{|\(+|[A-Za-z_][\w-]*\(\)\{?)$/;
 const DECLARE = new Set(["export", "local", "declare", "readonly", "typeset"]);
-
-/** A part's shell words with their quotes taken off; `$NAME` and a command substitution stay whole, to be resolved. */
-function words(part: string): string[] {
-  const found: string[] = [];
-  let word = "";
-  let quote = "";
-  let open = false;
-  let depth = 0;
-  for (const char of part) {
-    if (quote === "'" || (quote === '"' && depth === 0)) {
-      if (char === quote) quote = "";
-      else word += char;
-      continue;
-    }
-    if (char === "(" && word.endsWith("$")) depth += 1;
-    else if (char === ")" && depth > 0) depth -= 1;
-    else if (char === "`") depth += word.split("`").length % 2 === 1 ? 1 : -1;
-    if (depth > 0 || char === ")" || char === "`") word += char;
-    else if (char === "'" || char === '"') {
-      quote = char;
-      open = true;
-    } else if (/\s/.test(char)) {
-      if (word || open) found.push(word);
-      word = "";
-      open = false;
-    } else word += char;
-  }
-  if (word || open) found.push(word);
-  return found;
-}
 
 const leading = (list: string[]): string[] => {
   while (list.length > 0 && PREFIX.test(list[0]!)) list.shift();
@@ -69,7 +40,7 @@ function runLines(command: string): string {
       .replace(QUOTED, "")
       .split(/&&|\|\||;/)
       .flatMap((command) => {
-        const runs = !command.split("|").every((stage) => STORES.has(leading(words(stage))[0] ?? ""));
+        const runs = !command.split("|").every((stage) => STORES.has(leading(shellWords(stage))[0] ?? ""));
         return [...command.matchAll(HEREDOC)].map((m) => ({ end: m[3]!, dash: m[1] === "-", runs }));
       });
     bodies.push(...markers.reverse());
@@ -89,7 +60,7 @@ const expand = (word: string, known: Known): string =>
 
 /** The command word once the words that only say when it runs are gone; assignments before it are learned. */
 function commandOf(part: string, known: Known): string[] {
-  const list = leading(words(part));
+  const list = leading(shellWords(part));
   if (DECLARE.has(list[0] ?? "")) list.shift();
   while (list.length > 0 && ASSIGN.test(list[0]!)) {
     const [, name = "", value = ""] = ASSIGN.exec(list.shift()!)!;

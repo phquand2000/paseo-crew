@@ -216,6 +216,31 @@ test("a failure not climbed out of in ten steps is noticed, ended only by the sa
     1,
     "a red gate is not climbed out of by another script passing",
   );
+  const spaced = (command: string) => run("b", 3, command, true);
+  assert.equal(
+    lost([
+      run("a", 2, "'/work/my tools/check.sh' --strict", false),
+      spaced("'/work/my tools/build.sh'"),
+      ...steps(10, 4),
+    ]).length,
+    1,
+    "another program under the same spaced path is not the one that failed",
+  );
+  assert.deepEqual(
+    lost([
+      run("a", 2, "/work/my\\ tools/check.sh --strict", false),
+      spaced("'/work/my tools/check.sh'"),
+      ...steps(12, 4),
+    ]),
+    [],
+    "the same program passing, however its path is quoted",
+  );
+  assert.equal(
+    lost([run("a", 2, "OWNER='peer S4' make test", false), spaced("OWNER='peer S4' make lint"), ...steps(10, 4)])
+      .length,
+    1,
+    "a quoted value set before a command is not the command",
+  );
 });
 
 test("a seat's turn stays open through the late end of an older turn, and is long only once nothing new is seen of it for the limit", () => {
