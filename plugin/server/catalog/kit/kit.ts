@@ -209,4 +209,5 @@ export const TEAM_SERVER = "team";
 /** What a seat's team server tells the desk it is: the key the seat was created with. */
 export const SEAT_KEY = "CREW_DESK_KEY";
 export const SEAT_WORKTREE = "CREW_WORKTREE";
+export const SEAT_WRITES = "CREW_WRITES";
 export const PASEO_SERVER = "paseo";

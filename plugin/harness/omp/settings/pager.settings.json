@@ -16,5 +16,73 @@
       "web_search": "deny",
       "debug": "deny"
     }
+  },
+  "bash": {
+    "patterns": [
+      {
+        "match": "git merge",
+        "approval": "deny"
+      },
+      {
+        "match": "git merge *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * merge",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * merge *",
+        "approval": "deny"
+      },
+      {
+        "match": "git reset",
+        "approval": "deny"
+      },
+      {
+        "match": "git reset *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * reset",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * reset *",
+        "approval": "deny"
+      },
+      {
+        "match": "git rebase",
+        "approval": "deny"
+      },
+      {
+        "match": "git rebase *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * rebase",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * rebase *",
+        "approval": "deny"
+      },
+      {
+        "match": "git cherry-pick",
+        "approval": "deny"
+      },
+      {
+        "match": "git cherry-pick *",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * cherry-pick",
+        "approval": "deny"
+      },
+      {
+        "match": "git -C * cherry-pick *",
+        "approval": "deny"
+      }
+    ]
   }
 }

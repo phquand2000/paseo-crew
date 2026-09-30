@@ -71,7 +71,7 @@ export const mergeLetters = {
     return mail("merge", [task.id, Date.now()], lines.join("\n"), "Clear what it names, then accept it again.");
   },
 
-  /** `settling` is how bringing the lane branch into the task's own copy went, since no seat may run git merge: left with its conflicts, clean, or not begun; `by`, the tasks whose merges wrote the lane's side. */
+  /** `settling` is how the desk's bringing the lane branch into the task's own copy went: left with its conflicts, clean, or not begun; `by`, the tasks whose merges wrote the lane's side. */
   conflict(
     task: Task,
     conflicts: string[],

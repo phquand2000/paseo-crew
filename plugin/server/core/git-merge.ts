@@ -13,8 +13,8 @@ export const AS_DESK = [
 type MergeResult = { ok: true; before: string; after: string } | { ok: false; conflicts: string[]; message: string };
 
 /**
- * `leave` keeps a merge stopped on conflicts in place for a seat to settle and commit, since no seat may run git merge; anything
- * else that stops it is undone. The Human's rerere would settle conflicts unseen, and their signer can wait on them: neither applies.
+ * `leave` keeps a merge stopped on conflicts in place for a seat to settle and commit; anything else that stops it is
+ * undone. The Human's rerere would settle conflicts unseen, and their signer can wait on them: neither applies.
  */
 export async function mergeBranch(
   cwd: string,

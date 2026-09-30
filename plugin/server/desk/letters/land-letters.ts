@@ -42,7 +42,7 @@ export const landLetters = {
     return fyi(mail("landheld", [lane.id, head], text, "Commit nothing more on the lane until the Human decides."));
   },
 
-  /** No seat may run git merge, so a task's Peer settles base on its own branch, where the desk merges it at its start. */
+  /** A Lead moves no branch, so a task's Peer settles base on its own branch, where the desk merges it at its start. */
   baseConflict(lane: Lane, conflicts: string[]): Letter {
     const text = `BASE CONFLICT ${lane.id} (${lane.title}): ${lane.base} moved on, and merging it into ${lane.branch} conflicts in ${conflicts.join(", ")}. Nothing was left in your working copy, and the lane does not land until it takes ${lane.base} in.`;
     return mail(

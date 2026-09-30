@@ -102,22 +102,6 @@
         "approval": "deny"
       },
       {
-        "match": "git merge",
-        "approval": "deny"
-      },
-      {
-        "match": "git merge *",
-        "approval": "deny"
-      },
-      {
-        "match": "git -C * merge",
-        "approval": "deny"
-      },
-      {
-        "match": "git -C * merge *",
-        "approval": "deny"
-      },
-      {
         "match": "git checkout",
         "approval": "deny"
       },
@@ -150,38 +134,6 @@
         "approval": "deny"
       },
       {
-        "match": "git reset",
-        "approval": "deny"
-      },
-      {
-        "match": "git reset *",
-        "approval": "deny"
-      },
-      {
-        "match": "git -C * reset",
-        "approval": "deny"
-      },
-      {
-        "match": "git -C * reset *",
-        "approval": "deny"
-      },
-      {
-        "match": "git rebase",
-        "approval": "deny"
-      },
-      {
-        "match": "git rebase *",
-        "approval": "deny"
-      },
-      {
-        "match": "git -C * rebase",
-        "approval": "deny"
-      },
-      {
-        "match": "git -C * rebase *",
-        "approval": "deny"
-      },
-      {
         "match": "git update-ref",
         "approval": "deny"
       },
@@ -195,22 +147,6 @@
       },
       {
         "match": "git -C * update-ref *",
-        "approval": "deny"
-      },
-      {
-        "match": "git cherry-pick",
-        "approval": "deny"
-      },
-      {
-        "match": "git cherry-pick *",
-        "approval": "deny"
-      },
-      {
-        "match": "git -C * cherry-pick",
-        "approval": "deny"
-      },
-      {
-        "match": "git -C * cherry-pick *",
         "approval": "deny"
       },
       {

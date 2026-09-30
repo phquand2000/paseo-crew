@@ -23,9 +23,13 @@ import { tempDir } from "../tempdir.ts";
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const DESK_GIT = [
-  ..."push pull merge checkout switch reset rebase cherry-pick update-ref stash".split(" "),
+  ..."push pull checkout switch update-ref stash".split(" "),
   ..."add lock move prune remove repair unlock".split(" ").map((verb) => `worktree ${verb}`),
 ];
+const MOVES = "merge reset rebase cherry-pick".split(" ");
+const GIT = [...DESK_GIT, ...MOVES];
+/** The share of `rules` that `no` holds: all where git is the desk's, none where it is a writing seat's on its own branch. */
+const share = (no: string[], rules: string[]) => rules.filter((rule) => no.includes(rule)).length / rules.length;
 /** Whether a deny rule, `*` taking in anything, refuses reading which copy holds which branch, as the git shim allows. */
 const refusesReading = (rules: string[]) =>
   rules.some((rule) =>
@@ -73,6 +77,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     const waits = !["lead", "supervisor"].includes(kind);
     const searches = SEARCHES.includes(kind);
     const bare = kind === "pager";
+    const desks = (command: string) => Number(!MOVES.includes(command) || !can(role, "write"));
     assert.deepEqual(
       at(paseo, `agents.providers.${providerId(kit, role.role, harness.id)}.paseoTools`),
       { enabled: false },
@@ -115,11 +120,8 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     const settings = readConfig<unknown>(join(dir, harness.settings.file), {});
     if (harness.id === "claude") {
       const deny = list(at(settings, "permissions.deny"));
-      for (const command of DESK_GIT)
-        assert.ok(
-          [`Bash(git ${command} *)`, `Bash(git -C * ${command} *)`].every((rule) => deny.includes(rule)),
-          `${where}: only the desk does git ${command}, with -C or without`,
-        );
+      const refused = (command: string) => share(deny, [`Bash(git ${command} *)`, `Bash(git -C * ${command} *)`]);
+      for (const command of GIT) assert.equal(refused(command), desks(command), `${where}: git ${command}, -C or not`);
       assert.ok(!refusesReading(deny.map((rule) => rule.replace(/^Bash\((.*)\)$/, "$1"))), `${where}: reads worktrees`);
       for (const secret of ["~/.ssh", "~/.aws", "~/.kube"])
         assert.ok(
@@ -194,11 +196,13 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         `${where}: writes into the state only where its content says`,
       );
       const rules = readFileSync(join(dir, "rules", "paseo-crew.rules"), "utf-8");
-      for (const [command, verb] of DESK_GIT.map((command) => command.split(" ")))
-        assert.match(
-          rules,
-          new RegExp(verb ? `\\["git", "${command}", \\[[^\\]]*"${verb}"` : `\\["git", (\\[[^\\]]*)?"${command}"`),
-          `${where}: only the desk does git ${command} ${verb ?? ""}`,
+      for (const [command, verb] of GIT.map((git) => git.split(" ")))
+        assert.equal(
+          new RegExp(verb ? `\\["git", "${command}", \\[[^\\]]*"${verb}"` : `\\["git", (\\[[^\\]]*)?"${command}"`).test(
+            rules,
+          ),
+          Boolean(desks(command!)),
+          `${where}: git ${command} ${verb ?? ""}`,
         );
       assert.doesNotMatch(rules, /\["git", (\[[^\]]*)?"worktree"\]/, `${where}: reads worktrees`);
       assert.equal(
@@ -220,20 +224,17 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     if (harness.id === "omp") {
       const patterns = (at(settings, "bash.patterns") ?? []) as { approval: string; match: string }[];
       const denied = patterns.filter((rule) => rule.approval === "deny").map((rule) => rule.match);
-      const refuses = (command: string) =>
-        [`git ${command}`, `git ${command} *`, `git -C * ${command}`, `git -C * ${command} *`].every((rule) =>
-          denied.includes(rule),
-        );
+      const refused = (command: string) =>
+        share(denied, [`git ${command}`, `git ${command} *`, `git -C * ${command}`, `git -C * ${command} *`]);
       const approval = (tool: string) => at(settings, `tools.approval.${tool}`);
-      for (const command of DESK_GIT)
-        assert.ok(refuses(command), `${where}: only the desk does git ${command}, with -C or without`);
+      for (const command of GIT) assert.equal(refused(command), desks(command), `${where}: git ${command}, -C or not`);
       assert.ok(!refusesReading(denied), `${where}: reads worktrees`);
       assert.ok(
         !denied.some((rule) => /^git (-C \* )?[a-z-]+\*$/.test(rule)),
         `${where}: no pattern takes in a longer command, as git merge* took git merge-base`,
       );
       assert.equal(
-        refuses("commit"),
+        refused("commit") === 1,
         ["supervisor", "lead", "reviewer"].includes(kind),
         `${where}: commits only where the role may`,
       );
@@ -329,12 +330,9 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       const bash = (at(settings, "permission.bash") ?? {}) as Record<string, unknown>;
       const allowed = (tool: string) => at(settings, `permission.${tool}`);
       assert.equal(Object.keys(bash)[0], "*", `${where}: the allow comes first, since the last rule that matches wins`);
-      for (const command of DESK_GIT)
-        assert.ok(
-          bash[`git ${command} *`] === "deny" && bash[`git -C * ${command} *`] === "deny",
-          `${where}: only the desk does git ${command}, with -C or without`,
-        );
       const denied = Object.keys(bash).filter((rule) => bash[rule] === "deny" && rule !== "*");
+      const refused = (command: string) => share(denied, [`git ${command} *`, `git -C * ${command} *`]);
+      for (const command of GIT) assert.equal(refused(command), desks(command), `${where}: git ${command}, -C or not`);
       assert.ok(!refusesReading(denied), `${where}: reads worktrees`);
       assert.equal(
         bash["git commit *"] === "deny",

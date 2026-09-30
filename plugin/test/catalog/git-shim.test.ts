@@ -170,3 +170,43 @@ test("a seat's git works only in its own copy of the project: the Human's checko
     assert.match(ran.stderr, /^git: refused: this git works in [^\n]*, not in your own copy/, where);
   }
 });
+
+test("a writing seat settles what conflicts on its task's branch through its git, where a seat that does not write is refused", () => {
+  const root = tempDir("crew-shim-moves-");
+  const real = (...args: string[]) =>
+    execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], { encoding: "utf-8" });
+  real("init", "-q", "-b", "main");
+  writeFileSync(join(root, "a.txt"), "seed\n");
+  real("add", "-A");
+  real("commit", "-qm", "seed");
+  real("switch", "-qc", "task/l1-t1-cart");
+  writeFileSync(join(root, "a.txt"), "task\n");
+  real("commit", "-qam", "task");
+  real("switch", "-q", "main");
+  writeFileSync(join(root, "a.txt"), "base\n");
+  real("commit", "-qam", "base");
+  real("switch", "-q", "task/l1-t1-cart");
+  const dir = seatBin(loadKit(PLUGIN), tempDir("crew-shim-moves-state-"))!;
+  const git = (writes: boolean, ...args: string[]) =>
+    spawnSync(join(dir, "git"), ["-C", root, "-c", "user.name=t", "-c", "user.email=t@x", ...args], {
+      encoding: "utf-8",
+      env: { ...process.env, ...(writes ? { CREW_WRITES: "1" } : {}) },
+    });
+  const refused = (writes: boolean, ...args: string[]) => /^git: refused: /.test(git(writes, ...args).stderr);
+
+  for (const args of [
+    ["merge", "main"],
+    ["rebase", "main"],
+    ["reset", "--hard", "main"],
+    ["cherry-pick", "main"],
+  ])
+    assert.ok(refused(false, ...args), `a seat that does not write never moves the branch it stands on: ${args[0]}`);
+  assert.notEqual(git(true, "rebase", "main").status, 0, "a rebase that stops on a conflict stops as git's own");
+  assert.ok(!refused(true, "rebase", "--abort"), "and the seat may back out of it");
+  assert.ok(!refused(true, "merge", "main"), "the base merged into its own branch, to settle what conflicts");
+  writeFileSync(join(root, "a.txt"), "task and base\n");
+  real("add", "a.txt");
+  assert.equal(git(true, "commit", "-qm", "settle").status, 0);
+  assert.equal(git(true, "reset", "--soft", "HEAD~1").status, 0, "its own history is its own");
+  assert.ok(refused(true, "checkout", "main"), "though it still never leaves its branch");
+});

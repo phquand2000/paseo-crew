@@ -1,6 +1,6 @@
 import { renderPrompt } from "../../catalog/kit/content.ts";
-import { type Kit, type RoleSpec, SEAT_KEY, SEAT_WORKTREE } from "../../catalog/kit/kit.ts";
-import { seatOf } from "../../catalog/kit/roles.ts";
+import { type Kit, type RoleSpec, SEAT_KEY, SEAT_WORKTREE, SEAT_WRITES } from "../../catalog/kit/kit.ts";
+import { can, seatOf } from "../../catalog/kit/roles.ts";
 import { applyRole, seatBin, seatEnv } from "../../catalog/seat/launch.ts";
 import { seedRecords } from "../../catalog/seat/seat-files.ts";
 import { seatDir } from "../../catalog/seat/seats.ts";
@@ -73,6 +73,8 @@ export class SeatLaunch {
         ...opened.env,
         // The seat's own copy, the one its git shim lets it work in.
         [SEAT_WORKTREE]: request.cwd,
+        // Only a seat that writes moves the branch it stands on, its task's own.
+        ...(can(seat.role, "write") ? { [SEAT_WRITES]: "1" } : {}),
         ...(key ? { [SEAT_KEY]: key } : {}),
         ...(ssh ? { [SEAT_SSH]: ssh } : {}),
         ...(temp ? { [tempEnv]: temp } : {}),

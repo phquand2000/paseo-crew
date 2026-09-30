@@ -62,7 +62,7 @@ async function changedBy(cwd: string, tip: string, files: string[]): Promise<str
 
 /**
  * Brings the lane branch into a task's own copy, so what it hands back or merges is what the lane would become. A copy with
- * work uncommitted is left as it is; conflicts are left in it for its Peer to settle and commit, since no seat may run git merge.
+ * work uncommitted is left as it is; conflicts are left in it for its Peer to settle and commit.
  */
 export async function bringLaneIn(
   task: Task & { worktree: string; branch: string },

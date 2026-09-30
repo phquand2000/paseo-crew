@@ -75,7 +75,7 @@ async function peerCopy(
   return copy;
 }
 
-/** Merges base into the task's branch once, conflicts left for its Peer to settle and commit, since no seat may run git merge. */
+/** Merges base into the task's branch once, conflicts left for its Peer to settle and commit. */
 async function takeBase(
   ledgers: DeskServices["ledgers"],
   project: Project,

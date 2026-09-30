@@ -1,5 +1,7 @@
 // A seat's git, first on its PATH: refuses what only the desk does to branches and working copies, however the command
-// is spelled (-C, -c, --git-dir, an alias), and runs everything else as the real git would. Run as: git-shim.mjs <git> <args>.
+// is spelled (-C, -c, --git-dir, an alias), and runs everything else as the real git would. Moving the branch checked out
+// (merge, rebase, reset, cherry-pick) is left to a seat that writes ($CREW_WRITES), which stands on its task's branch since
+// none checks out or switches. Run as: git-shim.mjs <git> <args>.
 // It works only in the seat's own copy of the project ($CREW_WORKTREE): the Human's checkout and every other seat's copy
 // of the same repository are refused, which on an agent with no sandbox is all that keeps them apart; a repository of
 // any other making, as a test suite builds, is not.
@@ -10,14 +12,16 @@ const [git, ...argv] = process.argv.slice(2);
 
 const VALUED = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--super-prefix", "--config-env", "--list-cmds", "--attr-source"]);
 
-const DESKS = new Set(["push", "pull", "merge", "checkout", "switch", "reset", "rebase", "cherry-pick", "update-ref", "stash"]);
+const DESKS = new Set(["push", "pull", "checkout", "switch", "update-ref", "stash"]);
+
+const MOVES = new Set(["merge", "rebase", "reset", "cherry-pick"]);
 
 const INSTEAD = {
   checkout: "for one file, run git restore --source=<commit> -- <path>, or git show <commit>:<path> to read it",
   stash: "to read a stash, run git log -g refs/stash or git show stash@{<n>}",
 };
 
-const OWN = new Set([...DESKS, "add", "blame", "branch", "commit", "config", "diff", "fetch", "grep", "log", "ls-files", "rev-parse", "show", "status", "worktree"]);
+const OWN = new Set([...DESKS, ...MOVES, "add", "blame", "branch", "commit", "config", "diff", "fetch", "grep", "log", "ls-files", "rev-parse", "show", "status", "worktree"]);
 
 const DEPTH = 10;
 
@@ -59,6 +63,8 @@ function fetchMoves(globals, command, rest) {
 function refusal(globals, command, rest) {
   if (DESKS.has(command))
     return [`git ${command} moves branches or working copies, and that is the desk's to do`, INSTEAD[command]].filter(Boolean).join("; ");
+  if (MOVES.has(command) && !process.env.CREW_WRITES)
+    return `git ${command} moves the branch checked out, and only a seat that writes moves one, its own task's`;
   if (command === "worktree" && rest[0] !== "list") return "git worktree changes working copies, and that is the desk's to do";
   if ((command === "fetch" || command === "remote") && fetchMoves(globals, command, rest))
     return "a fetch that writes outside refs/remotes/ or refs/tags/ moves a branch, and that is the desk's to do; fetch into refs/remotes/ and read it from there";

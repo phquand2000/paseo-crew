@@ -18,7 +18,15 @@
       "TaskGet",
       "TaskList",
       "TaskUpdate",
-      "AskUserQuestion"
+      "AskUserQuestion",
+      "Bash(git merge *)",
+      "Bash(git reset *)",
+      "Bash(git rebase *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git -C * merge *)",
+      "Bash(git -C * reset *)",
+      "Bash(git -C * rebase *)",
+      "Bash(git -C * cherry-pick *)"
     ]
   }
 }

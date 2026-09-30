@@ -174,8 +174,10 @@ shrink.
 3. **Before `agent.session_open`.** The plugin seeds the project's records (`notebook.md`), rebuilds the
    directory if its inputs changed, points the agent's config directory at it, sets `CREW_ROLE`,
    `CREW_PROJECT` and `CREW_STATE`, binds the key, and puts the state root's `bin/` first on `PATH`:
-   a `git` running `bin/git-shim.mjs`, which refuses the commands kept for the desk (push, pull, merge,
-   checkout, reset and the like) however they are spelled, and a `gh` and a `paseo` that only refuse.
+   a `git` running `bin/git-shim.mjs`, which refuses the commands kept for the desk (push, pull,
+   checkout, switch and the like) however they are spelled, and merge, rebase, reset and cherry-pick to a
+   seat whose role does not write; one that writes stands on its task's branch and may move it
+   (`CREW_WRITES`). A `gh` and a `paseo` only refuse.
 4. **`bin/seat-room`** refuses a Claude Code launch the plugin did not configure, forces
    `--setting-sources user` and `--thinking-display summarized`, and `exec`s Claude; the other agents start through Paseo's own providers.
 

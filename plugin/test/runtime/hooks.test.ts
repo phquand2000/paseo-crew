@@ -7,7 +7,7 @@ import { test } from "node:test";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { parse } from "smol-toml";
 import { PaseoHost } from "../../server/adapters/paseo/host.ts";
-import { SEAT_KEY, SEAT_WORKTREE } from "../../server/catalog/kit/kit.ts";
+import { SEAT_KEY, SEAT_WORKTREE, SEAT_WRITES } from "../../server/catalog/kit/kit.ts";
 import { providerId } from "../../server/catalog/kit/roles.ts";
 import { seatDir } from "../../server/catalog/seat/seats.ts";
 import { home, stateRoot } from "../../server/core/paths.ts";
@@ -82,6 +82,18 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
   assert.equal(open("agent-9", "create", { [SEAT_KEY]: "k9" })[SEAT_KEY], "k9");
   assert.equal(open("agent-9", "resume")[SEAT_KEY], "k9", "a resumed seat's server starts again with its key");
   assert.equal(open("agent-9", "resume")[SEAT_WORKTREE], h.root, "and its git is told its own copy");
+  assert.equal(open("agent-9", "resume")[SEAT_WRITES], undefined, "a Lead's git moves no branch");
+  const peer = hook("agent.session_open", {
+    request: {
+      agentId: "agent-6",
+      reason: "create",
+      purpose: "interactive",
+      provider: "crew-peer-claude",
+      cwd: h.root,
+      env: { [SEAT_KEY]: "k6" },
+    },
+  }) as Made;
+  assert.equal(peer.env[SEAT_WRITES], "1", "a Peer's moves the task branch it stands on");
   assert.throws(() => open("agent-0", "resume"), refused, "a seat never given one is refused before it runs a turn");
   assert.equal(open("agent-0", "resume", {}, h.root, "history")[SEAT_KEY], undefined, "though its history still reads");
   const keys = join(stateRoot(), "keys.json");
