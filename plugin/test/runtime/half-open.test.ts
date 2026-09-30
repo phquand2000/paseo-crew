@@ -89,7 +89,15 @@ test("a lane whose Lead is gone gets one where it stands, with the asks that wai
   const replace = () => h.call(sup, "supervisor", "replace_lead", { lane: "L1" });
   assert.match((await replace()).text, /still seated; message it instead/);
   assert.equal((await h.call(peer, "peer", "ask", { question: "Which rounding?", bestGuess: "half up" })).ok, true);
-  h.agents.get(lane.lead!)!.archivedAt = new Date().toISOString();
+  h.agents.get(lane.lead!)!.status = "idle";
+  assert.match(
+    (await h.call(sup, "supervisor", "release", { lane: "L1" })).text,
+    new RegExp(
+      `^Lane L1's Lead ${lane.lead} is released; the lane stays open where it stands, for replace_lead to seat another\\.`,
+    ),
+    "the Supervisor may end the Lead of a lane still under way",
+  );
+  assert.ok(h.agents.get(lane.lead!)!.archivedAt);
   assert.equal((await h.call(peer, "peer", "ask", { question: "Cents or units?" })).ok, true);
 
   const replaced = await replace();

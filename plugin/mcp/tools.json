@@ -498,7 +498,7 @@
     {
       "name": "release",
       "title": "Release a kept Lead",
-      "description": "Let go of the Lead kept from a closed lane, once its work is done or the Human asks: it is archived after the turn it is in, and the copy it kept is put away, with a landed lane's branch.",
+      "description": "Let go of a lane's Lead, archived after the turn it is in. One kept from a closed lane goes once its work is done or the Human asks, and the copy it kept is put away with a landed lane's branch; an open lane stays where it stands for replace_lead.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -510,7 +510,7 @@
         "properties": {
           "lane": {
             "type": "string",
-            "description": "Lane id of a closed lane, like L1."
+            "description": "Lane id, like L1."
           }
         },
         "required": [

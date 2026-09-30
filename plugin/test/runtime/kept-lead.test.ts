@@ -81,10 +81,6 @@ test("a kept Lead keeps its lane's copy until the Supervisor releases it or the 
   const part = await isolated(h, sup, "Part B", "b");
   const lead = part.lead!;
   assert.equal(part.slot, "S0");
-  assert.match(
-    (await release("L1")).text,
-    /Lane L1 is open: land_lane or drop_lane it first\. replace_lead swaps a Lead that is gone\./,
-  );
   assert.deepEqual(copyCalls(part.worktree!), ["open"]);
 
   const seats = (h.paseo as { agents: { ref: (id: string) => { refresh: () => Promise<unknown> } } }).agents;

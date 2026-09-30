@@ -129,14 +129,27 @@ export async function releaseKeptPeer(desk: DeskServices, caller: Caller, args: 
   );
 }
 
-/** Whoever supervises lets go of the Lead kept from a closed lane, and of the copy it kept. */
+/** An open lane's Lead let go: its copy, branch, tasks and Peers stay as they are for the Lead replace_lead seats. */
+async function releaseOpenLead(desk: DeskServices, project: Project, lane: Lane): Promise<ToolReply> {
+  const lead = lane.lead && (await desk.roster.seated(lane.lead)) ? lane.lead : undefined;
+  if (!lead) return no(`Lane ${lane.id}'s Lead is gone already: replace_lead seats another where the lane stands.`);
+  await letGo(desk, desk.roster, project, lead);
+  recordEvent(project, { kind: "seat.released", seat: lead, of: lane.id });
+  const after = desk.roster.archiving(lead) ? " It is archived once the turn it is in ends." : "";
+  return ok(
+    `Lane ${lane.id}'s Lead ${lead} is released; the lane stays open where it stands, for replace_lead to seat another.${after}`,
+  );
+}
+
+/**
+ * Whoever supervises lets go of a lane's Lead: one kept from a closed lane with the copy it kept, or the Lead of a lane
+ * still open, which stays where it stands for another.
+ */
 export async function releaseKeptLead(desk: DeskServices, caller: Caller, args: Args): Promise<ToolReply> {
   const lane = findLane(loadLedger(caller.project.state), str(args.lane));
   if (!lane) return no(`There is no lane ${str(args.lane)}.`);
-  if (lane.status !== "closed")
-    return no(
-      `Lane ${lane.id} is ${lane.status}: land_lane or drop_lane it first. replace_lead swaps a Lead that is gone.`,
-    );
+  if (lane.status === "waiting") return no(`Lane ${lane.id} is waiting, and has no Lead yet.`);
+  if (lane.status === "open") return releaseOpenLead(desk, caller.project, lane);
   const released = await releaseKept(desk, caller.project, lane);
   return released ? ok(released) : no(`Lane ${lane.id}'s Lead is gone already, and nothing of it is kept.`);
 }
