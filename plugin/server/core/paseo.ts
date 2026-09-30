@@ -1,3 +1,6 @@
+/** What the watch saw of a seat's running turn: since when, when it last heard anything, and the last call it saw. */
+export type Doing = { since: number; heard: number; last?: string };
+
 export type SeatView = {
   id: string;
   title?: string | null;

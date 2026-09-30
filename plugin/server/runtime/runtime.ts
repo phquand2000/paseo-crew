@@ -94,6 +94,7 @@ export class Runtime implements HostHooks {
       teamFor: (project) => this.source.teamFor(project),
       indexesFor: (project) => this.indexesFor(project),
       sensor: options.sensor,
+      doing: (seat) => this.watches.get(seat)?.doing(),
     });
     this.socket = this.teamSocket();
     this.turns = new TurnRules({ kit, desk: this.desk, seats: host.seats, source: this.source, remember, log });

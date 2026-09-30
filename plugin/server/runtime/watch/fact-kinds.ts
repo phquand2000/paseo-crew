@@ -17,6 +17,7 @@ export const FACTS = {
   "ask-waiting": { level: "attend", title: "An ask left waiting on its reader" },
   "call-failed": { level: "note" },
   "gate-failed": { level: "note" },
+  "gate-rerun": { level: "note" },
   "outside-scope": { level: "note" },
   "edit-before-look": { level: "note" },
   destructive: { level: "note" },

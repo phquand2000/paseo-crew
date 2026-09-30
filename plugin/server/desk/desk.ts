@@ -3,6 +3,7 @@ import type { Team } from "../catalog/team/team.ts";
 import { KeyedQueue } from "../core/keyed-queue.ts";
 import { midTurn } from "../core/paseo.ts";
 import { intentsPath } from "../core/paths.ts";
+import type { Doing } from "../core/paseo.ts";
 import type { Judge, SeatView, Seats, Workspaces } from "../core/ports.ts";
 import type { Finding } from "../domain/incident.ts";
 import type { TaskMove, TaskStatus } from "../domain/task.ts";
@@ -50,6 +51,7 @@ type DeskOptions = {
   teamFor: (project?: Project) => Team;
   indexesFor?: (project: Project) => CodeIndex[];
   sensor?: (spec: SensorSpec, key: string) => Judge;
+  doing: (seat: string) => Doing | undefined;
 };
 
 /** The desk: it builds the services every tool and flow shares, and is what the runtime, its hooks and the panel call. */
@@ -81,6 +83,7 @@ export class Desk {
       teamFor: options.teamFor,
       indexesFor: options.indexesFor ?? (() => []),
       sensorFor: (spec, key) => options.sensor?.(spec, key),
+      doing: options.doing,
       seating: new Claims(),
       closing: new Claims(),
       landings: new KeyedQueue(),

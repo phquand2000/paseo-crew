@@ -104,7 +104,7 @@
     "skipped": "\\.(skip|only|todo)\\b|\\bx(it|describe|test)\\b|@Disabled\\b|pytest\\.mark\\.skip\\b",
     "assertion": "\\b(assert|expect)\\b|\\.should\\b",
     "refused": "permission|denied|not allowed|refused|blocked by",
-    "probe": "^(?:cat|ls|grep|egrep|rg|test|\\[|stat|head|tail|wc|find|which|type|file|echo|printf|tilth|command\\s+-v|git\\s+(?:-C\\s+\\S+\\s+)?(?:show|log|cat-file|rev-parse|ls-files|ls-tree)|docker\\s+(?:image\\s+|container\\s+)?inspect|\\S.*\\s--(?:help|version)(?=(?:\\s+\\d?>>?&?\\S+)*\\s*$))\\b",
+    "probe": "^(?:cat|ls|diff|cmp|grep|egrep|rg|test|\\[|stat|head|tail|wc|find|which|type|file|echo|printf|tilth|command\\s+-v|git\\s+(?:-C\\s+\\S+\\s+)?(?:show|log|cat-file|rev-parse|ls-files|ls-tree)|docker\\s+(?:image\\s+|container\\s+)?inspect|\\S.*\\s--(?:help|version)(?=(?:\\s+\\d?>>?&?\\S+)*\\s*$))\\b",
     "runners": [
       "npm",
       "pnpm",

@@ -70,6 +70,19 @@ function resultOf(call: Call): string {
   return `${failed(call) ? "failed" : "ok"}\n${str(call.detail.output)}\n${JSON.stringify(call.error ?? null)}`;
 }
 
+/** The whole gate run `repeatsAt` times since the latest instruction: a turn spending itself on the slowest check. */
+export function rerun(units: Unit[], call: Call, rules: Pick<Rules, "gates" | "repeatsAt">): Fact[] {
+  if (!isGate(call, rules.gates)) return [];
+  const runs = units.filter((unit) => unit.kind === "call" && unit.call.ended && isGate(unit.call, rules.gates));
+  if (runs.length !== rules.repeatsAt) return [];
+  return [
+    fact(
+      "gate-rerun",
+      `the gate run ${runs.length} times since the latest instruction: ${oneLine(describe(call), 120)}`,
+    ),
+  ];
+}
+
 export function stuck(units: Unit[], rules: Pick<Rules, "repeatsAt">): string | undefined {
   const recent = units.slice(-20);
   const calls = recent.flatMap((unit) =>
@@ -229,7 +242,9 @@ export class Recovery {
   step(call: Call, rules: Rules): Fact[] {
     const shell = call.detail.type === "shell";
     const command = str(call.detail.command);
-    const bad = failed(call);
+    // Past 127 a signal ended it: the seat or its timeout stopped it, and nothing it wrote failed.
+    const stopped = typeof call.detail.exitCode === "number" && call.detail.exitCode > 127;
+    const bad = failed(call) && !stopped;
     if (
       shell &&
       bad &&
@@ -240,7 +255,7 @@ export class Recovery {
       return [];
     }
     if (!this.open) return [];
-    if (shell && !bad && (head(command, rules.runners) === this.open.head || isGate(call, rules.gates))) {
+    if (shell && !bad && !stopped && (head(command, rules.runners) === this.open.head || isGate(call, rules.gates))) {
       this.open = undefined;
       return [];
     }

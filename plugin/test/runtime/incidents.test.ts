@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { flowRpc } from "../../shared/rpc.ts";
-import { saveIncidents } from "../../server/desk/store/incidents.ts";
+import { loadIncidents, saveIncidents } from "../../server/desk/store/incidents.ts";
 import { laneWithPeer } from "./harness.ts";
 import { book, hookAgent, notice } from "./noticed.ts";
 
@@ -214,10 +214,19 @@ test("a kind most of whose last ten marks were noise is held on probation, and a
       ["irreversible", null, true],
     ],
   );
+  const kept = loadIncidents(h.project.state);
+  const weak = { ...kept.items.Istuck0!, id: "Iweak", kind: "test-weakened", facts: ["test-weakened"], open: true };
+  saveIncidents(h.project.state, { ...kept, items: { ...kept.items, Iweak: { ...weak, label: undefined } } });
+  const listed = (await h.call(sup, "supervisor", "incidents", {})).text;
   assert.match(
-    (await h.call(sup, "supervisor", "incidents", {})).text,
+    listed,
     /\[attend, not sent: most of its kind's last ten marks were noise\] Peer \(peer-1\)/,
     "the book says why",
+  );
+  assert.match(
+    listed,
+    /^\d+ not yet marked:\n- Iweak /,
+    "and lists a kind its marks do not call noise first, however old",
   );
   const watch = await h.rpc(flowRpc, { project: h.project.slug });
   assert.ok("watch" in watch, JSON.stringify(watch));

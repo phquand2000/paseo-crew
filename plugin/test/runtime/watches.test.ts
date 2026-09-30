@@ -120,6 +120,15 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   call("c5", "Bash", "failed", { type: "shell", command: "npm test", output: "1 failing" });
   await settle();
   await noticed();
+  h.agents.get(peer)!.status = "running";
+  assert.match(
+    (await h.call(sup, "supervisor", "status", {})).text,
+    new RegExp(
+      `- L1-T1 Clean build: running, Peer ${peer} running 0 min into its turn, last: Bash: npm test, 0 min ago$`,
+      "m",
+    ),
+    "status shows how long a Peer's turn has run and the last step it took",
+  );
   assert.equal(
     pagers().length,
     1,

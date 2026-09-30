@@ -197,6 +197,10 @@ test("a failure not climbed out of in ten steps is noticed, ended only by the sa
     1,
     "unless it did more than look",
   );
+  const compared = run("diff", 2, "diff -u expected.txt out.txt", false);
+  assert.deepEqual(lost([compared, ...steps(12, 3)]), [], "files that differ are an answer too");
+  const stopped = again(failedCat, "int", 2, (detail) => Object.assign(detail, { command: "npm test", exitCode: 130 }));
+  assert.deepEqual(lost([stopped, ...steps(12, 3)]), [], "a run a signal stopped is not a failure of the work");
   const help = "cd /work && ./scripts/check.sh --help 2>&1 | head -40";
   assert.deepEqual(
     lost([run("help", 2, help, false), ...steps(12, 3)]),
@@ -246,6 +250,19 @@ test("a failure not climbed out of in ten steps is noticed, ended only by the sa
       .length,
     1,
     "a quoted value set before a command is not the command",
+  );
+});
+
+test("the gate run again and again since one instruction is noted once, as evidence only", () => {
+  const gated = rules({ gates: ["npm test"] });
+  const runs = [run("g1", 2, "npm test", false), run("e", 3, "echo x", true), run("g2", 4, "npm test", false)];
+  const noted = (messages: StreamMessage[]) =>
+    play([...opening(), ...messages], gated).filter((fact) => fact.kind === "gate-rerun");
+  assert.deepEqual(noted(runs), [], "twice is a fix checked");
+  const third = [...runs, run("g3", 5, "npm test 2>&1 | tail", true), run("g4", 6, "npm test", true)];
+  assert.deepEqual(
+    noted(third).map((fact) => [fact.level, fact.quote]),
+    [["note", "the gate run 3 times since the latest instruction: bash: npm test 2>&1 | tail"]],
   );
 });
 

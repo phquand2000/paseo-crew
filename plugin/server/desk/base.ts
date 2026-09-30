@@ -1,6 +1,7 @@
 import type { Kit, SensorSpec } from "../catalog/kit/kit.ts";
 import type { Team } from "../catalog/team/team.ts";
 import type { KeyedQueue } from "../core/keyed-queue.ts";
+import type { Doing } from "../core/paseo.ts";
 import type { Judge } from "../core/ports.ts";
 import type { Claims } from "./claims.ts";
 import type { CodeIndex, Posted } from "./context.ts";
@@ -26,6 +27,7 @@ export type DeskBase = {
   teamFor: (project?: Project) => Team;
   indexesFor: (project: Project) => CodeIndex[];
   sensorFor: (spec: SensorSpec, key: string) => Judge | undefined;
+  doing: (seat: string) => Doing | undefined;
   seating: Claims;
   closing: Claims;
   landings: KeyedQueue;

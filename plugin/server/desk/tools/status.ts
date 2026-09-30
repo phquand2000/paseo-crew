@@ -22,7 +22,7 @@ async function ownCopy(root: string): Promise<OwnCheckout> {
 export const status = defineTool({
   name: "status",
   input: z.strictObject({}),
-  async handle({ roster }, caller) {
+  async handle({ roster, doing }, caller) {
     const ledger = loadLedger(caller.project.state);
     const seats = new Map((await roster.open()).map((seat) => [seat.id, seat]));
     const led = can(caller.role, "lead") ? leadLaneOf(ledger, caller.id) : undefined;
@@ -33,7 +33,11 @@ export const status = defineTool({
     const lane = led?.id;
     const copy = can(caller.role, "supervise") ? await ownCopy(caller.project.root) : undefined;
     return ok(
-      statusText(caller.project, ledger, loadConfig(caller.project.state), seats, Date.now(), { laneId: lane, copy }),
+      statusText(caller.project, ledger, loadConfig(caller.project.state), seats, Date.now(), {
+        laneId: lane,
+        copy,
+        doing,
+      }),
     );
   },
 });

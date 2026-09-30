@@ -1,10 +1,11 @@
 import type { Kit } from "../../catalog/kit/kit.ts";
 import { can, seatOf } from "../../catalog/kit/roles.ts";
+import type { Doing } from "../../core/paseo.ts";
 import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 import { onDetail } from "./commands.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
-import { Recovery, type Rules, describe, onSettle, stuck } from "./facts.ts";
+import { Recovery, type Rules, describe, onSettle, rerun, stuck } from "./facts.ts";
 import { oneLine } from "../../core/text.ts";
 import { contradicted, editBeforeLook } from "./turn-facts.ts";
 import type { Quirks } from "../../catalog/kit/timeline.ts";
@@ -72,6 +73,7 @@ export class SeatWatch {
           ];
     if (change.settled && change.call && !change.call.pseudo) {
       facts.push(...this.recovery.step(change.call, rules));
+      facts.push(...rerun(this.window.sinceInstruction(), change.call, rules));
       const pattern = stuck(this.window.sinceInstruction(), rules);
       if (pattern) facts.push(fact("stuck", pattern));
       else this.told.delete("stuck");
@@ -88,6 +90,13 @@ export class SeatWatch {
     const call = this.window.running();
     const on = call ? `, waiting on ${oneLine(describe(call), 80)}` : "";
     return this.fresh([fact("long-turn", `nothing new for ${still} minutes of a turn running ${took}${on}`)]);
+  }
+
+  doing(): Doing | undefined {
+    if (!this.running || !this.startedAt) return undefined;
+    const call = this.window.sinceInstruction().findLast((unit) => unit.kind === "call" && !unit.call.pseudo);
+    const last = call?.kind === "call" ? { last: oneLine(describe(call.call), 80) } : {};
+    return { since: this.startedAt, heard: Math.max(this.startedAt, this.heardAt), ...last };
   }
 
   /** Quiet counts from `now`: a watch that joins a running turn has heard nothing of it before. */

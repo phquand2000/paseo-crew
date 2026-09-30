@@ -7,7 +7,7 @@ import { keptCopy } from "../seats/kept.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, ownCopyHolder } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { openLaneLines, seatLine, waitingLaneLines } from "./status-lanes.ts";
+import { type Watched, openLaneLines, seatLine, waitingLaneLines } from "./status-lanes.ts";
 import {
   type LaneHome,
   type Project,
@@ -63,7 +63,8 @@ export function statusText(
     waiting = [],
     held = [],
     copy,
-  }: { laneId?: string; waiting?: SeatView[]; held?: Held[]; copy?: OwnCheckout } = {},
+    doing,
+  }: { laneId?: string; waiting?: SeatView[]; held?: Held[]; copy?: OwnCheckout; doing?: Watched } = {},
 ): string {
   const lanes = Object.values(ledger.lanes).filter((lane) => (laneId ? lane.id === laneId : true));
   const open = lanes.filter((lane) => lane.status === "open");
@@ -75,7 +76,7 @@ export function statusText(
     ...waitingOnHuman(waiting),
     ...(open.length === 0
       ? ["No open lanes.", ""]
-      : open.flatMap((lane) => openLaneLines(ledger, lane, seats, now, copy !== undefined))),
+      : open.flatMap((lane) => openLaneLines(ledger, lane, seats, now, { aims: copy !== undefined, doing }))),
     ...waitingLaneLines(ledger, pending, copy !== undefined),
     ...(laneId ? [] : [...keptLines(ledger, seats, now), ...copyLines(ledger)]),
     ...askLines(ledger, now, laneId),

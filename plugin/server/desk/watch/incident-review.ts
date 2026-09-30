@@ -3,7 +3,7 @@ import { mask } from "../../core/mask.ts";
 import { oneLine } from "../../core/text.ts";
 import { type Held, close } from "../../domain/incident.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
-import { type Incident, readIncidentsFile } from "../store/incidents.ts";
+import { type Incident, lastMarks, readIncidentsFile } from "../store/incidents.ts";
 import { laneOfLead } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import type { DeskServices } from "../services.ts";
@@ -77,7 +77,10 @@ export function listIncidents(caller: Caller, withClosed: boolean): ToolReply {
   const allowed = mine(caller);
   if (typeof allowed === "string") return no(allowed);
   const all = Object.values(read.incidents.items).filter(allowed);
-  const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => b.last - a.last);
+  const marks = lastMarks(read.incidents);
+  // A kind its last marks call mostly noise goes below the rest: the one still worth a look is read first.
+  const noisy = (item: Incident) => (marks.get(item.kind)?.noisy ? 1 : 0);
+  const waiting = all.filter((item) => item.open || !item.label).sort((a, b) => noisy(a) - noisy(b) || b.last - a.last);
   const shown = waiting.slice(0, 50);
   const lines = [waiting.length > 0 ? `${waiting.length} not yet marked:` : "Nothing waiting to be marked."];
   lines.push(...shown.map(line));

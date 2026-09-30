@@ -1,4 +1,4 @@
-import type { SeatView } from "../../core/paseo.ts";
+import type { Doing, SeatView } from "../../core/paseo.ts";
 import { minutesSince } from "../../core/time.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
@@ -7,14 +7,23 @@ import { keptPeers } from "../seats/kept.ts";
 
 type Seats = Map<string, SeatView>;
 
+/** What the watch saw of a seat's running turn, when it has seen it. */
+export type Watched = (seat: string) => Doing | undefined;
+
 const SHOWN_OUTCOME = 300;
 
-export function openLaneLines(ledger: Ledger, lane: Lane, seats: Seats, now: number, aims: boolean): string[] {
+export function openLaneLines(
+  ledger: Ledger,
+  lane: Lane,
+  seats: Seats,
+  now: number,
+  { aims, doing }: { aims: boolean; doing?: Watched },
+): string[] {
   const detour = lane.detourOf ? ` Clearing the way for ${lane.detourOf}.` : "";
   const on = lane.onBranch ? ", carried on in the project's own copy" : ` off ${lane.base}`;
   const tasks = Object.values(ledger.tasks).filter((task) => task.lane === lane.id);
   const taskLines = tasks.map(
-    (task) => `- ${task.id} ${task.title}: ${task.status}${taskDetail(ledger, task, seats, now)}`,
+    (task) => `- ${task.id} ${task.title}: ${task.status}${taskDetail(ledger, task, seats, now, doing)}`,
   );
   return [
     `## ${lane.id} ${lane.title}`,
@@ -80,8 +89,9 @@ export function seatLine(seats: Seats, id: string | undefined, now: number): str
 }
 
 /** How a task stands on its line: who works it, what it waits for, its hand-back, and its Peer while kept after it. */
-function taskDetail(ledger: Ledger, task: Task, seats: Seats, now: number): string {
-  if (AT_WORK.includes(task.status)) return `, Peer ${seatLine(seats, task.peer, now)}`;
+function taskDetail(ledger: Ledger, task: Task, seats: Seats, now: number, doing?: Watched): string {
+  if (AT_WORK.includes(task.status))
+    return `, Peer ${seatLine(seats, task.peer, now)}${turnLine(seats, task.peer, now, doing)}`;
   if (task.status === "waiting") {
     const after = task.after?.length ? `, after ${task.after.join(", ")}` : "";
     return `${after}${task.held ? `. Not started: ${task.held.why}` : ""}`;
@@ -90,4 +100,12 @@ function taskDetail(ledger: Ledger, task: Task, seats: Seats, now: number): stri
   const keeps =
     kept && seats.has(kept.id) ? `; its Peer ${seatLine(seats, kept.id, now)} is kept until you release it` : "";
   return `${task.handback ? `, hand-back ${minutesSince(now, task.handback.at)} min ago` : ""}${keeps}`;
+}
+
+/** How long a running turn has gone and its last call, so a stuck or overrunning Peer shows without reading its chat. */
+function turnLine(seats: Seats, id: string | undefined, now: number, doing?: Watched): string {
+  const seen = id && seats.get(id)?.status === "running" ? doing?.(id) : undefined;
+  if (!seen) return "";
+  const last = seen.last ? `, last: ${seen.last}, ${minutesSince(now, seen.heard)} min ago` : "";
+  return ` ${minutesSince(now, seen.since)} min into its turn${last}`;
 }
