@@ -218,6 +218,7 @@ test("nothing reaches a seat that names or quotes an open incident about it, whi
     true,
   );
 
+  await h.idle(peer);
   await h.call(peer, "peer", "ask", { question: "Which rounding?", bestGuess: "half up" });
   assert.match(
     (await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half up, as I2 showed.", keepsDefault: true })).text,

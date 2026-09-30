@@ -19,16 +19,21 @@ export type DeskServices = DeskBase & {
   merges: MergeQueue;
 };
 
-/** A tool as the desk serves it: `input` is what its handler reads, and it must be the schema the calling seat was shown. */
+/**
+ * A tool as the desk serves it: `input` is what its handler reads, and it must be the schema the calling seat was shown.
+ * A `mailFirst` call commits its seat, so it waits until the seat has read mail held that changes its work.
+ */
 export type ToolDef = {
   name: string;
   input: z.ZodObject;
+  mailFirst?: true;
   handle(desk: DeskServices, caller: Caller, input: Record<string, unknown>): Promise<ToolReply>;
 };
 
 export function defineTool<Input extends z.ZodObject>(tool: {
   name: string;
   input: Input;
+  mailFirst?: true;
   handle(desk: DeskServices, caller: Caller, input: z.infer<Input>): Promise<ToolReply>;
 }): ToolDef {
   return tool;

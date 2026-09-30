@@ -36,7 +36,7 @@ test("a lane on hold stops its seats, keeps their mail, refuses every move, and 
 
   for (const seat of [lead, peer]) h.agents.get(seat)!.status = "idle";
   const told = h.agents.get(lead)!.sent.length;
-  await h.call(sup, "supervisor", "message", { to: "L1", text: "Is the table backed up?" });
+  await h.call(sup, "supervisor", "message", { to: "L1", text: "Is the table backed up?", now: true });
   assert.equal(h.agents.get(lead)!.sent.length, told);
   const request = { id: "req-1", kind: "tool", name: "Bash", title: "rm -rf data" };
   h.agents.get(peer)!.pending.push(request);
@@ -108,4 +108,23 @@ test("a lane on hold stops its seats, keeps their mail, refuses every move, and 
     (await h.call(sup, "supervisor", "replace_lead", { lane: "L2" })).text,
     /^Lane L2 is on hold: wait for the Human\. Nothing is accepted, started or landed in it until it resumes\./,
   );
+});
+
+test("a message sent now cuts the running turn short with everything held, and one sent plainly waits for its end", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const seat = h.agents.get(peer)!;
+  seat.status = "running";
+  const told = seat.sent.length;
+  const plain = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "Keep the old names." });
+  assert.match(plain.text, /^Queued for the Peer on L1-T1; it reads this when its turn ends/);
+  assert.equal(seat.sent.length, told);
+
+  const now = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "Stop: drop the rename.", now: true });
+  assert.match(now.text, /^Delivered to the Peer on L1-T1, cutting its turn short where its agent allows it\.$/);
+  assert.match(seat.interrupted.join("\n"), /Keep the old names\.[^]*Stop: drop the rename\./);
+  assert.deepEqual(h.heard(peer).slice(told), seat.interrupted, "nothing is left held to arrive twice");
+
+  await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "Hand back what you have.", now: true });
+  assert.match(h.heard(lane.lead!).join("\n"), /Hand back what you have\./, "its Lead is told first");
+  assert.match(seat.interrupted.at(-1)!, /Hand back what you have\./);
 });

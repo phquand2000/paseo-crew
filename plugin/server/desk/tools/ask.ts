@@ -5,6 +5,7 @@ import { defineTool } from "../services.ts";
 
 export const askOwner = defineTool({
   name: "ask",
+  mailFirst: true,
   input: z.strictObject({
     kind: z.enum(["need", "blocked", "question"]),
     text: z.string(),
@@ -22,6 +23,7 @@ export const askOwner = defineTool({
 
 export const askLead = defineTool({
   name: "ask",
+  mailFirst: true,
   input: z.strictObject({ question: z.string(), tried: z.string().optional(), bestGuess: z.string().optional() }),
   handle: (desk, caller, args) =>
     askUp(desk, caller, { question: str(args.question), tried: str(args.tried), guess: str(args.bestGuess) }),
@@ -29,6 +31,7 @@ export const askLead = defineTool({
 
 export const askLeadReviewing = defineTool({
   name: "ask",
+  mailFirst: true,
   input: z.strictObject({ question: z.string(), tried: z.string().optional() }),
   handle: (desk, caller, args) => askUp(desk, caller, { question: str(args.question), tried: str(args.tried) }),
 });

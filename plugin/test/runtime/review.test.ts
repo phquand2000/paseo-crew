@@ -345,6 +345,7 @@ test("a review reads a task where its work is: in the task's own copy until it m
     new RegExp(`see it with git diff ${lane.branch}\\.\\.\\.HEAD\\.`),
     "sent back, it is read as far as its Peer has committed, not at the hand-back it replaces",
   );
+  await h.idle(task.peer!);
   h.commit(task.worktree!, "a.txt", "A\nmore\n");
   await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a, and more" });
   await h.idle(task.peer!);

@@ -89,6 +89,10 @@ export class ToolCalls {
     const problems = argsProblems(shown, args);
     if (problems.length > 0)
       return no(`${request.tool} was not carried out: it ${problems.join("; ")}. ${shapeOf(shown)}`);
+    if (tool.mailFirst && (await this.desk.mail.waiting(caller.id)))
+      return no(
+        `${request.tool} was not carried out: mail that changes your work came for you, below. Weigh it, then call ${request.tool} again if it still stands.`,
+      );
     try {
       return await tool.handle(this.desk, caller, tool.input.parse(withoutNulls(args)));
     } catch (error) {

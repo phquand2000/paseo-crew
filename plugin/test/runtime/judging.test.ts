@@ -82,13 +82,7 @@ const kept = (state: string): Kept[] => {
   return lines;
 };
 
-after(() =>
-  assert.deepEqual(
-    [...everAsked].sort(),
-    [...catalog].sort(),
-    "every question the catalog holds is asked at some moment of the record",
-  ),
-);
+after(() => assert.deepEqual([...everAsked].sort(), [...catalog].sort(), "every question the catalog holds is asked"));
 
 async function lane(h: ReturnType<typeof harness>, hint: string) {
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
@@ -262,6 +256,7 @@ test("a turn's moments are asked about: an act, an unbacked hand-back, a change 
   timeline.beat("turn_completed", "t2");
   await moment();
   await h.call(opened.lead!, "lead", "rework", { task: "L1-T1", text: "Half up, please." });
+  await h.idle(peer);
   turn(timeline, "t3", "Half up, please.", "rework", read, edit, { type: "shell", command: "npm test", exitCode: 1 });
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "Half up now.", checks: "All 35 tests green." });
   timeline.beat("turn_completed", "t3");
@@ -328,6 +323,7 @@ test("nothing is asked when it cannot be, and the Flow tab says who answers and 
     return view.watch.judge;
   };
   const handBack = async (summary: string) => {
+    await h.idle(peer);
     await h.call(peer, "peer", "done", { outcome: "complete", summary });
     await h.call(lead, "lead", "rework", { task: "L1-T1", text: "Again." });
     await settle();

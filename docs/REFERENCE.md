@@ -309,9 +309,10 @@ when its turn ends, and each round. The first row that fits decides:
 | Every letter for it asks nothing of it, or was posted before the Peer handed its task back and it has not been sent back to work since | Held until one that does |
 | Otherwise | Sent: every letter waiting for it in one message, with the open asks put to it |
 
-Nothing is sent into a running turn, on any agent. A seat's own desk call takes everything held for it instead,
-word that asks nothing included, on its reply under "Mail the desk held for you"; not past a pending permission or
-a hold, and not on a call its harness stopped.
+Nothing is sent into a running turn, on any agent, but a `message` sent with `now`, which takes everything held
+with it. A seat's own desk call takes everything held for it instead, word that asks nothing included, on its reply
+under "Mail the desk held for you"; not past a pending permission or a hold, and not on a call its harness stopped.
+`done` and `ask` are refused while an amendment, answer, message or rework is held for their seat, and carry it.
 
 | Timing | Value |
 |---|---|

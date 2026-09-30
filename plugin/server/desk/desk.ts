@@ -73,7 +73,10 @@ export class Desk {
       projects,
       ledgers: new LedgerStore(touched),
       incidents: new IncidentStore(touched),
-      mail: { post: async (to, letter) => (to ? options.outbox.post({ to, ...letter }) : "nobody") },
+      mail: {
+        post: async (to, letter, into) => (to ? options.outbox.post({ to, ...letter }, into) : "nobody"),
+        waiting: (to) => options.outbox.waiting(to),
+      },
       log: options.log,
       teamFor: options.teamFor,
       indexesFor: options.indexesFor ?? (() => []),

@@ -16,8 +16,10 @@ async function handTo(
   sending: Sending,
   text: string,
 ): Promise<string> {
-  const posted = await mail.post(to.target, messageLetters.message(to.from, text, sending, to.reader));
-  if (posted === "sent") return `Delivered to ${to.who}.`;
+  const letter = messageLetters.message(to.from, text, sending, to.reader);
+  const posted = await mail.post(to.target, letter, sending.now ? "interrupt" : undefined);
+  if (posted === "sent")
+    return `Delivered to ${to.who}${sending.now ? ", cutting its turn short where its agent allows it" : ""}.`;
   const seat = await roster.look(to.target).catch(() => undefined);
   if ((seat?.pendingPermissions?.length ?? 0) > 0)
     return `Queued for ${to.who}, which is stopped on a permission only the Human can give; it reads this once that is decided.`;
@@ -106,11 +108,11 @@ async function toPeer(
 export async function sendMessage(
   desk: DeskServices,
   caller: Caller,
-  sent: { to: string; text: string },
+  sent: { to: string; text: string; now: boolean },
 ): Promise<ToolReply> {
   const { to, text } = sent;
   const ledger = loadLedger(caller.project.state);
-  const sending: Sending = { by: caller.id, to, at: Date.now() };
+  const sending: Sending = { by: caller.id, to, at: Date.now(), ...(sent.now ? { now: true } : {}) };
   if (can(caller.role, "supervise")) return fromOwner(desk, caller, ledger, sending, text);
   const lane = laneOfLead(ledger, caller.id);
   const task = findTask(ledger, to);

@@ -6,8 +6,8 @@ import { type Letter, mail } from "./envelope.ts";
 /** A call a seat was told to stop waiting for: the one identity its late answer and its lost answer share. */
 type Waited = { agent: string; tool: string; started: number };
 
-/** One sending of a message: keyed by the event, not the words, since the same instruction sent again is a second instruction. */
-export type Sending = { by: string; to: string; at: number };
+/** One sending of a message: keyed by the event, not the words, since the same instruction sent again is a second instruction; `now` cuts into a turn. */
+export type Sending = { by: string; to: string; at: number; now?: true };
 
 const sendingIds = (sending: Sending, text: string) => [sending.by, hash(sending.to, text), sending.at];
 

@@ -190,6 +190,7 @@ test("a task beside others keeps its Peer in its own copy once merged, until its
     h.heard(lead).join("\n"),
     /RECONCILE L1: [^]*Integration and acceptance: L1-T2 is merged already, and nothing here changed that\./,
   );
+  await h.idle(side.peer!);
   const answered = await h.call(side.peer!, "peer", "ask", { question: "b.txt only: is that enough?" });
   assert.equal(answered.ok, true, `and it can answer its Lead with ask: ${answered.text}`);
 
@@ -201,6 +202,7 @@ test("a task beside others keeps its Peer in its own copy once merged, until its
     "d.txt\n",
     "sent back after its merge, it takes up the lane as it stands before it reads the letter",
   );
+  await h.idle(side.peer!);
   h.commit(side.worktree!, "b.txt", "B\nB2\n");
   assert.equal((await h.call(side.peer!, "peer", "done", { outcome: "complete", summary: "b2" })).ok, true);
   await h.idle(side.peer!);

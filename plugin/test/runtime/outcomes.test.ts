@@ -34,6 +34,7 @@ test("what each review and ask went on to change is counted for whoever supervis
   assert.equal((await shown())?.overruled?.answer, "Half up.", "the Human's panel keeps the overruled default in view");
 
   const handBack = async (content: string) => {
+    await h.idle(peer);
     h.commit(lane.worktree!, "a.txt", content);
     await h.call(peer, "peer", "done", { outcome: "complete", summary: content });
   };

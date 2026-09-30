@@ -69,6 +69,12 @@ export type Letter = { key: string; text: string; wakes?: false };
 
 export const keyOf = (kind: Kind, ids: (string | number)[]) => [kind, ...ids].join(":");
 
+const CHANGES_THE_WORK: ReadonlySet<string> = new Set<Kind>(["amended", "answer", "message", "rework"]);
+
+/** Whether a letter changes the work its reader is on, so its hand-back or ask waits until it has read it. */
+export const heeded = (letter: { key: string; wakes?: false }) =>
+  letter.wakes !== false && CHANGES_THE_WORK.has(letter.key.split(":")[0]!);
+
 /** Keyed by its kind and the ids that make it this letter, never by hand where it is posted; it ends with `next`, what it asks of whoever reads it. */
 export const mail = (kind: Kind, ids: (string | number)[], text: string, next: string): Letter => ({
   key: keyOf(kind, ids),

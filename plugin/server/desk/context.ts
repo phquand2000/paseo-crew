@@ -44,6 +44,7 @@ export type CodeIndex = {
 export type Posted = "sent" | "held" | "duplicate";
 
 export type Mailer = {
-  post(letter: { to: string; key: string; text: string; wakes?: false }): Promise<Posted>;
+  post(letter: { to: string; key: string; text: string; wakes?: false }, into?: "interrupt"): Promise<Posted>;
   withdraw(key: string): Promise<boolean>;
+  waiting(to: string): Promise<boolean>;
 };

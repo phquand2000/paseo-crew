@@ -129,7 +129,7 @@
     {
       "name": "message",
       "title": "Message a Lead or Peer",
-      "description": "Send one decision or one question to a Lead (lane id) or, only when its Lead cannot carry it, a Peer (task id; its Lead is told). It arrives when that seat's turn ends or with its next desk call's reply, never inside a turn; hold_lane cuts one short. Refused if it quotes an open incident about that seat.",
+      "description": "Send one decision or one question to a Lead (lane id) or, only when its Lead cannot carry it, a Peer (task id; its Lead is told). It arrives when that seat's turn ends or with its next desk call's reply; now cuts the turn short. Refused if it quotes an open incident about that seat.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -146,6 +146,10 @@
           "text": {
             "type": "string",
             "description": "One decision or one question, in plain words."
+          },
+          "now": {
+            "type": "boolean",
+            "description": "Cut the running turn short to deliver it with everything else held, when work under way must stop or change now."
           }
         },
         "required": [
@@ -941,7 +945,7 @@
     {
       "name": "message",
       "title": "Message a Peer",
-      "description": "Send one of your Peers (by task id) one message. It never cuts into a turn: it arrives when the Peer's turn ends, or with the reply to its next desk call. Refused if it names or quotes an open incident about the seat it goes to: say what you read in the record in your own words.",
+      "description": "Send one of your Peers (by task id) one message. It arrives when the Peer's turn ends, or with the reply to its next desk call; now cuts the turn short. Refused if it names or quotes an open incident about the seat it goes to: say what you read in the record in your own words.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -958,6 +962,10 @@
           "text": {
             "type": "string",
             "description": "One message: what to do or to know, in plain words."
+          },
+          "now": {
+            "type": "boolean",
+            "description": "Cut the running turn short to deliver it with everything else held, when work under way must stop or change now."
           }
         },
         "required": [

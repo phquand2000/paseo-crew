@@ -346,9 +346,12 @@ to the seat, and a change reaches it as a changed tool list.
 **Out.** Every letter goes into one `outbox.json`. A seat's mail is pumped when a letter is posted, when its
 turn ends and after each patrol round, and goes as one message, with the asks waiting on the seat listed last.
 Nothing goes into a running turn, on any agent: a seat cut into while it thinks or writes loses the thought, so
-Peers finishing together reach their Lead as one message when its turn ends. A seat's own desk call takes what is
+Peers finishing together reach their Lead as one message when its turn ends. The one way in is a `message` sent
+`now`, by whoever may cut that turn short, which takes everything held with it. A seat's own desk call takes what is
 held for it instead, word that asks nothing included, on the reply under "Mail the desk held for you", unless the
-call was stopped. It is:
+call was stopped. A call that commits the seat (`done`, `ask`, marked `mailFirst`) is refused while an amendment, an
+answer, a message or a rework is held for it: that mail comes on the refusal, and the call counts only once it is
+made again on what the seat has read. It is:
 
 - **held** while the seat waits on a permission, runs or starts, or its lane is on hold, and for up to 10
   minutes after its last mail, until it ends a turn;
