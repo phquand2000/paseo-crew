@@ -380,6 +380,8 @@ test("a Lead amends a task: its Peer hears at its next turn, and only a task bes
     /context, was:\nnone\ncontext, now:\nThe header parser is in b\.txt\./,
   );
   assert.deepEqual(h.ledger().tasks["L1-T1"]!.amended?.[1]?.was, { context: "", hints: ["a.txt"] });
+  assert.equal((await amend({ acceptance: [] })).ok, true, "what a task must say is its Lead's call");
+  assert.deepEqual(h.ledger().tasks["L1-T1"]!.acceptance, []);
   assert.match(
     (await amend({ holds: ["a.txt"] })).text,
     /L1-T1 works in the lane's copy, one writer at a time, so it holds nothing: point it with hints instead\./,
