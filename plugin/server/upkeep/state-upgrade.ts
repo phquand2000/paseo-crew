@@ -29,7 +29,7 @@ type Place = {
   stamp: (version: number) => void;
 };
 
-/** What a file holds as its format: none is state 1, which every file written before the number came was in. */
+/** What a file holds as its format: none is state 1, which every file written before 3.0.0 was in. */
 function heldVersion(file: string, of: (value: Record<string, unknown>) => unknown): number | string {
   const read = readJsonFile(file);
   if ("absent" in read) return 1;
@@ -79,7 +79,7 @@ function carry(place: Place, steps: StateStep[], current: number, now: number, r
 
 function machine(root: string): Place | string {
   const file = join(root, "state.json");
-  const from = heldVersion(file, (value) => value.version);
+  const from = heldVersion(file, (value) => value.format);
   if (typeof from === "string") return from;
   const read = readJsonFile(file);
   return {
@@ -87,9 +87,9 @@ function machine(root: string): Place | string {
     dir: root,
     files: MACHINE_FILES,
     from,
-    numbered: "value" in read && isRecord(read.value) && read.value.version !== undefined,
+    numbered: "value" in read && isRecord(read.value) && read.value.format !== undefined,
     run: (step) => step.machine?.(root),
-    stamp: (version) => writeJson(file, { version }),
+    stamp: (format) => writeJson(file, { format }),
   };
 }
 
@@ -98,20 +98,21 @@ function project(state: string, slug: string): Place | string | undefined {
   const file = join(state, "ledger.json");
   const read = readJsonFile(file);
   if (!("value" in read) || !isRecord(read.value)) return undefined;
-  const from = heldVersion(file, (value) => value.version);
+  const from = heldVersion(file, (value) => value.format);
   if (typeof from === "string") return from;
   return {
     where: slug,
     dir: state,
     files: PROJECT_FILES,
     from,
-    numbered: read.value.version !== undefined,
+    numbered: read.value.format !== undefined,
     run: (step) => step.project?.(state),
-    // Read again: a step may have rewritten the ledger.
-    stamp: (version) => {
+    // Read again: a step may have rewritten the ledger. `version` is the number builds before 3.0.0 kept, which meant another format.
+    stamp: (format) => {
       const carried = readJsonFile(file);
       if (!("value" in carried) || !isRecord(carried.value)) throw new Error(`${file} could not be read once carried`);
-      writeJson(file, { ...carried.value, version });
+      const { version: _earlier, ...kept } = carried.value;
+      writeJson(file, { ...kept, format });
     },
   };
 }

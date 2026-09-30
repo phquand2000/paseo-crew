@@ -61,7 +61,7 @@ test("a project attached by path, set up, detached only when idle and attached a
   const ledger = join(stateRoot(), "projects", added.slug, "ledger.json");
   const remove = async () => call(contracts.projectsRemove, { project: added.slug });
   const record = (held: Record<string, unknown>) =>
-    JSON.stringify({ ...emptyLedger(), ...held, version: STATE_VERSION });
+    JSON.stringify({ ...emptyLedger(), ...held, format: STATE_VERSION });
   writeFileSync(ledger, record({ lanes: { L1: { id: "L1", status: "open" } } }));
   assert.match(
     which(await remove(), "error").error,

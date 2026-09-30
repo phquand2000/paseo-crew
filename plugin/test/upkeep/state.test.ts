@@ -22,7 +22,7 @@ function machineAt(version: string): { root: string; shop: string } {
   return { root, shop: join(root, "projects", "shop-abc123") };
 }
 
-const versionOf = (file: string) => readJson<{ version?: unknown }>(file, {}).version;
+const formatOf = (file: string) => readJson<{ format?: unknown }>(file, {}).format;
 const backupsIn = (dir: string) => readdirSync(dir).filter((name) => STATE_BACKUP.test(name));
 
 test("the fixture of the current format exists, so the next change to a kept file has one to be carried from", () => {
@@ -39,7 +39,7 @@ for (const version of readdirSync(FIXTURES).filter((name) => /^v\d+$/.test(name)
       from === STATE_VERSION ? [] : [`machine: ${from} → ${STATE_VERSION}`, `shop-abc123: ${from} → ${STATE_VERSION}`];
     assert.deepEqual(report.upgraded, moved);
     assert.deepEqual(
-      [versionOf(join(root, "state.json")), versionOf(join(shop, "ledger.json"))],
+      [formatOf(join(root, "state.json")), formatOf(join(shop, "ledger.json"))],
       [STATE_VERSION, STATE_VERSION],
     );
     assert.deepEqual(
@@ -67,15 +67,17 @@ for (const version of readdirSync(FIXTURES).filter((name) => /^v\d+$/.test(name)
   });
 }
 
-test("files kept before the number came are state 1: stamped where they are, with nothing set aside", () => {
+test("files kept before 3.0.0 are state 1, whatever number a build before it left in them: stamped where they are, with nothing set aside", () => {
   const { root, shop } = machineAt("v1");
-  const unnumbered = readJson<Record<string, unknown>>(join(shop, "ledger.json"), {});
-  delete unnumbered.version;
-  writeJson(join(shop, "ledger.json"), unnumbered);
-  writeJson(join(root, "state.json"), {});
+  const earlier = readJson<Record<string, unknown>>(join(shop, "ledger.json"), {});
+  delete earlier.format;
+  writeJson(join(shop, "ledger.json"), { ...earlier, version: 5 });
+  writeJson(join(root, "state.json"), { version: 5 });
   assert.throws(() => loadLedger(shop), /is at state undefined/, "until the start stamps it, the ledger is refused");
   assert.deepEqual(upgradeState(root, [], 1, NOW), { upgraded: [], failed: [] });
-  assert.deepEqual([versionOf(join(root, "state.json")), versionOf(join(shop, "ledger.json"))], [1, 1]);
+  assert.deepEqual(readJson(join(root, "state.json"), {}), { format: 1 });
+  const stamped = readJson<Record<string, unknown>>(join(shop, "ledger.json"), {});
+  assert.deepEqual([stamped.format, stamped.version], [1, undefined], "the earlier number goes with the stamp");
   assert.deepEqual([backupsIn(root), backupsIn(shop)], [[], []]);
   assert.equal(loadLedger(shop).tasks["L1-T1"]!.status, "merged");
 });
@@ -100,17 +102,17 @@ test("a step carries every project and the machine, keeps a copy of the files fi
     upgraded: ["machine: 1 → 2", "shop-abc123: 1 → 2"],
     failed: [],
   });
-  const ledger = readJson<{ version: number; lanes: Record<string, { name?: string }> }>(join(shop, "ledger.json"), {
-    version: 0,
+  const ledger = readJson<{ format: number; lanes: Record<string, { name?: string }> }>(join(shop, "ledger.json"), {
+    format: 0,
     lanes: {},
   });
   assert.deepEqual(
-    [ledger.version, ledger.lanes.L1?.name, versionOf(join(root, "state.json"))],
+    [ledger.format, ledger.lanes.L1?.name, formatOf(join(root, "state.json"))],
     [2, "Checkout totals", 2],
   );
   const [backup] = backupsIn(shop);
   assert.equal(backup, "backup-state-1-20260922-071230");
-  assert.equal(versionOf(join(shop, backup, "ledger.json")), 1, "the copy is the ledger as it was");
+  assert.equal(formatOf(join(shop, backup, "ledger.json")), 1, "the copy is the ledger as it was");
   assert.deepEqual(backupsIn(root), ["backup-state-1-20260922-071230"]);
   assert.deepEqual(upgradeState(root, steps, 2, NOW), { upgraded: [], failed: [] });
   assert.equal(runs, 1);
@@ -138,7 +140,7 @@ test("state a newer version made is refused, not read", () => {
   const { root, shop } = machineAt("v1");
   writeJson(join(shop, "ledger.json"), {
     ...readJson<object>(join(shop, "ledger.json"), {}),
-    version: STATE_VERSION + 1,
+    format: STATE_VERSION + 1,
   });
   assert.match(upgradeState(root, undefined, undefined, NOW).failed[0]!.error, /made by a newer Paseo Crew/);
   assert.throws(() => loadLedger(shop), /made by a newer Paseo Crew/);

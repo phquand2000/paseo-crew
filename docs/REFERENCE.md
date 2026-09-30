@@ -760,7 +760,7 @@ waiting, a closed lane's copy is not back on its base, or a working copy is out.
     meta.json                             root and slug; detaching removes it with settings.json
     settings.json  settings.json.bak-<time>
     project.json                          base, gate and standing orders, as set_project writes them
-    ledger.json  incidents.json           the record, whose `version` is the project's format; the incident book
+    ledger.json  incidents.json           the record, whose `format` is the project's state; the incident book
     backup-state-<from>-<time>/           the project's kept files as they were before a step carried them
     events.log  attention.log  assessments.log  status.md
     <log>.<n>.log[.gz]                    older rolls of each log

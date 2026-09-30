@@ -160,11 +160,11 @@ test("the plugin's start carries the machine to this format, and shows a project
   const said = reported(t);
   const newer = join(stateRoot(), "projects", "newer-abc123");
   mkdirSync(newer, { recursive: true });
-  const held = JSON.stringify({ ...emptyLedger(), version: STATE_VERSION + 1 });
+  const held = JSON.stringify({ ...emptyLedger(), format: STATE_VERSION + 1 });
   writeFileSync(join(newer, "ledger.json"), held);
   h.runtime.prepare();
-  const machine = JSON.parse(readFileSync(join(stateRoot(), "state.json"), "utf-8")) as { version: number };
-  assert.equal(machine.version, STATE_VERSION);
+  const machine = JSON.parse(readFileSync(join(stateRoot(), "state.json"), "utf-8")) as { format: number };
+  assert.equal(machine.format, STATE_VERSION);
   const plan = await h.rpc(contracts.migrate, { apply: false });
   const steps = plan.steps.filter((step) => step.kind === "state");
   assert.deepEqual(
