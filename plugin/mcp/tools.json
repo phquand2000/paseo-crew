@@ -873,6 +873,10 @@
                   "type": "boolean",
                   "description": "For BASE CONFLICT, in the lane's copy: the desk merges base into the task's branch as it starts; its Peer settles what conflicts."
                 },
+                "planFirst": {
+                  "type": "boolean",
+                  "description": "For a big or risky task: its Peer asks with its planned shape before building; you are told if it changes code first."
+                },
                 "after": {
                   "type": "array",
                   "items": {

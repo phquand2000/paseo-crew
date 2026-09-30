@@ -24,6 +24,8 @@ export type Rules = {
   outside?: string[];
   /** What the seat writes inside: a parallel task's holds, or its lane's write set; empty or none is anywhere in its copy. */
   scope?: string[];
+  /** Its task asks for the plan first and it has not asked yet. */
+  planFirst?: boolean;
   repeatsAt: number;
   recoverWithin: number;
 };
@@ -207,9 +209,10 @@ export function onSettle(call: Call, rules: Rules, known?: (path: string) => str
       if (added) facts.push(fact("suppressed", `${oneLine(path)}: adds ${oneLine(added, 60)}`));
     }
   }
-  if (writes && outside(str(detail.filePath), rules)) {
-    facts.push(fact("outside-scope", oneLine(str(detail.filePath))));
-  }
+  const written = writes ? str(detail.filePath) : "";
+  if (outside(written, rules)) facts.push(fact("outside-scope", oneLine(written)));
+  if (written && !bad && rules.planFirst && !escapes(written, rules) && !PROSE.test(written))
+    facts.push(fact("plan-skipped", `changed ${oneLine(written)} before it asked with its plan`));
   return facts;
 }
 

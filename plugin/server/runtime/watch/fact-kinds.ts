@@ -15,10 +15,11 @@ export const FACTS = {
   "certainty-only": { level: "attend", title: "A review told to report only certainties" },
   "brief-prewritten": { level: "attend", title: "A brief that writes the answer out" },
   "ask-waiting": { level: "attend", title: "An ask left waiting on its reader" },
+  "outside-scope": { level: "attend", title: "Wrote outside where its task may write" },
+  "plan-skipped": { level: "attend", title: "Changed code before showing the plan it was asked for" },
   "call-failed": { level: "note" },
   "gate-failed": { level: "note" },
   "gate-rerun": { level: "note" },
-  "outside-scope": { level: "note" },
   "edit-before-look": { level: "note" },
   destructive: { level: "note" },
 } as const satisfies Record<string, { level: "note" } | { level: Exclude<Level, "note">; title: string }>;

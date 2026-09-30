@@ -6,7 +6,7 @@ import { seatOf } from "../catalog/kit/roles.ts";
 import { errorText } from "../core/errors.ts";
 import type { TurnEnded } from "../core/ports.ts";
 import type { Desk } from "../desk/desk.ts";
-import { laneOfLead, taskOfPeer } from "../domain/ledger.ts";
+import { type Ledger, laneOfLead, taskOfPeer } from "../domain/ledger.ts";
 import { loadLedger } from "../desk/store/ledger.ts";
 import { type Project, gateCommands, loadConfig, projectOf } from "../desk/project/project.ts";
 import { outsideWrites } from "../desk/project/writes.ts";
@@ -20,6 +20,17 @@ import type { SeatContext, SeatWatch, WatchedSeat, Watches } from "./watch/watch
 import { daemonLog } from "../core/logger.ts";
 
 const TROUBLES = 10;
+
+type Placement = { placed: boolean; scope?: string[]; planFirst?: boolean };
+
+/** Where the ledger puts a seat: a Peer's task asking for its plan first stops asking once the Peer has asked on it. */
+function placement(ledger: Ledger, seat: string): Placement {
+  const task = taskOfPeer(ledger, seat);
+  if (task?.kind !== "code") return { placed: Boolean(task ?? laneOfLead(ledger, seat)) };
+  const asked = Object.values(ledger.asks).some((ask) => ask.from === seat && ask.task === task.id);
+  const scope = task.mode === "parallel" ? task.holds : ledger.lanes[task.lane]?.writeSet;
+  return { placed: true, scope, planFirst: task.planFirst === true && !asked };
+}
 
 type WatchingDeps = { kit: Kit; source: TeamSource; desk: Desk; watches: () => Watches };
 
@@ -42,17 +53,13 @@ export class Watching {
     if (!found) return undefined;
     const project = projectOf(seat.cwd);
     const attention = this.deps.source.teamFor(project).attention;
-    let scope: string[] | undefined;
-    let placed = false;
+    let where: Placement = { placed: false };
     try {
-      const ledger = loadLedger(project.state);
-      const task = taskOfPeer(ledger, seat.id);
-      scope =
-        task?.kind !== "code" ? undefined : task.mode === "parallel" ? task.holds : ledger.lanes[task.lane]?.writeSet;
-      placed = Boolean(task ?? laneOfLead(ledger, seat.id));
+      where = placement(loadLedger(project.state), seat.id);
     } catch (error) {
       this.deps.desk.event(project, { kind: "watch.unbriefed", agent: seat.id, error: errorText(error) });
     }
+    const { placed, scope, planFirst } = where;
     return {
       placed,
       rules: {
@@ -63,6 +70,7 @@ export class Watching {
         temp: tmpdir(),
         outside: outsideWrites(found.role, project),
         scope,
+        planFirst,
         repeatsAt: attention.repeatsAt,
         recoverWithin: 10,
       },

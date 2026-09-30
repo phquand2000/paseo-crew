@@ -155,7 +155,9 @@ export class SeatWatch {
   private fresh(facts: Fact[], call?: string): Fact[] {
     const kept = facts.filter((fact) => {
       const key =
-        fact.kind === "stuck" || fact.kind === "long-turn" ? fact.kind : `${fact.kind}\n${call ?? fact.quote}`;
+        fact.kind === "stuck" || fact.kind === "long-turn" || fact.kind === "plan-skipped"
+          ? fact.kind
+          : `${fact.kind}\n${call ?? fact.quote}`;
       if (this.told.has(key)) return false;
       this.told.add(key);
       return true;

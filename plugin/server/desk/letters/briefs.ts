@@ -90,6 +90,12 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
     task.mode === "parallel"
       ? `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit what you change, then call done; a task that changes nothing hands back with no commit.`
       : `You work on branch ${task.branch} in the lane's working copy, branched from ${lane.branch}. Commit what you change, then call done; a task that changes nothing hands back with no commit.${task.startSha ? ` Your task started from ${task.startSha}: that is BASE for anything that asks what existed before you began.` : ""}`,
+    ...(task.planFirst
+      ? [
+          "",
+          "Your Lead asks for your plan before you build: once you have read the code, ask with the shape you plan (where the change goes, what it replaces, how you will show it works), end your turn, and build once answered.",
+        ]
+      : []),
   ]
     .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
     .join("\n");

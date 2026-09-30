@@ -14,6 +14,7 @@ const Asked = z.strictObject({
   skills: z.array(z.string()).optional(),
   parallel: z.boolean().optional(),
   takeBase: z.boolean().optional(),
+  planFirst: z.boolean().optional(),
   after: z.array(z.string()).optional(),
   role: z.string().optional(),
   peer: z.string().optional(),

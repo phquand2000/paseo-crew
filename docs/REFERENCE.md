@@ -147,6 +147,8 @@ unless it passes `isolate`, is a detour or waits with `after`; with `onBranch`, 
 - A `takeBase` task runs in the lane's copy. As it starts, the desk merges the base into its branch and leaves the
   conflicts for its Peer to settle and commit, wherever they lie. Its change is read against what the lane and that base
   make together, and a note names the files it settled.
+- A `planFirst` task's brief asks its Peer to `ask` with the shape it plans before it builds; the watch's `plan-skipped`
+  tells the Lead when it changes code first.
 - Each brief names the tasks written beside it and what they hold. A Peer at work in the lane's copy gets BESIDE when a
   parallel task starts after its brief was written.
 
@@ -447,7 +449,9 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | `test-weakened` / `suppressed` | attend | An edit removes assertions from a test or adds a skip, or adds a suppression such as `@ts-ignore` |
 | `claim-contradicted` | attend | A Peer hands back `complete`, with no gate result from the desk, though the gate it last ran, after its last edit, failed. Needs a gate |
 | `long-turn` | attend | A running turn shows nothing new, no call, output or message, for `longTurnMinutes`; names the call still open |
-| `call-failed` / `gate-failed` / `outside-scope` | note | A call other than a desk call failed; a run of the gate failed; a file was written outside the seat's copy, or outside what its task may write. Evidence only, never an incident alone |
+| `outside-scope` | attend | A file was written outside the seat's copy, or outside what its task may write: a parallel task's `holds`, or the lane's write set |
+| `plan-skipped` | attend | A Peer on a `planFirst` task changed a file in its copy, prose aside, before it asked on that task; once a turn at most |
+| `call-failed` / `gate-failed` | note | A call other than a desk call failed; a run of the gate failed. Evidence only, never an incident alone |
 | `gate-rerun` | note | The gate run `repeatsAt` times (3) since the seat's latest instruction. Evidence only, until marks show it is worth someone's attention |
 | `edit-before-look` | note | A turn's first step, desk calls and Paseo's own steps aside, changed a file before it read, searched or ran anything since an instruction the watch still holds. It opens only the `instruction_kind` question |
 | `destructive` | note | A shell command matches the destructive pattern, checked one command at a time: by default a forced removal, a hard reset, a forced clean or a forced branch delete, which stay on the machine. Removing only scratch files, under the temp directory or made by the same command, does not count. Evidence only, for the `asked_for` question: as an incident it was marked noise every time |

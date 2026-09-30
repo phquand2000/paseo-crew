@@ -85,6 +85,7 @@ export type Task = {
   slot?: string;
   startSha?: string;
   takeBase?: true;
+  planFirst?: true;
   tookBase?: { sha: string; conflicts: string[] };
   mergeSha?: string;
   mergedAt?: number;

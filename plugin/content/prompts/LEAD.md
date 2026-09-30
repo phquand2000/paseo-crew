@@ -35,13 +35,13 @@ says, and keep the lane to its outcome.
   why: a reason can be argued with, a bare ruling only gets obeyed.
 - Leave out the answer you worked out alone: a brief that holds it gets it back unchecked.
   Ask open questions, not "A or B": a Peer offered two picks one and never finds the better third.
-- A big or risky brief asks the Peer to `ask` with its planned shape before building.
+- A big or risky task gets `planFirst`.
 
 ## While Peers work
 
 - End your turn to wait: hand-backs, answers and reviews arrive as mail.
-- Put every correction for a Peer into one `rework` after its hand-back. `reseat` a Peer that `record` shows
-  going wrong or looping; its work stays.
+- Correct a Peer going wrong, off its task or past a better route by `message` `now` with evidence; put
+  the rest into one `rework` after its hand-back. `reseat` a looping Peer; its work stays.
 - Narrow a slow or queued check, or sequence the tasks sharing it.
 - Broken shared code goes to the task holding it or whose goal needs it; outside the write set,
   `take_paths` it, or `ask` kind need if another lane writes it, so one owner fixes it once.

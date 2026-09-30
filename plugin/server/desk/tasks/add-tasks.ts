@@ -160,6 +160,7 @@ function recordTask(
     worktree: parallel ? undefined : lane.worktree,
     slot: parallel ? undefined : lane.slot,
     takeBase: args.takeBase === true ? true : undefined,
+    planFirst: args.planFirst === true ? true : undefined,
     status: "waiting",
     after: waits.after,
     // Who takes it, kept for when it starts: the call that asked for it is long gone by then.

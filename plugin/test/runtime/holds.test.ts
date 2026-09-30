@@ -104,7 +104,7 @@ test("a task beside others holds its paths: refused when it cannot hold them, br
   );
 });
 
-test("a Peer writing past where it was pointed is noted, not stopped: at hand-back, at merge and by the watch", async () => {
+test("a Peer writing past where it was pointed is noted, not stopped: at hand-back, at merge, and told by the watch", async () => {
   const { h, sup, lead } = await laneWriting(["a.txt", "c.txt", "package-lock.json", "src/**"], {
     attention: { watch: true },
   });
@@ -131,6 +131,19 @@ test("a Peer writing past where it was pointed is noted, not stopped: at hand-ba
     facts.map((event) => `${event.agent === own!.peer ? "own" : "side"} ${event.quote.split("/").at(-1)}`).sort(),
     ["own d.txt", "side a.txt"],
   );
+  await h.idle(lead);
+  const told = h.heard(lead).join("\n");
+  for (const [id, title, file] of [
+    ["L1-T1", "T", "d.txt"],
+    ["L1-T2", "S", "a.txt"],
+  ])
+    assert.match(
+      told,
+      new RegExp(
+        `INCIDENT I\\d+ \\(outside-scope, attend\\) on the Peer on ${id} \\(${title}\\)[^]*What was seen: [^\\n]*${file}`,
+      ),
+      "its Lead hears of it while the work runs, not only at hand-back",
+    );
 
   await handBack(h, "L1-T1", ["a.txt", "src/caller.test.ts", "src/caller.ts"]);
   await h.idle(lead);
