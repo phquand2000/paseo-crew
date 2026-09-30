@@ -4,21 +4,35 @@ import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, activeTasks } from "../../domain/ledger.ts";
 import { afterIds, taskWaitsFor } from "../waiting/rules.ts";
 
-/** One task of a layout: its fields as `add_tasks` takes them, what it holds if it runs beside others, and what it waits for, its keys and task ids alike. */
-type Planned = { key: string; args: Args; parallel: boolean; holds: string[]; after: string[] };
+/** One task of a layout: `hinted` is what it was given to hold in the lane's copy, kept among its hints instead. */
+export type Planned = {
+  key: string;
+  args: Args;
+  parallel: boolean;
+  holds: string[];
+  hints: string[];
+  hinted: string[];
+  after: string[];
+};
 
 /**
  * The tasks in an order they can run in, or why they cannot: each key once, paths held by exactly the tasks that run beside
  * others, each `after` a key of it or a task of this lane still to be merged, and no loop.
  */
 export function readPlan(ledger: Ledger, lane: Lane, listed: Args[]): Planned[] | string {
-  const tasks: Planned[] = listed.map((args) => ({
-    key: str(args.key).trim().toUpperCase(),
-    args,
-    parallel: args.parallel === true,
-    holds: strs(args.holds),
-    after: afterIds(strs(args.after)),
-  }));
+  const tasks: Planned[] = listed.map((args) => {
+    const parallel = args.parallel === true;
+    const named = strs(args.holds);
+    return {
+      key: str(args.key).trim().toUpperCase(),
+      args,
+      parallel,
+      holds: parallel ? named : [],
+      hints: parallel ? strs(args.hints) : [...new Set([...strs(args.hints), ...named])],
+      hinted: parallel ? [] : named,
+      after: afterIds(strs(args.after)),
+    };
+  });
   const keys = new Set<string>();
   for (const task of tasks) {
     if (!task.key) return "Every task has a key, which the others name in after.";
@@ -28,8 +42,6 @@ export function readPlan(ledger: Ledger, lane: Lane, listed: Args[]): Planned[] 
     keys.add(task.key);
     if (task.parallel && task.holds.length === 0)
       return `${task.key} runs beside others but holds nothing: name the paths it writes meanwhile, as coarse as the work allows.`;
-    if (!task.parallel && task.holds.length > 0)
-      return `${task.key} holds ${task.holds.join(", ")} but runs in the lane's copy, which has one writer at a time: leave holds out, or give those paths as hints.`;
     if (task.parallel && task.args.takeBase === true)
       return `${task.key} takes ${lane.base} in, which reaches files every task beside it holds: run it in the lane's copy.`;
   }

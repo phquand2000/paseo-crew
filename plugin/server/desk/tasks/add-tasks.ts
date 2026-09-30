@@ -12,8 +12,8 @@ import { serialIn } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { startWaiting } from "../waiting/tasks.ts";
-import { layoutProblems, readPlan } from "./layout.ts";
-import { outsideNote } from "./placement.ts";
+import { type Planned, layoutProblems, readPlan } from "./layout.ts";
+import { hintedNote, outsideNote } from "./placement.ts";
 
 /** One task as add_tasks takes it, in the Lead's own key. */
 type AskedTask = Args & { key: string };
@@ -42,8 +42,9 @@ export async function addTasks(desk: DeskServices, caller: Caller, asked: AskedT
         : running;
     return `- ${task.key} is ${entry.id} ${entry.title}: ${state}`;
   });
-  const notes = plan.flatMap((task) => outsideNote(lane, task.key, task.holds) ?? []);
-  const noted = notes.length > 0 ? `\n\n${notes.map((note) => `Note: ${note}`).join("\n")}` : "";
+  const notes = plan.flatMap((task) => [outsideNote(lane, task.key, task.holds), hintedNote(task.key, task.hinted)]);
+  const said = notes.filter((note) => note !== undefined);
+  const noted = said.length > 0 ? `\n\n${said.map((note) => `Note: ${note}`).join("\n")}` : "";
   return ok(
     `Added; each task starts by itself once what it waits for is merged, and hand-backs arrive as mail.\n${lines.join("\n")}${noted}`,
   );
@@ -75,7 +76,7 @@ function workRoleFor(kit: Kit, team: Team, args: Args): RoleSpec | string {
   return `${workRole.label}s have no skill called ${unknown.join(", ")}. They have: ${held.sort().join(", ")}.`;
 }
 
-type Recorded = { plan: Exclude<ReturnType<typeof readPlan>, string>; ids: Map<string, string> };
+type Recorded = { plan: Planned[]; ids: Map<string, string> };
 
 /** Checked and recorded in one transaction: a layout read before another call recorded its tasks could put two writers on a path. */
 function record(
@@ -101,7 +102,7 @@ function record(
     const ids = new Map<string, string>();
     for (const task of plan) {
       const after = task.after.map((id) => ids.get(id) ?? id);
-      ids.set(task.key, recordTask(ledger, now, task.args, task.parallel, { after, role: roles.get(task.key)! }));
+      ids.set(task.key, recordTask(ledger, now, task, { after, role: roles.get(task.key)! }));
     }
     // New work: what the lane was reported ready as is not what it will hold.
     loseReady(now);
@@ -113,8 +114,7 @@ function record(
 function recordTask(
   ledger: Ledger,
   lane: Lane,
-  args: Args,
-  parallel: boolean,
+  { args, parallel, hints, holds }: Planned,
   waits: { after: string[]; role: string },
 ): string {
   const title = str(args.title);
@@ -128,8 +128,8 @@ function recordTask(
     title,
     goal: str(args.goal),
     acceptance: strs(args.acceptance),
-    hints: strs(args.hints),
-    holds: strs(args.holds),
+    hints,
+    holds,
     outOfScope: strs(args.outOfScope),
     context: str(args.context) || undefined,
     skills: strs(args.skills),

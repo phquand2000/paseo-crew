@@ -61,3 +61,10 @@ export function outsideNote(lane: Lane, id: string, holds: string[]): string | u
   if (outside.length === 0) return undefined;
   return `${id} holds ${outside.join(", ")}, outside the lane's write set ${lane.writeSet.join(", ")}; it runs as asked, and what it changes there is noted again at hand-back and landing.`;
 }
+
+/** Paths a task in the lane's copy was given to hold, as a note to its Lead: that copy has one writer, so they are hints. */
+export function hintedNote(id: string, paths: string[]): string | undefined {
+  if (paths.length === 0) return undefined;
+  const as = paths.length === 1 ? "a hint" : "hints";
+  return `${id} runs in the lane's copy, which has one writer at a time, so it holds nothing: it keeps ${paths.join(", ")} as ${as} of where to start.`;
+}
