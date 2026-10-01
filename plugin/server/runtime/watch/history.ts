@@ -9,7 +9,7 @@ import { type Fact, type FactKind, fact } from "./fact-kinds.ts";
  */
 type Seen = { seat: string; fact: Fact };
 
-type Reading = { reworksAt: number; reviewsAt: number };
+type Reading = { reworksAt: number };
 
 const CERTAIN =
   /\b(?:report|raise|flag|list|mention|include)\b[^.]{0,20}\bonly\b[^.]{0,40}\b(?:certain|sure|confident|proven|prove|confirmed|verified)\b|\bonly\b[^.]{0,20}\b(?:report|raise|flag|list|mention)\b[^.]{0,40}\b(?:certain|sure|confident|proven|prove|confirmed|verified)\b|\bno\s+(?:speculation|speculative|guesswork|guesses|hypotheses|maybes)\b|\bhigh[- ]confidence\b[^.]{0,20}\bonly\b|\bonly\b[^.]{0,20}\bhigh[- ]confidence\b|\b(?:do\s*n[o']?t|never)\s+(?:report|raise|flag)\b[^.]{0,30}\bunless\b/i;
@@ -41,8 +41,8 @@ function prewritten(text: string): boolean {
   return THEN_BUILD.test(read) || FILE_AND_MEMBER.test(read);
 }
 
-/** What the record shows of one open lane: its tasks, the ledger they are in, and the settings it is read by. */
-type LaneRecord = { here: Task[]; ledger: Ledger; reading: Reading };
+/** What the record shows of one open lane: its tasks and the settings it is read by. */
+type LaneRecord = { here: Task[]; reading: Reading };
 
 type Finding = [FactKind, string] | undefined;
 
@@ -51,26 +51,11 @@ export function deskFacts(ledger: Ledger, reading: Reading): Seen[] {
   return Object.values(ledger.lanes)
     .filter((lane) => lane.status === "open" && lane.lead)
     .flatMap((lane) => {
-      const record = { here: tasks.filter((task) => task.lane === lane.id), ledger, reading };
+      const record = { here: tasks.filter((task) => task.lane === lane.id), reading };
       return LANE_FACTS.map((find) => find(record))
         .filter((found): found is [FactKind, string] => found !== undefined)
         .map(([kind, quote]) => ({ seat: lane.lead!, fact: fact(kind, quote) }));
     });
-}
-
-/** One task going round: each sending-back is a local fix to what the last one did not settle. */
-function reworkLoop({ here, reading }: LaneRecord): Finding {
-  const looping = here.filter((task) => !settled(task) && reworksOf(task) >= reading.reworksAt);
-  if (looping.length === 0) return undefined;
-  return [
-    "rework-loop",
-    looping
-      .map(
-        (task) =>
-          `${task.id} (${task.title}) has been sent back ${reworksOf(task)} times, last outcome ${task.handback?.outcome ?? "none recorded"}`,
-      )
-      .join("; "),
-  ];
 }
 
 /** The lane going round: several tasks sent back is one missing foundation patched task by task. */
@@ -81,27 +66,6 @@ function patchedNotFixed({ here, reading }: LaneRecord): Finding {
   return [
     "patched-not-fixed",
     `${sendings} sendings-back across ${patched.length} tasks still open in this lane: ${patched.map((task) => `${task.id} ×${reworksOf(task)}`).join(", ")}`,
-  ];
-}
-
-/** Reviews of one task that keep coming round without it settling. */
-function reviewsUnconverged({ here, ledger, reading }: LaneRecord): Finding {
-  const reviews = new Map<string, Task[]>();
-  for (const task of here)
-    if (task.kind === "review" && task.of) reviews.set(task.of, [...(reviews.get(task.of) ?? []), task]);
-  const unconverged = [...reviews].filter(
-    ([target, rounds]) =>
-      rounds.length >= reading.reviewsAt && !(ledger.tasks[target] && settled(ledger.tasks[target])),
-  );
-  if (unconverged.length === 0) return undefined;
-  return [
-    "reviews-unconverged",
-    unconverged
-      .map(
-        ([target, rounds]) =>
-          `${rounds.length} reviews of ${target} (${ledger.tasks[target]?.title ?? "gone"}), which is ${ledger.tasks[target]?.status ?? "gone"}: ${rounds.map((task) => task.handback?.outcome ?? task.status).join(", ")}`,
-      )
-      .join("; "),
   ];
 }
 
@@ -133,4 +97,4 @@ function briefPrewritten({ here }: LaneRecord): Finding {
 }
 
 /** Each fact the record can show of a lane, in the order its Lead reads them. */
-const LANE_FACTS = [reworkLoop, patchedNotFixed, reviewsUnconverged, certaintyOnly, briefPrewritten];
+const LANE_FACTS = [patchedNotFixed, certaintyOnly, briefPrewritten];

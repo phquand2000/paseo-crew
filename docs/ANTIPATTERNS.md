@@ -14,8 +14,8 @@ examples are only on the rules that cannot be stated in one sentence.
 | **desk** | In the ledger, across tasks, rounds or lanes, and nothing reads it for this yet. |
 | **outside** | This plugin cannot see it, and saying why is the useful part. |
 
-Of the thirty-five rules below, **five are caught**, two more in part and one in half its cases.
-Twelve are desk-shaped: in the ledger, with nothing reading them for this. Fifteen are outside what
+Of the thirty-five rules below, **three are caught**, two more in part and one in half its cases.
+Fourteen are desk-shaped: in the ledger, with nothing reading them for this. Fifteen are outside what
 the code can observe, and for those the entry says why, because that is the part worth knowing. Five
 of those need a model to read the turn. The watch can ask a model, but only in shadow, and only one
 of its questions touches these five.
@@ -23,13 +23,11 @@ of its questions touches these five.
 The thirty-five come from one list. Section 8 holds one that does not, kept here because the watch
 once caught it, and what that taught belongs in this file.
 
-The watch reads two things, both in code. From a seat's timeline: a destructive command, a seat
-repeating itself or not recovering from a failure, a weakened test or a silenced check, a hand-back
-after edits the gate never ran on or called complete over a failed check, and a turn running far
-longer than usual. In code, from the lane's own record — the ledger the patrol already holds — the
-shapes no window can hold, because a letter restarts the window: a task sent back again and again, a
-lane patching several tasks at once, reviews piling up with nothing accepted, a review told to report
-only what it is certain of, and a brief that writes the work out instead of setting an outcome.
+The watch reads two things, both in code. From a seat's timeline: an irreversible command, a seat
+repeating itself, a weakened test or a silenced check, and a hand-back called complete over a failed
+check. In code, from the lane's own record — the ledger the patrol already holds — the
+shapes no window can hold, because a letter restarts the window: a lane patching several tasks at
+once, a review told to report only what it is certain of, and a brief that writes the work out instead of setting an outcome.
 
 Both go through one incident book and are read and marked the one way: an attention-level one about
 a Peer goes to its Lead, the rest to the Supervisor, and none of them ever reaches the seat it is
@@ -205,17 +203,18 @@ clears what the watch noted and restarts its window.
 **Rule.** After the second round, stop fixing findings and ask what one mechanism produced them.
 **Signs.** round three; each fix local and in a new file; the diff growing every round while the
 finding count stays flat.
-**Here.** *caught* — `rework-loop`, when one task reaches `attention.reworksAt` (3) sendings-back.
-Reported once, and again only when the count moves: the condition stands where an episode would end.
+**Here.** *desk* — each task's sendings-back are in the ledger. `rework-loop` read them until its
+incidents were marked noise nearly every time: the Lead sending a task back already knows. Spread
+over tasks they are `patched-not-fixed`.
 
 ### Non-converging findings
 **Rule.** Ten reports of ten symptoms are one question: what is the shared cause? Converge before
 fixing.
 **Signs.** several reviews on one task, each with its own vocabulary; findings fixed in the order
 received.
-**Here.** *caught* — `reviews-unconverged`, when `attention.reviewsAt` (3) reviews name one target
-that is still neither merged nor cut. Converging is still the Lead's job, and the `council` skill
-is where the plugin says how.
+**Here.** *desk* — the reviews of one target are in the ledger. `reviews-unconverged` counted them
+until its incidents were marked noise nearly every time. Converging is the Lead's job, and the `council` skill is where the
+plugin says how.
 
 ### Overengineering edge case
 **Rule.** Weigh a finding by impact times probability before building for it. A low-probability P3

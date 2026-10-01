@@ -23,13 +23,10 @@ export function weakened(before: string, after: string, markers: TestMarkers): s
 /** The patterns the watch reads calls with: the ecosystem's, and attention's where a settings layer set its own. */
 export function watchPatterns(kit: Kit, attention: Attention) {
   return {
-    destructive: new RegExp(attention.destructive, "i"),
     irreversible: new RegExp(attention.irreversible, "i"),
     testPath: new RegExp(attention.testPath, "i"),
     suppressed: new RegExp(attention.suppressed, "i"),
     ...testMarkers(kit),
-    probe: new RegExp(kit.ecosystem.watch.probe),
-    runners: new Set(kit.ecosystem.watch.runners),
   };
 }
 

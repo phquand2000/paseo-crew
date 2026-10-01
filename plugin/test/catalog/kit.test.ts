@@ -178,8 +178,8 @@ const REFUSED: [string, unknown, RegExp][] = [
   ],
   [
     "catalog/checks.json",
-    { ...checks, asked_for: { ...checks.asked_for, acts: { destructive: "run a command" } } },
-    /^checks\.json is not as the kit reads it:\n✖ .*\{quote\}.*\n {2}→ at asked_for\.acts\.destructive$/,
+    { ...checks, asked_for: { ...checks.asked_for, acts: { irreversible: "run a command" } } },
+    /^checks\.json is not as the kit reads it:\n✖ .*\{quote\}.*\n {2}→ at asked_for\.acts\.irreversible$/,
   ],
 ];
 

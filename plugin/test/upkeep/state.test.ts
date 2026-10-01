@@ -67,6 +67,20 @@ for (const version of readdirSync(FIXTURES).filter((name) => /^v\d+$/.test(name)
   });
 }
 
+test("tuning of a fact the watch no longer raises is dropped at state 5, and the rest of the tuning is kept", () => {
+  const { root, shop } = machineAt("v4");
+  const tuned = { watch: true, reviewsAt: 4, longTurnMinutes: 45, destructive: "rm -rf", repeatsAt: 5 };
+  writeJson(join(root, "settings.json"), { ...readJson(join(root, "settings.json"), {}), attention: tuned });
+  writeJson(join(shop, "settings.json"), { rules: "Answer in English.", attention: { longTurnMinutes: 20 } });
+  assert.deepEqual(upgradeState(root, undefined, undefined, NOW).failed, []);
+  assert.deepEqual(readJson(join(root, "settings.json"), {}), {
+    mcp: { "intellij-index": { enabled: true }, "code-search": { enabled: true }, context7: { enabled: true } },
+    attention: { watch: true, repeatsAt: 5 },
+  });
+  assert.equal(readLayer(join(root, "settings.json")).status, "ready");
+  assert.equal(readLayer(join(shop, "settings.json")).status, "ready");
+});
+
 test("files kept before 3.0.0 are state 1, whatever number a build before it left in them: stamped where they are, with nothing set aside", () => {
   const { root, shop } = machineAt("v1");
   const earlier = readJson<Record<string, unknown>>(join(shop, "ledger.json"), {});

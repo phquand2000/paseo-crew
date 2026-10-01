@@ -68,7 +68,6 @@ export class Patrol {
     this.deps.watches.sync(seats.values());
     // A Lead no longer listed is gone for good, and its idle mark with it.
     for (const id of this.idleFlag.keys()) if (!seats.has(id)) this.idleFlag.delete(id);
-    this.deps.watches.round(now, (watch) => source.teamFor(projectOf(watch.seat.cwd)).attention.longTurnMinutes);
     for (const seat of seats.values())
       if (seatOf(kit, seat.provider)?.role.tools) this.deps.remember(projectOf(seat.cwd));
     for (const project of desk.projects.values()) {
@@ -185,7 +184,7 @@ export class Patrol {
   private async history(project: Project, ledger: Ledger, seats: SeatMap): Promise<void> {
     const attention = this.deps.source.teamFor(project).attention;
     const book = loadIncidents(project.state);
-    const found = deskFacts(ledger, { reworksAt: attention.reworksAt, reviewsAt: attention.reviewsAt });
+    const found = deskFacts(ledger, { reworksAt: attention.reworksAt });
     for (const seen of found) {
       // A gone seat's incidents closed when it went; raising one leaves a sighting nothing closes.
       const seat = seats.get(seen.seat);

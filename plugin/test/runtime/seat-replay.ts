@@ -24,7 +24,6 @@ export const rules = (extra: Partial<Rules> = {}): Rules => ({
   ...watchPatterns(kit, kit.attention),
   gates: [],
   repeatsAt: 3,
-  recoverWithin: 10,
   ...extra,
 });
 

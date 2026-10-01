@@ -6,7 +6,7 @@ import type { Task } from "../../server/domain/task.ts";
 import type { FactKind } from "../../server/runtime/watch/fact-kinds.ts";
 import { deskFacts } from "../../server/runtime/watch/history.ts";
 
-const READING = { reworksAt: 3, reviewsAt: 3 };
+const READING = { reworksAt: 3 };
 
 const lane = (over: Partial<Lane> = {}): Lane => ({
   id: "L1",
@@ -59,37 +59,34 @@ const kinds = (ledger: Ledger) =>
 
 const quote = (ledger: Ledger, kind: FactKind) => deskFacts(ledger, READING).find((seen) => seen.fact.kind === kind)!;
 
-test("a lane's record shows loops, patching and unconverged reviews, about its Lead, in words that change only with the evidence", () => {
-  const looping = ledgerOf([task({ id: "L1-T1", reworks: 3, handback: handback("partial") })]);
+test("a lane's record shows one hole patched a task at a time, about its Lead, in words that change only with the evidence", () => {
   const spread = ledgerOf([1, 2, 3].map((n) => task({ id: `L1-T${n}`, reworks: 1 })));
-  const rounds = [1, 2, 3].map((n) =>
-    task({ id: `L1-R${n}`, kind: "review", of: "L1-T1", title: `review ${n}`, handback: handback("changes") }),
-  );
-  const reviewed = ledgerOf([task({ id: "L1-T1" }), ...rounds]);
   const rows: [string, Ledger, FactKind[]][] = [
-    ["two sendings-back is a correction, not yet a loop", ledgerOf([task({ id: "L1-T1", reworks: 2 })]), []],
-    ["a task sent back again and again is a loop", looping, ["rework-loop"]],
     ["the same three spread over tasks is one hole patched a task at a time", spread, ["patched-not-fixed"]],
-    ["reviews piling up on one unsettled task", reviewed, ["reviews-unconverged"]],
+    ["one task sent back again and again is its Lead's own call", ledgerOf([task({ id: "L1-T1", reworks: 5 })]), []],
+    ["two sendings-back is a correction", ledgerOf([1, 2].map((n) => task({ id: `L1-T${n}`, reworks: 1 }))), []],
     [
-      "three rounds that ended in acceptance converged",
-      ledgerOf([task({ id: "L1-T1", status: "merged", handback: handback("complete") }), ...rounds]),
+      "a lane with no Lead to be about",
+      ledgerOf(
+        [1, 2, 3].map((n) => task({ id: `L1-T${n}`, reworks: 1 })),
+        { lead: undefined },
+      ),
       [],
     ],
-    ["two reviews is a second opinion", ledgerOf([task({ id: "L1-T1" }), ...rounds.slice(0, 2)]), []],
-    ["a lane with no Lead to be about", ledgerOf([task({ id: "L1-T1", reworks: 5 })], { lead: undefined }), []],
-    ["a lane that is closed", ledgerOf([task({ id: "L1-T1", reworks: 5 })], { status: "closed" }), []],
     [
-      "a task that was accepted has stopped going round",
-      ledgerOf([task({ id: "L1-T1", reworks: 4, status: "merged", handback: handback("complete") })]),
+      "a lane that is closed",
+      ledgerOf(
+        [1, 2, 3].map((n) => task({ id: `L1-T${n}`, reworks: 1 })),
+        { status: "closed" },
+      ),
       [],
     ],
-    ["and one that was cut", ledgerOf([task({ id: "L1-T1", reworks: 4, status: "cut" })]), []],
     [
-      "neither counts toward the lane's total",
+      "a task accepted or cut has stopped going round",
       ledgerOf([
         task({ id: "L1-T1", reworks: 2, status: "merged", handback: handback("complete") }),
-        task({ id: "L1-T2", reworks: 2 }),
+        task({ id: "L1-T2", reworks: 2, status: "cut" }),
+        task({ id: "L1-T3", reworks: 1 }),
       ]),
       [],
     ],
@@ -104,28 +101,17 @@ test("a lane's record shows loops, patching and unconverged reviews, about its L
   ];
   for (const [why, ledger, expected] of rows) assert.deepEqual(kinds(ledger), expected, why);
 
-  const loop = quote(looping, "rework-loop");
-  assert.equal(loop.seat, "lead-1", "the Lead decides to send it back, so the Lead is who this is about");
-  assert.match(loop.fact.quote, /L1-T1 \(Apply discount\) has been sent back 3 times, last outcome partial/);
-  assert.match(
+  const patched = quote(spread, "patched-not-fixed");
+  assert.equal(patched.seat, "lead-1", "the Lead decides to send work back, so the Lead is who this is about");
+  const first = patched.fact.quote;
+  assert.match(first, /3 sendings-back across 3 tasks .*L1-T1 ×1, L1-T2 ×1, L1-T3 ×1/);
+  assert.equal(
     quote(spread, "patched-not-fixed").fact.quote,
-    /3 sendings-back across 3 tasks .*L1-T1 ×1, L1-T2 ×1, L1-T3 ×1/,
+    first,
+    "reading the same ledger twice says the same words",
   );
-  assert.match(
-    quote(reviewed, "reviews-unconverged").fact.quote,
-    /3 reviews of L1-T1 .*which is running: changes, changes, changes/,
-  );
-
-  const held = ledgerOf([task({ id: "L1-T1", reworks: 3 })]);
-  const first = quote(held, "rework-loop").fact.quote;
-  assert.equal(quote(held, "rework-loop").fact.quote, first, "reading the same ledger twice says the same words");
-  held.tasks["L1-T1"]!.reworks = 4;
-  assert.notEqual(quote(held, "rework-loop").fact.quote, first, "a fourth sending-back is new evidence");
-  // The book keys an incident by seat and kind, and the seat is the Lead, so one fact of a kind per lane.
-  const two = ledgerOf([task({ id: "L1-T1", reworks: 3 }), task({ id: "L1-T2", reworks: 3 })]);
-  const loops = deskFacts(two, READING).filter((seen) => seen.fact.kind === "rework-loop");
-  assert.equal(loops.length, 1);
-  assert.match(loops[0]!.fact.quote, /L1-T1 .*sent back 3 times.*; L1-T2 .*sent back 3 times/);
+  spread.tasks["L1-T1"]!.reworks = 2;
+  assert.notEqual(quote(spread, "patched-not-fixed").fact.quote, first, "a fourth sending-back is new evidence");
 });
 
 test("a brief that writes the work out, or a review told to report only certainties, is on the record, and ordinary wording is not", () => {

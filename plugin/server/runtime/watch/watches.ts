@@ -5,7 +5,7 @@ import type { Seen, SeatView, Seats, Stream } from "../../core/ports.ts";
 import { sentBy } from "../../core/sent-by.ts";
 import { onDetail } from "./commands.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
-import { Recovery, type Rules, describe, onSettle, rerun, stuck } from "./facts.ts";
+import { type Rules, describe, onSettle, rerun, stuck } from "./facts.ts";
 import { oneLine } from "../../core/text.ts";
 import { contradicted, editBeforeLook } from "./turn-facts.ts";
 import type { Quirks } from "../../catalog/kit/timeline.ts";
@@ -25,7 +25,6 @@ export class SeatWatch {
   startedAt = 0;
   private heardAt = 0;
   private readonly told = new Set<string>();
-  private readonly recovery = new Recovery();
   private readonly context: () => SeatContext | undefined;
   private current: SeatContext | undefined;
 
@@ -43,7 +42,6 @@ export class SeatWatch {
     if (seen.kind === "idle") return this.idle();
     if (seen.kind === "reset") {
       this.window.clear();
-      this.recovery.reset();
       this.told.clear();
       return [];
     }
@@ -57,8 +55,7 @@ export class SeatWatch {
     if (row.replay) return [];
     this.heardAt = now;
     if (row.item.type === "user_message") {
-      this.recovery.reset();
-      for (const key of [...this.told]) if (key !== "long-turn") this.told.delete(key);
+      this.told.clear();
       return [];
     }
     const rules = this.rules();
@@ -72,24 +69,12 @@ export class SeatWatch {
             ...(change.settled ? onSettle(call, rules, (path) => this.lastRead(path, call.id)) : []),
           ];
     if (change.settled && change.call && !change.call.pseudo) {
-      facts.push(...this.recovery.step(change.call, rules));
       facts.push(...rerun(this.window.sinceInstruction(), change.call, rules));
       const pattern = stuck(this.window.sinceInstruction(), rules);
       if (pattern) facts.push(fact("stuck", pattern));
       else this.told.delete("stuck");
     }
     return this.fresh(facts, change.call?.id);
-  }
-
-  /** Timed from the last thing seen of the turn: long builds and test runs that keep moving were all labelled noise. */
-  longTurn(now: number, minutes: number): Fact[] {
-    if (!this.running || !this.startedAt) return [];
-    const quiet = now - Math.max(this.startedAt, this.heardAt);
-    if (quiet < minutes * 60_000) return [];
-    const [still, took] = [quiet, now - this.startedAt].map((ms) => Math.round(ms / 60_000));
-    const call = this.window.running();
-    const on = call ? `, waiting on ${oneLine(describe(call), 80)}` : "";
-    return this.fresh([fact("long-turn", `nothing new for ${still} minutes of a turn running ${took}${on}`)]);
   }
 
   doing(): Doing | undefined {
@@ -155,9 +140,7 @@ export class SeatWatch {
   private fresh(facts: Fact[], call?: string): Fact[] {
     const kept = facts.filter((fact) => {
       const key =
-        fact.kind === "stuck" || fact.kind === "long-turn" || fact.kind === "plan-skipped"
-          ? fact.kind
-          : `${fact.kind}\n${call ?? fact.quote}`;
+        fact.kind === "stuck" || fact.kind === "plan-skipped" ? fact.kind : `${fact.kind}\n${call ?? fact.quote}`;
       if (this.told.has(key)) return false;
       this.told.add(key);
       return true;
@@ -232,10 +215,6 @@ export class Watches {
       this.follow(seat);
     }
     for (const id of [...this.followed.keys()]) if (!ids.has(id)) this.drop(id);
-  }
-
-  round(now: number, minutes: (watch: SeatWatch) => number): void {
-    for (const { watch } of this.followed.values()) this.found(watch, watch.longTurn(now, minutes(watch)));
   }
 
   dispose(): void {

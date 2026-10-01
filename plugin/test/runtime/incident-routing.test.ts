@@ -103,16 +103,33 @@ test("what was held because nobody could read it is told once somebody can, and 
 test("a lane's own record raises an incident about its Lead once, held while the watch is off, never about a Lead that is gone", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();
   const lead = lane.lead!;
-  const rework = async (round: number) => {
-    await h.call(peer, "peer", "done", { outcome: "complete", summary: `round ${round}` });
-    await h.call(lead, "lead", "rework", { task: "L1-T1", text: "not yet" });
+  await h.call(lead, "lead", "add_tasks", {
+    tasks: [
+      {
+        key: "r",
+        title: "Receipt",
+        goal: "g",
+        acceptance: ["a"],
+        holds: ["src/receipt/"],
+        outOfScope: ["the rest"],
+        parallel: true,
+      },
+    ],
+  });
+  const beside = h.ledger().tasks["L1-T2"]!.peer!;
+  const rework = async (id: string, seat: string, round: number) => {
+    await h.call(seat, "peer", "done", { outcome: "complete", summary: `round ${round}` });
+    await h.call(lead, "lead", "rework", { task: id, text: "not yet" });
   };
-  for (const round of [1, 2, 3]) await rework(round);
-  assert.equal(h.ledger().tasks["L1-T1"]!.reworks, 3, "three sendings-back are on the record");
+  await rework("L1-T1", peer, 1);
+  await rework("L1-T1", peer, 2);
+  await h.tick();
+  assert.deepEqual(Object.values(book(h)), [], "one task sent back twice is its Lead's own call");
+  await rework("L1-T2", beside, 1);
   await h.tick();
   assert.deepEqual(
     Object.values(book(h)).map((item) => [item.kind, item.held]),
-    [["rework-loop", "shadow"]],
+    [["patched-not-fixed", "shadow"]],
     "a lane's record is gone through for what no turn shows, held while the watch is off",
   );
   assert.doesNotMatch(h.heard(sup).join("\n"), /INCIDENT/);
@@ -124,10 +141,10 @@ test("a lane's own record raises an incident about its Lead once, held while the
   const told = h.heard(sup).join("\n");
   assert.match(
     told,
-    /INCIDENT I1 \(rework-loop, attend\) on the Lead of L1 \(Build\)/,
-    "told once turned on, about the seat that decides to send it back",
+    /INCIDENT I1 \(patched-not-fixed, attend\) on the Lead of L1 \(Build\)/,
+    "told once turned on, about the seat that decides to send work back",
   );
-  assert.match(told, /What was seen: L1-T1 \(Clean build\) has been sent back 3 times/);
+  assert.match(told, /What was seen: 3 sendings-back across 2 tasks still open in this lane: L1-T1 ×2, L1-T2 ×1/);
   assert.deepEqual(Object.keys(book(h)), ["I1"], "the incident already on the book, not a second one");
   assert.doesNotMatch(h.heard(lead).join("\n"), /INCIDENT/, "never shown to the Lead it is about");
 
@@ -140,12 +157,12 @@ test("a lane's own record raises an incident about its Lead once, held while the
   await h.tick();
   await h.tick();
   assert.deepEqual(Object.keys(book(h)), ["I1"], "the same three sendings-back are not raised again once marked");
-  await rework(4);
+  await rework("L1-T2", beside, 2);
   await h.tick();
   assert.deepEqual(Object.keys(book(h)), ["I1", "I2"], "a fourth sending-back is something new to say");
 
   assert.equal((await h.call(sup, "supervisor", "mark_incident", { id: "I2", verdict: "noise" })).ok, true);
-  await rework(5);
+  await rework("L1-T1", peer, 3);
   h.agents.get(lead)!.archivedAt = new Date().toISOString();
   await h.tick();
   assert.deepEqual(

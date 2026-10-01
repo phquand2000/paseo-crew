@@ -243,7 +243,7 @@ test("each seat is told and given what its servers, its role and the Human say, 
   const machine: Layer = {
     mcp: { docs: { enabled: true }, ide: { settings: { port: 1234 }, roles: ["lead", "peer"] } },
     rules: "Keep diffs small.",
-    attention: { longTurnMinutes: 45, incidentsPerLane: 8 },
+    attention: { repeatsAt: 45, incidentsPerLane: 8 },
   };
   const project: Layer = {
     roles: { lead: { harness: "omp" }, peer: { rules: "Never touch the generated client." } },
@@ -260,7 +260,7 @@ test("each seat is told and given what its servers, its role and the Human say, 
   );
   assert.equal(team.rules, "Keep diffs small.\n\nUse pnpm.");
   assert.deepEqual(
-    [team.attention.longTurnMinutes, team.attention.incidentsPerLane, team.attention.watch],
+    [team.attention.repeatsAt, team.attention.incidentsPerLane, team.attention.watch],
     [45, 2, true],
     "what the project leaves alone comes from the machine",
   );

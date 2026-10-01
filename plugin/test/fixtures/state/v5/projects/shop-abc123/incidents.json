@@ -1,0 +1,24 @@
+{
+  "next": 2,
+  "items": {
+    "I1": {
+      "seat": "agent-3",
+      "provider": "crew-peer-claude/claude-opus-5-5",
+      "where": "the Peer on L1-T1 (Add tax)",
+      "lane": "L1",
+      "task": "L1-T1",
+      "kind": "unverified_success",
+      "level": "attend",
+      "quote": "all tests pass",
+      "facts": [
+        "unverified_success"
+      ],
+      "id": "I1",
+      "opened": 1790737063719,
+      "last": 1790737063719,
+      "count": 1,
+      "open": true,
+      "held": "shadow"
+    }
+  }
+}

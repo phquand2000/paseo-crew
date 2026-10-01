@@ -451,24 +451,19 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 |---|---|---|
 | `irreversible` | page | A shell command matches the irreversible pattern, checked one command at a time: by default a forced push or a dropped or truncated table, which leave the machine |
 | `stuck` | attend | In the last 20 steps since the seat's latest instruction, ending with the newest: the same action and result `repeatsAt` + 1 times (4 by default), the same action failing `repeatsAt` times, the same words `repeatsAt` times, or two actions alternating `repeatsAt` times |
-| `no-recovery` | attend | Ten calls after a failed shell command, neither that program nor the gate has passed. Another command failing starts the count again. A command made only of looks, the ecosystem's `probe`, such as a `cat` or `grep` that finds nothing, a `diff` of files that differ or a program asked for its `--help`, is no failure, nor is a command a signal ended (exit code 129 to 192; 128 and 255 are failures of git and ssh themselves) |
 | `test-weakened` / `suppressed` | attend | An edit removes assertions from a test or adds a skip, or adds a suppression such as `@ts-ignore` |
 | `claim-contradicted` | attend | A Peer hands back `complete`, with no gate result from the desk, though the gate it last ran, after its last edit, failed. Needs a gate |
-| `long-turn` | attend | A running turn shows nothing new, no call, output or message, for `longTurnMinutes`; names the call still open |
 | `outside-scope` | attend | A file was written outside the seat's copy, `/tmp` and the machine's temp directory aside, or outside what its task may write: a parallel task's `holds`, or the lane's write set |
 | `plan-skipped` | attend | A Peer on a `planFirst` task changed a file in its copy, prose aside, before it asked on that task; once a turn at most |
 | `call-failed` / `gate-failed` | note | A call other than a desk call failed; a run of the gate failed. Evidence only, never an incident alone |
 | `gate-rerun` | note | The gate run `repeatsAt` times (3) since the seat's latest instruction. Evidence only, until marks show it is worth someone's attention |
 | `edit-before-look` | note | A turn's first step, desk calls and Paseo's own steps aside, changed a file before it read, searched or ran anything since an instruction the watch still holds. It opens only the `instruction_kind` question |
-| `destructive` | note | A shell command matches the destructive pattern, checked one command at a time: by default a forced removal, a hard reset, a forced clean or a forced branch delete, which stay on the machine. Removing only scratch files, under the temp directory or made by the same command, does not count. Evidence only, for the `asked_for` question: as an incident it was marked noise every time |
 
 **From a lane's record**, read each round and filed against the lane's Lead:
 
 | Fact | Fires when |
 |---|---|
-| `rework-loop` | One task not yet merged or cut was sent back `reworksAt` times (3 by default); a rework answering a blocked hand-back is no sending-back |
-| `patched-not-fixed` | That many sendings-back are spread over two or more tasks not yet merged or cut |
-| `reviews-unconverged` | `reviewsAt` reviews (3 by default) of one task not yet merged or cut, whatever their verdicts |
+| `patched-not-fixed` | `reworksAt` sendings-back (3 by default) are spread over two or more tasks not yet merged or cut; a rework answering a blocked hand-back is no sending-back |
 | `certainty-only` | A review's focus asks only for what the Reviewer is sure of |
 | `brief-prewritten` | A code task not yet merged or cut has a brief with code in a fence, or numbered steps that name a file and a member or chain one change after another |
 | `ask-waiting` | Asks open `askWaitingMinutes` (15) on a seat that does not supervise, none carried by an ask or question still open; filed against that seat, naming every one |
@@ -698,12 +693,9 @@ kept off only the machine's settings file itself; its file tools still honour ev
 | `watch` | false |
 | `repeatsAt` | 3 |
 | `reworksAt` | 3 |
-| `reviewsAt` | 3 |
-| `longTurnMinutes` | 30 |
 | `incidentsPerLane` | 2 |
 | `questionsPerDay` | 3 |
 | `judge` | `off` |
-| `destructive` | a pattern in `catalog/ecosystem.json` |
 | `irreversible` | a pattern in `catalog/ecosystem.json` |
 | `testPath` | a pattern in `catalog/ecosystem.json` |
 | `suppressed` | a pattern in `catalog/ecosystem.json` |

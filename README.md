@@ -188,9 +188,9 @@ across all projects (`questionsPerDay`).
 
 ## The watch
 
-The plugin reads the turns of Leads and Peers in code, for things like a destructive command, the
-same failure again and again, or a weakened test, and each lane's record, for things like a task sent
-back three times. A finding becomes an **incident**: an ordinary one about a Peer goes to its Lead, and
+The plugin reads the turns of Leads and Peers in code, for things like an irreversible command, the
+same failure again and again, or a weakened test, and each lane's record, for things like three
+sendings-back spread over several tasks. A finding becomes an **incident**: an ordinary one about a Peer goes to its Lead, and
 one about a Lead, an urgent one (a *page*), or one whose Lead is gone goes to the Supervisor. The seat
 it is about never hears of it. Whoever gets it marks it `useful`, `noise` or `unknown`.
 
@@ -199,7 +199,7 @@ the Supervisor and to your phone. To mail the rest, turn on **Mail incidents** o
 in the **Team** tab.
 
 What code cannot read, the watch asks a model, one question at a time, at the moment it matters: was
-this destructive command asked for, does a complete hand-back's summary admit a gap, did a review that
+this irreversible command asked for, does a complete hand-back's summary admit a gap, did a review that
 accepts a migration say it ran the invariant. On the Supervisor's chip in **Team** you pick who answers:
 Jev, a small model asked over OpenRouter with your key, which stays on this machine and is never shown
 again, or nobody. Every question ships in shadow: its answers are kept in the

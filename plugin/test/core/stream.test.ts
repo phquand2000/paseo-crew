@@ -227,11 +227,7 @@ test("a follower lets go of a seat that is gone or never answers, and reads back
     ),
     ["completed", "done"],
   );
-  assert.deepEqual(
-    watch.longTurn(Date.now() + 40 * 60_000, 30),
-    [],
-    "a turn that ended unseen is over, or it would read as a long turn for ever",
-  );
+  assert.equal(watch.doing(), undefined, "a turn that ended unseen is over, or it would read as running for ever");
 
   const stopping = new FakeTimeline();
   const stopped = watching(stopping);

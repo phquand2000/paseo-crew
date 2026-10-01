@@ -138,7 +138,6 @@ export function loadKit(dir: string, stateDir?: string): Kit {
     own: stateDir ? join(stateDir, "own") : undefined,
     attention: {
       ...ATTENTION,
-      destructive: watch.destructive,
       irreversible: watch.irreversible,
       testPath: watch.testPath,
       suppressed: watch.suppressed,

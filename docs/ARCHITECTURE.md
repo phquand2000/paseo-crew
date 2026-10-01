@@ -445,8 +445,8 @@ back what a join, gap or reconnect missed, into a window of at most 80 entries p
 thoughts, instructions, errors); a seat whose subscription fails is followed again the next round.
 
 **Facts** are read in code as a turn runs, as each call's detail comes and settles, and at its end; each round
-reads long turns and every open lane's record, for shapes that span turns. `irreversible` alone is `page`, its
-incident going out at once; `attend` facts, such as `stuck` or `test-weakened` in a turn, or `rework-loop` in
+reads every open lane's record, for shapes that span turns. `irreversible` alone is `page`, its
+incident going out at once; `attend` facts, such as `stuck` or `test-weakened` in a turn, or `patched-not-fixed` in
 a lane's record, filed against its Lead, open incidents told within the lane's budget; `note` facts, such as
 `gate-failed`, are evidence in `events.log`, never an incident alone ([facts](REFERENCE.md#facts);
 [ANTIPATTERNS.md](ANTIPATTERNS.md) says which failure each lane fact answers).

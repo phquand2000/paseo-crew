@@ -16,7 +16,7 @@ const lead = { harness: "claude", model: "opus", thinking: "high", rules: "Never
 const held: Layer = {
   rules: "Keep diffs small.",
   roles: { lead },
-  attention: { longTurnMinutes: 30, watch: false },
+  attention: { repeatsAt: 30, watch: false },
   mcp: { docs },
   sensor: { other: { key: KEPT } },
 };
@@ -35,7 +35,7 @@ const EDITS: [string, (layer: Layer) => Layer, Layer][] = [
   [
     "switching the watch on keeps the rest of the tuning",
     (layer) => setAttention(layer, { watch: true }),
-    { ...held, attention: { longTurnMinutes: 30, watch: true } },
+    { ...held, attention: { repeatsAt: 30, watch: true } },
   ],
   [
     "removing a server this layer added forgets it, token and all, rather than keeping it marked removed",
@@ -67,7 +67,7 @@ test("running the setup screen over a project keeps what it holds, and drops the
   const project: Layer = {
     rules: "Never touch the release branch.",
     mcp: { docs },
-    attention: { longTurnMinutes: 45 },
+    attention: { repeatsAt: 45 },
     roles: { peer: { harness: "claude", model: "claude-opus-5", thinking: "high" } },
   };
   const recorded = (role: string) => project.roles?.[role]?.harness;

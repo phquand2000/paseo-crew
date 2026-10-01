@@ -3,7 +3,6 @@ import { test } from "node:test";
 import { TEAM_SERVER } from "../../server/catalog/kit/kit.ts";
 import type { StreamMessage } from "../../server/core/stream.ts";
 import { callsTo } from "../../server/runtime/watch/facts.ts";
-import { SeatWatch } from "../../server/runtime/watch/watches.ts";
 import { again, claudeTurn2, fixture, kinds, kit, opening, piRow, play, rules } from "./seat-replay.ts";
 
 const done = piRow(11);
@@ -14,10 +13,6 @@ const run = (callId: string, seq: number, command: string, ok: boolean) =>
   again(ok ? done : failedCat, callId, seq, (detail) =>
     Object.assign(detail, { command, ...(ok ? { exitCode: 0 } : {}) }),
   );
-
-/** `count` passing steps from `seq` on, none of them the program that failed. */
-const steps = (count: number, seq: number) =>
-  Array.from({ length: count }, (_, index) => run(`ok-${seq + index}`, seq + index, `echo ${index}`, true));
 
 /** A failed call named `name`, with its own detail if given. */
 const failing = (name: string, seq: number, detail?: Record<string, unknown>) => {
@@ -35,7 +30,6 @@ test("each harness's recorded turn is read into the facts it shows, once, never 
     const failures = facts.filter((fact) => fact.kind === "call-failed");
     assert.equal(failures.length, 1, `${harness}: ${JSON.stringify(facts)}`);
     assert.match(failures[0]!.quote, /cat \.\/does-not-exist\.txt/, harness);
-    assert.ok(!kinds(facts).includes("destructive"), harness);
   }
 
   // As Paseo maps an OpenCode shell call: its detail has no exit code, and the tool's own metadata rides on the item.
@@ -185,82 +179,6 @@ test("a seat going round in circles is stuck: failing, repeating, alternating or
   );
 });
 
-test("a failure not climbed out of in ten steps is noticed, ended only by the same program or the gate passing, and a look that finds nothing is no failure", () => {
-  const lost = (messages: StreamMessage[]) => found(messages, "no-recovery").map((fact) => fact.quote);
-  assert.equal(lost([run("bad", 2, "make build", false), ...steps(10, 3)]).length, 1);
-  const cured = run("good", 3, "make build", true);
-  assert.deepEqual(lost([run("bad", 2, "make build", false), cured, ...steps(10, 4)]), []);
-  const look = "cd /work; cat plan.md; echo ===; grep -n total build.log | head -5";
-  assert.deepEqual(lost([run("look", 2, look, false), ...steps(12, 3)]), [], "a missing file or no match is an answer");
-  assert.equal(
-    lost([run("mixed", 2, "make build && ls out", false), ...steps(10, 3)]).length,
-    1,
-    "unless it did more than look",
-  );
-  const compared = run("diff", 2, "diff -u expected.txt out.txt", false);
-  assert.deepEqual(lost([compared, ...steps(12, 3)]), [], "files that differ are an answer too");
-  const stopped = again(failedCat, "int", 2, (detail) => Object.assign(detail, { command: "npm test", exitCode: 130 }));
-  assert.deepEqual(lost([stopped, ...steps(12, 3)]), [], "a run a signal stopped is not a failure of the work");
-  for (const exitCode of [128, 255]) {
-    const fatal = again(failedCat, "int", 2, (detail) => Object.assign(detail, { command: "git pull", exitCode }));
-    assert.equal(
-      lost([fatal, ...steps(10, 3)]).length,
-      1,
-      `exit ${exitCode} is git's or ssh's own failure, not a signal`,
-    );
-  }
-  const help = "cd /work && ./scripts/check.sh --help 2>&1 | head -40";
-  assert.deepEqual(
-    lost([run("help", 2, help, false), ...steps(12, 3)]),
-    [],
-    "asking a program how it is used only looks",
-  );
-  assert.deepEqual(
-    lost([run("f", 2, "npm test", false), run("p", 3, "npm test 2>&1 | tail -30", true), ...steps(12, 4)]),
-    [],
-    "the same program passing, as its runner starts it, ends the stretch",
-  );
-  assert.match(
-    lost([run("probe", 2, "rg legacyFlag src", false), run("f", 3, "npm test", false), ...steps(10, 4)]).join(),
-    /`npm test` failed/,
-    "the fact names the failure the seat is in now, not an earlier probe",
-  );
-  assert.deepEqual(
-    lost([run("a", 2, "rg legacyFlag src", false), run("b", 3, "rg otherThing src", true), ...steps(12, 4)]),
-    [],
-  );
-  assert.equal(
-    lost([run("a", 2, "npm run check", false), run("b", 3, "npm run lint", true), ...steps(10, 4)]).length,
-    1,
-    "a red gate is not climbed out of by another script passing",
-  );
-  const spaced = (command: string) => run("b", 3, command, true);
-  assert.equal(
-    lost([
-      run("a", 2, "'/work/my tools/check.sh' --strict", false),
-      spaced("'/work/my tools/build.sh'"),
-      ...steps(10, 4),
-    ]).length,
-    1,
-    "another program under the same spaced path is not the one that failed",
-  );
-  assert.deepEqual(
-    lost([
-      run("a", 2, "/work/my\\ tools/check.sh --strict", false),
-      spaced("'/work/my tools/check.sh'"),
-      ...steps(12, 4),
-    ]),
-    [],
-    "the same program passing, however its path is quoted",
-  );
-  assert.equal(
-    lost([run("a", 2, "OWNER='peer S4' make test", false), spaced("OWNER='peer S4' make lint"), ...steps(10, 4)])
-      .length,
-    1,
-    "a quoted value set before a command is not the command",
-  );
-});
-
 test("the gate run again and again since one instruction is noted once, as evidence only", () => {
   const gated = rules({ gates: ["npm test"] });
   const runs = [run("g1", 2, "npm test", false), run("e", 3, "echo x", true), run("g2", 4, "npm test", false)];
@@ -272,70 +190,4 @@ test("the gate run again and again since one instruction is noted once, as evide
     noted(third).map((fact) => [fact.level, fact.quote]),
     [["note", "the gate run 3 times since the latest instruction: bash: npm test 2>&1 | tail"]],
   );
-});
-
-test("a seat's turn stays open through the late end of an older turn, and is long only once nothing new is seen of it for the limit", () => {
-  const context = () => ({ rules: rules(), handedBack: () => undefined, placed: true });
-  const seat = { id: "s1", provider: "crew-peer-claude", cwd: "/work" };
-  const late = new SeatWatch(seat, context);
-  late.see({ kind: "turn", phase: "started", turnId: "turn-2" }, 1_000);
-  late.see({ kind: "turn", phase: "completed", turnId: "turn-1" }, 2_000);
-  assert.equal(late.longTurn(1_000 + 40 * 60_000, 30).length, 1, "turn-2 is still running, so it is still timed");
-  const ended = new SeatWatch(seat, context);
-  ended.see({ kind: "turn", phase: "started", turnId: "turn-2" }, 1_000);
-  ended.see({ kind: "turn", phase: "completed", turnId: "turn-1" }, 2_000);
-  ended.see({ kind: "turn", phase: "completed", turnId: "turn-2" }, 3_000);
-  assert.deepEqual(ended.longTurn(1_000 + 40 * 60_000, 30), [], "its own end closes it");
-
-  const steered = new SeatWatch(seat, context);
-  const t0 = Date.parse("2026-09-19T10:00:00Z");
-  steered.see({ kind: "turn", phase: "started", turnId: "t" }, t0);
-  assert.equal(steered.longTurn(t0 + 40 * 60_000, 30).length, 1);
-  const message = { type: "user_message", text: "Also check the README" };
-  steered.see(
-    { kind: "row", row: { item: message, seqStart: 1, seq: 1, epoch: "e", turnId: "t", replay: false } },
-    t0 + 40 * 60_000,
-  );
-  assert.deepEqual(
-    steered.longTurn(t0 + 45 * 60_000, 30),
-    [],
-    "a message steered into a long turn does not make it long again",
-  );
-
-  const busy = new SeatWatch(seat, context);
-  busy.see({ kind: "turn", phase: "started", turnId: "b" }, t0);
-  const said = { type: "assistant_message", text: "The build is green; running the tests." };
-  busy.see(
-    { kind: "row", row: { item: said, seqStart: 1, seq: 1, epoch: "e", turnId: "b", replay: false } },
-    t0 + 25 * 60_000,
-  );
-  const check = {
-    type: "tool_call",
-    callId: "c",
-    name: "shell",
-    status: "running",
-    detail: { command: "npm run check" },
-  };
-  busy.see(
-    { kind: "row", row: { item: check, seqStart: 2, seq: 2, epoch: "e", turnId: "b", replay: false } },
-    t0 + 25 * 60_000,
-  );
-  assert.deepEqual(
-    busy.longTurn(t0 + 50 * 60_000, 30),
-    [],
-    "a turn that keeps moving is not long, however long it runs",
-  );
-  assert.match(
-    busy.longTurn(t0 + 56 * 60_000, 30)[0]!.quote,
-    /^nothing new for 31 minutes of a turn running 56, waiting on shell: npm run check$/,
-  );
-
-  const joined = new SeatWatch(seat, context);
-  joined.see({ kind: "turn", phase: "started", turnId: "j", at: t0 }, t0 + 40 * 60_000);
-  assert.deepEqual(
-    joined.longTurn(t0 + 45 * 60_000, 30),
-    [],
-    "a watch that joins a running turn counts quiet from when it joined, not from the turn's start",
-  );
-  assert.match(joined.longTurn(t0 + 71 * 60_000, 30)[0]!.quote, /^nothing new for 31 minutes of a turn running 71$/);
 });

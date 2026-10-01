@@ -51,8 +51,7 @@ test("a seat is followed once while it is seated and watched, let go when it goe
 });
 
 test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
-  const { h, sup, lane, peer, timeline } = await laneWithPeer({ attention: { watch: true, incidentsPerLane: 3 } });
-  const lead = lane.lead!;
+  const { h, sup, peer, timeline } = await laneWithPeer({ attention: { watch: true, incidentsPerLane: 2 } });
   await h.call(sup, "supervisor", "set_project", { gate: "npm test", gateOn: "lane" });
   const noticed = noticesOf(h, t);
   const call = (callId: string, name: string, status: string, detail: Record<string, unknown>, error?: unknown) =>
@@ -134,28 +133,6 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
     1,
     "the same incident seen again pages nobody again, and one that is not a page pages nobody",
   );
-  await h.idle(lead);
-  assert.ok(
-    h.events("watch.fact").some((event) => event.fact === "destructive" && /rm -rf dist/.test(String(event.quote))),
-    "a deletion in the copy is kept as evidence",
-  );
-  assert.doesNotMatch(
-    h.agents.get(lead)!.sent.join("\n"),
-    /\(destructive,/,
-    "and reaches no one: marked noise each time it was sent, as a page and then to the Lead",
-  );
-
-  await h.tick(Date.now() + 31 * 60_000);
-  await noticed();
-  await h.idle(lead);
-  await h.idle(sup);
-  assert.match(
-    h.agents.get(lead)!.sent.join("\n"),
-    /INCIDENT I\d+ \(long-turn, attend\)/,
-    "a turn that runs long is told to the Peer's Lead",
-  );
-  assert.doesNotMatch(h.agents.get(sup)!.sent.join("\n"), /long-turn/);
-
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "Cleaned" });
   for (const id of ["m1", "m2", "m3"])
     timeline.add({ type: "assistant_message", text: "Let me look at the build again.", messageId: id }, "t1");

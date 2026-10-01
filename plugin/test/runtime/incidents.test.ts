@@ -50,11 +50,11 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
     JSON.stringify({ attention: { watch: true, incidentsPerLane: 20 } }),
   );
   await notice(h, peer, "test-weakened");
-  await notice(h, lead, "long-turn");
+  await notice(h, lead, "patched-not-fixed");
   assert.match(h.heard(lead).join("\n"), /INCIDENT I4 \(test-weakened, attend\)/, "one about a Peer goes to its Lead");
   assert.match(
     h.heard(sup).join("\n"),
-    /INCIDENT I5 \(long-turn, attend\) on the Lead/,
+    /INCIDENT I5 \(patched-not-fixed, attend\) on the Lead/,
     "one about the Lead goes above it",
   );
   const led = await listing(lead);

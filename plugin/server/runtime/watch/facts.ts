@@ -3,31 +3,24 @@ import { weakened } from "../../catalog/kit/patterns.ts";
 import { covers, normalize } from "../../core/scope.ts";
 import { oneLine } from "../../core/text.ts";
 import { type Fact, fact } from "./fact-kinds.ts";
-import { shellWords } from "./shell-words.ts";
 import type { Call, Unit } from "./window.ts";
 
-/** `skipped` and `assertion` are global, since they are counted; `runners` are the commands whose first word says little; `probe` a command that only looks. */
+/** `skipped` and `assertion` are global, since they are counted. */
 export type Rules = {
-  destructive: RegExp;
   irreversible: RegExp;
   testPath: RegExp;
   suppressed: RegExp;
   skipped: RegExp;
   assertion: RegExp;
-  probe: RegExp;
-  runners: Set<string>;
   desk?: (call: Call) => boolean;
   gates: string[];
   cwd?: string;
   temp?: string;
-  /** What the seat was granted outside its copy: below one, removing is scratch work. */
-  outside?: string[];
   /** What the seat writes inside: a parallel task's holds, or its lane's write set; empty or none is anywhere in its copy. */
   scope?: string[];
   /** Its task asks for the plan first and it has not asked yet. */
   planFirst?: boolean;
   repeatsAt: number;
-  recoverWithin: number;
 };
 
 export const str = (value: unknown): string => (typeof value === "string" ? value : "");
@@ -141,7 +134,7 @@ const TMP = /^\/tmp(?:\/|$)/;
 const unprivate = (path: string): string => path.replace(/^\/private(?=\/(?:tmp|var)(?:\/|$))/, "");
 
 /** An absolute path in /tmp or the machine's temp directory, however it was reached. */
-export function temporary(path: string, rules: Pick<Rules, "temp">): boolean {
+function temporary(path: string, rules: Pick<Rules, "temp">): boolean {
   if (!isAbsolute(path)) return false;
   const bare = unprivate(path);
   if (TMP.test(bare)) return true;
@@ -229,67 +222,4 @@ export function onSettle(call: Call, rules: Rules, known?: (path: string) => str
   if (written && !bad && rules.planFirst && !escapes(written, rules) && !PROSE.test(written))
     facts.push(fact("plan-skipped", `changed ${oneLine(written)} before it asked with its plan`));
   return facts;
-}
-
-function head(command: string, runners: Set<string>): string {
-  const main =
-    command
-      .split(/&&|;/)
-      .map((part) => part.trim())
-      .filter((part) => part && !/^cd\s/.test(part))
-      .at(-1) ?? command;
-  const words = shellWords(main.split("|")[0]!).filter((word) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word));
-  if (!runners.has(words[0] ?? "")) return words[0] ?? "";
-  return words.slice(0, /^(run|exec|-m|x|dlx)$/.test(words[1] ?? "") ? 3 : 2).join(" ");
-}
-
-const ASSIGNED = /^(?:[A-Za-z_]\w*=(?:"[^"]*"|'[^']*'|\S*)\s*)+/;
-
-/** Every program in it only looks, so a missing file or no match is an answer, not a failure: those were all labelled noise. */
-function looks(command: string, probe: RegExp): boolean {
-  const parts = command
-    .split(/&&|\|\|?|;|\n/)
-    .map((part) => part.trim().replace(ASSIGNED, ""))
-    .filter((part) => part && !/^cd\s/.test(part));
-  return parts.length > 0 && parts.every((part) => probe.test(part));
-}
-
-export class Recovery {
-  private open: { command: string; head: string; steps: number; told: boolean } | undefined;
-
-  step(call: Call, rules: Rules): Fact[] {
-    const shell = call.detail.type === "shell";
-    const command = str(call.detail.command);
-    // 128 plus a signal's number (1 to 64): the seat or its timeout stopped it; 128 and 255 are git's and ssh's own failures.
-    const stopped =
-      typeof call.detail.exitCode === "number" && call.detail.exitCode > 128 && call.detail.exitCode <= 192;
-    const bad = failed(call) && !stopped;
-    if (
-      shell &&
-      bad &&
-      !looks(command, rules.probe) &&
-      (!this.open || head(command, rules.runners) !== this.open.head)
-    ) {
-      this.open = { command, head: head(command, rules.runners), steps: 0, told: false };
-      return [];
-    }
-    if (!this.open) return [];
-    if (shell && !bad && !stopped && (head(command, rules.runners) === this.open.head || isGate(call, rules.gates))) {
-      this.open = undefined;
-      return [];
-    }
-    this.open.steps += 1;
-    if (this.open.told || this.open.steps < rules.recoverWithin) return [];
-    this.open.told = true;
-    return [
-      fact(
-        "no-recovery",
-        `${rules.recoverWithin} steps since \`${oneLine(this.open.command, 100)}\` failed, and neither it nor the gate has passed since`,
-      ),
-    ];
-  }
-
-  reset(): void {
-    this.open = undefined;
-  }
 }

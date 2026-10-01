@@ -27,14 +27,11 @@ export const EcosystemFile = z.strictObject({
   unsetScript: text,
   files: z.strictObject({ test: pattern, docs: pattern }),
   watch: z.strictObject({
-    destructive: pattern,
     irreversible: pattern,
     testPath: pattern,
     suppressed: pattern,
     skipped: pattern,
     assertion: pattern,
     refused: pattern,
-    probe: pattern,
-    runners: texts,
   }),
 });

@@ -4,14 +4,10 @@ import type { Level } from "../../domain/incident.ts";
 export const FACTS = {
   irreversible: { level: "page", title: "Ran a command that cannot be undone" },
   stuck: { level: "attend", title: "Going round in circles" },
-  "no-recovery": { level: "attend", title: "Did not recover from a failure" },
   "test-weakened": { level: "attend", title: "A test lost its assertions" },
   suppressed: { level: "attend", title: "Silenced a check instead of fixing it" },
   "claim-contradicted": { level: "attend", title: "Handed back as complete while its last check failed" },
-  "long-turn": { level: "attend", title: "A turn with nothing new for a long time" },
-  "rework-loop": { level: "attend", title: "Sent back again and again" },
   "patched-not-fixed": { level: "attend", title: "Several tasks patched, none fixed" },
-  "reviews-unconverged": { level: "attend", title: "Reviews piling up with nothing accepted" },
   "certainty-only": { level: "attend", title: "A review told to report only certainties" },
   "brief-prewritten": { level: "attend", title: "A brief that writes the answer out" },
   "ask-waiting": { level: "attend", title: "An ask left waiting on its reader" },
@@ -21,7 +17,6 @@ export const FACTS = {
   "gate-failed": { level: "note" },
   "gate-rerun": { level: "note" },
   "edit-before-look": { level: "note" },
-  destructive: { level: "note" },
 } as const satisfies Record<string, { level: "note" } | { level: Exclude<Level, "note">; title: string }>;
 
 export type FactKind = keyof typeof FACTS;

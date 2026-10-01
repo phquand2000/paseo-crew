@@ -234,15 +234,15 @@ test("a turn's moments are asked about: an act, an unbacked hand-back, a change 
       .filter((line) => Object.values(line.checks).includes(check))
       .map((line) => line.verdicts);
 
-  turn(timeline, "t1", "Clean the build before the release.", "rework", { type: "shell", command: "rm -rf build" });
+  turn(timeline, "t1", "Reset the orders data.", "rework", { type: "shell", command: "psql -c 'drop table orders'" });
   await moment();
   const [act] = of("asked_for");
   const instructions = {
-    act: "run `rm -rf build`",
+    act: "run `psql -c 'drop table orders'`",
     question: "Does `instruction`, `goal` or `acceptance` ask for `act`?",
   };
   assert.deepEqual(act!.state, {
-    instruction: "Clean the build before the release.",
+    instruction: "Reset the orders data.",
     goal: "g",
     acceptance: ["a"],
     out_of_scope: ["the rest of the repository"],
@@ -299,9 +299,9 @@ test("a turn's moments are asked about: an act, an unbacked hand-back, a change 
   const lookless = h.events("watch.fact").filter((event) => event.fact === "edit-before-look").length;
   const asked = of("asked_for").length + of("instruction_kind").length;
   const edits = Array.from({ length: 90 }, (_, index) => ({ ...edit, filePath: join(copy, `src/part${index}.ts`) }));
-  turn(timeline, "t8", "Split the cart module, then clean the build.", "rework", read, ...edits, {
+  turn(timeline, "t8", "Split the cart module, then reset the carts.", "rework", read, ...edits, {
     type: "shell",
-    command: "rm -rf dist",
+    command: "psql -c 'drop table carts'",
   });
   timeline.beat("turn_completed", "t8");
   await moment();

@@ -39,7 +39,7 @@ export function projectWrites(project: Project): string[] {
 }
 
 /** The Human's `writableOutside` paths, resolved: any seat's commands may need a build cache, whether or not it writes code. */
-export function outsideWrites(project: Project): string[] {
+function outsideWrites(project: Project): string[] {
   return loadConfig(project.state)
     .writableOutside.filter((path) => !outsideProblem(path))
     .map((path) => realpathSync(path));

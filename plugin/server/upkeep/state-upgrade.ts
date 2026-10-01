@@ -8,9 +8,32 @@ import { readJsonFile, writeJson } from "../core/store.ts";
 /** Run in order at plugin start, before anything reads a kept file. */
 type StateStep = { to: number; machine?: (root: string) => void; project?: (state: string) => void };
 
+const DROPPED_ATTENTION = ["destructive", "reviewsAt", "longTurnMinutes"];
+
+/** State 5 drops the tuning of facts the watch no longer raises, which a strict settings layer would refuse. */
+function dropAttention(file: string): void {
+  const read = readJsonFile(file);
+  if ("absent" in read) return;
+  if ("fault" in read) throw new Error(`${file} could not be read: ${read.fault}`);
+  if (!isRecord(read.value) || !isRecord(read.value.attention)) return;
+  const attention = Object.fromEntries(
+    Object.entries(read.value.attention).filter(([key]) => !DROPPED_ATTENTION.includes(key)),
+  );
+  writeJson(file, { ...read.value, attention });
+}
+
 // State 1 is the format 3.0.0 locked. State 2 lets a lane cite the Human for its lines, state 3 a task name the kept
-// Peer it starts on, and state 4 a task ask for its Peer's plan first; files before them never do.
-const STEPS: StateStep[] = [{ to: 2 }, { to: 3 }, { to: 4 }];
+// Peer it starts on, state 4 a task ask for its Peer's plan first, and state 5 drops tuning no fact reads.
+const STEPS: StateStep[] = [
+  { to: 2 },
+  { to: 3 },
+  { to: 4 },
+  {
+    to: 5,
+    machine: (root) => dropAttention(join(root, "settings.json")),
+    project: (state) => dropAttention(join(state, "settings.json")),
+  },
+];
 
 const MACHINE_FILES = ["state.json", "settings.json", "outbox.json", "content.json", "intents.json", "keys.json"];
 const PROJECT_FILES = ["ledger.json", "incidents.json", "project.json", "meta.json", "settings.json"];
