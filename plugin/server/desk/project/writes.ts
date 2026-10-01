@@ -102,6 +102,7 @@ export function seatGrants(
 ): { writes: string[]; sockets: string[]; temp?: string } {
   const temp = harness.tempDirEnv ? seatTemp(project) : undefined;
   const own = temp ? [temp] : [];
-  const writes = [...seatWrites(role, project), ...own, ...(temp ? machineTemp() : [])];
+  // Commands and the scripts they run name /tmp outright, whatever TMPDIR says; sockets stay in the seat's own.
+  const writes = [...seatWrites(role, project), ...own, ...(temp ? [realpathSync("/tmp"), ...machineTemp()] : [])];
   return { writes, sockets: [...seatSockets(project), ...own], temp };
 }

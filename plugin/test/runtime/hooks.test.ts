@@ -63,8 +63,11 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
   const prompt = (provider: string) => create(provider).config.systemPrompt ?? "";
   const onClaude = prompt("crew-peer-claude");
   assert.match(onClaude, /^# Peer\n/, "created with its role's prompt");
-  const delta = readFileSync(join(import.meta.dirname, "..", "..", "harness", "codex", "delta", "peer.md"), "utf-8");
-  assert.equal(prompt("crew-peer-codex"), `${onClaude.trimEnd()}\n\n${delta}`, "then what its harness needs said");
+  const delta = (agent: string) =>
+    readFileSync(join(import.meta.dirname, "..", "..", "harness", agent, "delta", "peer.md"), "utf-8");
+  const role = onClaude.slice(0, onClaude.lastIndexOf(`\n\n${delta("claude")}`));
+  assert.equal(onClaude, `${role}\n\n${delta("claude")}`, "then what its harness needs said");
+  assert.equal(prompt("crew-peer-codex"), `${role}\n\n${delta("codex")}`, "each harness its own");
 
   const open = (
     agentId: string,
@@ -242,6 +245,11 @@ test("a seat gets its project's temp directory, where its commands keep their fi
     assert.equal(claude.env.CLAUDE_CODE_TMPDIR, temp, "Claude sets its commands' TMPDIR from its own variable");
     assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(temp), true);
     assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(machine), true);
+    assert.equal(
+      sandbox.settings.sandbox.filesystem.allowWrite.includes(realpathSync("/tmp")),
+      true,
+      "a script that names /tmp outright writes there",
+    );
     assert.deepEqual(sandbox.settings.sandbox.network.allowUnixSockets, [temp]);
     assert.equal(launch("lead", "codex").env.TMPDIR, temp, "a Lead's commands, which run checks too, write there");
     assert.equal(codexGrants("lead").network?.unix_sockets?.[temp], "allow");
