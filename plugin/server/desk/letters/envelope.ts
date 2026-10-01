@@ -25,6 +25,7 @@ type Kind =
   | "carried"
   | "case"
   | "closed"
+  | "consulted"
   | "detour"
   | "done"
   | "failed"

@@ -19,7 +19,16 @@ type Handle = {
   archivedAt?: string | null;
   pendingPermissions?: PendingPermission[];
   refresh(): Promise<unknown>;
-  current(): { id?: string; provider?: string; cwd?: string | null; title?: string | null } | null | undefined;
+  current():
+    | {
+        id?: string;
+        provider?: string;
+        cwd?: string | null;
+        title?: string | null;
+        labels?: Readonly<Record<string, string>>;
+      }
+    | null
+    | undefined;
   send(text: string, options?: { messageId?: string; activeTurnBehavior?: "interrupt" }): Promise<unknown>;
   respondToPermission(options: { requestId: string; response: PermissionResponse }): Promise<unknown>;
   archive(): Promise<unknown>;
@@ -42,6 +51,7 @@ function lookOf(handle: Handle): SeatLook {
     status: handle.status ?? null,
     archivedAt: handle.archivedAt ?? null,
     pendingPermissions: handle.pendingPermissions ?? [],
+    labels: { ...snapshot?.labels },
   };
 }
 

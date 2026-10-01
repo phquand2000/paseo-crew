@@ -37,7 +37,7 @@ const refusesReading = (rules: string[]) =>
       new RegExp(`^${rule.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replaceAll("*", ".*")}$`).test(command),
     ),
   );
-const SEARCHES = ["supervisor", "lead", "peer"];
+const SEARCHES = ["supervisor", "lead", "peer", "advisor"];
 
 /** A role that does another's work on another model is held to that role's terms. */
 const TWIN: Record<string, string> = { "backup-peer": "peer", "senior-reviewer": "reviewer" };
@@ -73,7 +73,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
   for (const { role, harness } of seatPairs(kit)) {
     const where = `${role.role} on ${harness.id}`;
     const kind = TWIN[role.role] ?? role.role;
-    const edits = !["reviewer", "lead", "pager"].includes(kind);
+    const edits = !["reviewer", "lead", "pager", "advisor"].includes(kind);
     const waits = !["lead", "supervisor"].includes(kind);
     const searches = SEARCHES.includes(kind);
     const bare = kind === "pager";
@@ -173,7 +173,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         false,
         `${where}: only the role's skills, as on every other agent`,
       );
-      const profile = ["reviewer", "pager"].includes(kind) ? "reader" : "seat";
+      const profile = ["reviewer", "pager", "advisor"].includes(kind) ? "reader" : "seat";
       assert.equal(at(settings, "default_permissions"), profile, where);
       for (const secret of ["~/.ssh", "~/.aws", "~/.kube"])
         assert.equal(
@@ -238,7 +238,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       );
       assert.equal(
         refused("commit") === 1,
-        ["supervisor", "lead", "reviewer"].includes(kind),
+        ["supervisor", "lead", "reviewer", "advisor"].includes(kind),
         `${where}: commits only where the role may`,
       );
       assert.equal(denied.includes("sleep *"), !waits, `${where}: sleeps only where the role may`);
@@ -339,7 +339,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.ok(!refusesReading(denied), `${where}: reads worktrees`);
       assert.equal(
         bash["git commit *"] === "deny",
-        ["supervisor", "lead", "reviewer"].includes(kind),
+        ["supervisor", "lead", "reviewer", "advisor"].includes(kind),
         `${where}: commits only where the role may`,
       );
       assert.equal(bash["sleep *"] === "deny", !waits, `${where}: sleeps only where the role may`);
@@ -372,6 +372,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       );
       const tools = {
         reviewer: ["read", "bash", "grep", "find", "ls"],
+        advisor: ["read", "bash", "grep", "find", "ls"],
         lead: ["read", "bash", "grep", "find", "ls"],
         pager: [],
       }[kind as "reviewer"];

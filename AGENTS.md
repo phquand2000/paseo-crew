@@ -245,7 +245,7 @@ lines (400 for a test) and a function within 50: split by concept, not by line c
 ## SLP is the preset, not the plugin
 
 - **Roles are data** in `roles.json`: `can` (capabilities: `supervise`, `lead`, `work`, `write`,
-  `review`, `watched`, `page`), `tools` (a set in `mcp/tools.json`), prompt, skills,
+  `review`, `watched`, `page`, `advise`), `tools` (a set in `mcp/tools.json`), prompt, skills,
   defaults, `writes`, `follows`. Nothing in `server/` compares a role to a name; capabilities decide
   routing, acceptance, watching and paging.
 - **A `roles.json` in the state root replaces the shipped one**, and may point at its own prompts and

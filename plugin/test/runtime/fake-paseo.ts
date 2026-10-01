@@ -67,7 +67,9 @@ export function fakePaseo() {
       },
       async refresh() {},
       current() {
-        return agent ? { id: agent.id, provider: agent.provider, cwd: agent.cwd, title: agent.title } : null;
+        return agent
+          ? { id: agent.id, provider: agent.provider, cwd: agent.cwd, title: agent.title, labels: agent.labels }
+          : null;
       },
       async send(text: string, options?: { activeTurnBehavior?: string; messageId?: string }) {
         agent?.sent.push(text);

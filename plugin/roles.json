@@ -197,6 +197,26 @@
       },
       "hidesWords": [],
       "writes": []
+    },
+    {
+      "role": "advisor",
+      "label": "Advisor",
+      "description": "Talks a plan, an architecture or a problem through with whoever asks, reading the code and changing nothing; no mail reaches it and no lane feels it",
+      "defaults": {
+        "harness": "claude",
+        "model": "claude-opus-5-5",
+        "thinking": "high"
+      },
+      "can": [
+        "advise"
+      ],
+      "prompt": "prompts/ADVISOR.md",
+      "skills": null,
+      "paseoTools": {
+        "enabled": false
+      },
+      "hidesWords": [],
+      "writes": []
     }
   ]
 }

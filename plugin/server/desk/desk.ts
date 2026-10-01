@@ -10,6 +10,7 @@ import type { TaskMove, TaskStatus } from "../domain/task.ts";
 import type { DeskBase } from "./base.ts";
 import { ToolCalls } from "./calls/tool-calls.ts";
 import { Claims } from "./claims.ts";
+import { consulted } from "./messaging/consult.ts";
 import type { CodeIndex, Mailer, Posted, ToolReply, ToolRequest } from "./context.ts";
 import { OwnCopy } from "./copies/own-copy.ts";
 import { Slots } from "./copies/slots.ts";
@@ -141,6 +142,11 @@ export class Desk {
 
   post(to: string | undefined, letter: Letter): Promise<Posted | "nobody"> {
     return this.services.mail.post(to, letter);
+  }
+
+  /** A seat with no desk tools ended its turn: if a consult started it, whoever consulted it hears what it said. */
+  consulted(agentId: string, answer: { said: boolean; text: string }): Promise<void> {
+    return consulted(this.services, agentId, answer);
   }
 
   withdraw(key: string): Promise<boolean> {

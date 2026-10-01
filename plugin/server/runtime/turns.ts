@@ -34,6 +34,13 @@ function askInstead(tools: string[]): string {
   return "ask it with ask, then end your turn; the answer arrives as a message";
 }
 
+/** What a seat's turn left to pass on: its last words, or why there are none. */
+function answerOf(outcome: TurnEnded["outcome"], said: string): { said: boolean; text: string } {
+  if (outcome.kind === "failed") return { said: false, text: `its turn failed: ${outcome.error.message}` };
+  if (outcome.kind === "canceled") return { said: false, text: "its turn was stopped before it answered" };
+  return said.trim() ? { said: true, text: said } : { said: false, text: "it ended its turn saying nothing" };
+}
+
 export class TurnRules {
   readonly lastEnding = new Map<string, string>();
   private readonly deps: TurnDeps;
@@ -146,6 +153,13 @@ export class TurnRules {
     if (!lane) return;
     const to = await this.deps.desk.supervisorFor(project, lane.opener);
     await this.deps.desk.post(to, messageLetters.humanWrote(lane, task, seat.id, text));
+  }
+
+  /** A seat's last turn, before it is archived: one with no desk tools may owe whoever consulted it an answer. */
+  async parting({ agent, outcome, timeline }: TurnEnded): Promise<void> {
+    const role = seatOf(this.deps.kit, agent.provider)?.role;
+    if (!role || role.tools) return;
+    await this.deps.desk.consulted(agent.id, answerOf(outcome, lastWords(timeline)));
   }
 
   async ended(event: TurnEnded): Promise<void> {

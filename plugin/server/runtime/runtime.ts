@@ -242,7 +242,10 @@ export class Runtime implements HostHooks {
     // Wrapped: a throw here left the seat's mail waiting until some unrelated event pumped it.
     try {
       const archiving = this.desk.archiving(event.agent.id);
-      if (archiving) await this.desk.archive(event.agent.id, true);
+      if (archiving) {
+        await this.turns.parting(event);
+        await this.desk.archive(event.agent.id, true);
+      }
       await this.desk.stopped(event.agent.id);
       if (archiving) return;
       await this.turns.ended(event);

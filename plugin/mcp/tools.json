@@ -795,6 +795,33 @@
           }
         }
       }
+    },
+    {
+      "name": "consult",
+      "title": "Consult an Advisor",
+      "description": "Ask a read-only Advisor about this project, or another checkout named by its absolute path, without touching any lane: it reads the code and records there, answers in one turn, and its answer comes as mail. For what another project's code or decisions settle, such as how its side of an interface behaves.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The question, with what you already know and what the answer is for."
+          },
+          "project": {
+            "type": "string",
+            "description": "Absolute path of another checkout to read; this project when left out."
+          }
+        },
+        "required": [
+          "question"
+        ]
+      }
     }
   ],
   "lead": [

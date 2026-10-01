@@ -7,6 +7,7 @@ import { amendTask } from "./amend-task.ts";
 import { answer } from "./answer.ts";
 import { askHuman } from "./ask-human.ts";
 import { askLead, askLeadReviewing, askOwner } from "./ask.ts";
+import { consult } from "./consult.ts";
 import { dropLane } from "./drop-lane.ts";
 import { cut } from "./cut.ts";
 import { done, doneReview } from "./done.ts";
@@ -59,6 +60,7 @@ export const TOOLS: ToolDef[] = [
   doneReview,
   message,
   answer,
+  consult,
   status,
   incidents,
   markIncident,

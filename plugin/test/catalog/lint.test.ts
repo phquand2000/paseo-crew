@@ -14,6 +14,7 @@ const PROMPT_BUDGET: Record<string, [number, number]> = {
   lead: [850, 28],
   peer: [400, 12],
   reviewer: [300, 8],
+  advisor: [300, 8],
   pager: [60, 0],
 };
 const SKILL_BUDGET: Record<string, number> = {
