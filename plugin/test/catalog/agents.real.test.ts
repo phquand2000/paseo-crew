@@ -120,8 +120,11 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     const settings = readConfig<unknown>(join(dir, harness.settings.file), {});
     if (harness.id === "claude") {
       const deny = list(at(settings, "permissions.deny"));
-      const refused = (command: string) => share(deny, [`Bash(git ${command} *)`, `Bash(git -C * ${command} *)`]);
-      for (const command of GIT) assert.equal(refused(command), desks(command), `${where}: git ${command}, -C or not`);
+      for (const command of GIT)
+        assert.ok(
+          !deny.some((rule) => rule.startsWith(`Bash(git ${command}`) || rule.startsWith(`Bash(git -C * ${command}`)),
+          `${where}: git ${command} meets the git shim, whose refusal says what to run instead, not a bare denial`,
+        );
       assert.ok(!refusesReading(deny.map((rule) => rule.replace(/^Bash\((.*)\)$/, "$1"))), `${where}: reads worktrees`);
       for (const secret of ["~/.ssh", "~/.aws", "~/.kube"])
         assert.ok(

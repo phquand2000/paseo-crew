@@ -178,7 +178,8 @@ shrink.
    a `git` running `bin/git-shim.mjs`, which refuses the commands kept for the desk (push, pull,
    checkout, switch and the like) however they are spelled, and merge, rebase, reset and cherry-pick to a
    seat whose role does not write; one that writes stands on its task's branch and may move it
-   (`CREW_WRITES`). A `gh` and a `paseo` only refuse.
+   (`CREW_WRITES`). Its refusal names what to run instead (`git restore`, `git archive`), so Claude's deny rules
+   leave these to it. A `gh` and a `paseo` only refuse.
 4. **`bin/seat-room`** refuses a Claude Code launch the plugin did not configure, forces
    `--setting-sources user` and `--thinking-display summarized`, and `exec`s Claude; the other agents start through Paseo's own providers.
 

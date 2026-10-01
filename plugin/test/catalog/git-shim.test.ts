@@ -101,6 +101,12 @@ test("a seat's shell, on the PATH the desk gives it, refuses what only the desk 
   execFileSync("git", ["-C", root, "stash", "-q"]);
   assert.match(git("-C", root, "stash", "list").stderr, /git log -g refs\/stash/);
   assert.match(git("-C", root, "log", "-g", "--oneline", "refs/stash").stdout, /stash@\{0\}/);
+  const aside = git("-C", root, "worktree", "add", join(root, "..", "old"), "HEAD~1");
+  const archive = /git archive <commit> \| tar -x -C "\$\(mktemp -d\)"/;
+  assert.match(aside.stderr, archive, "a refused working copy names how to read a revision whole");
+  const old = tempDir("crew-shim-old-");
+  execFileSync("sh", ["-c", `git -C "$0" archive HEAD~1 | tar -x -C "$1"`, root, old]);
+  assert.equal(readFileSync(join(old, "kept.txt"), "utf-8"), "first\n", "and what it names does the work");
   for (const args of ALLOWED) {
     const ran = git("-C", root, ...args);
     assert.equal(ran.status, 0, `${args.join(" ")}: ${ran.stderr}`);

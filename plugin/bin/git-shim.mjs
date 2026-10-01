@@ -19,6 +19,7 @@ const MOVES = new Set(["merge", "rebase", "reset", "cherry-pick"]);
 const INSTEAD = {
   checkout: "for one file, run git restore --source=<commit> -- <path>, or git show <commit>:<path> to read it",
   stash: "to read a stash, run git log -g refs/stash or git show stash@{<n>}",
+  worktree: 'to read a whole revision, run git archive <commit> | tar -x -C "$(mktemp -d)"',
 };
 
 const OWN = new Set([...DESKS, ...MOVES, "add", "blame", "branch", "commit", "config", "diff", "fetch", "grep", "log", "ls-files", "rev-parse", "show", "status", "worktree"]);
@@ -65,7 +66,8 @@ function refusal(globals, command, rest) {
     return [`git ${command} moves branches or working copies, and that is the desk's to do`, INSTEAD[command]].filter(Boolean).join("; ");
   if (MOVES.has(command) && !process.env.CREW_WRITES)
     return `git ${command} moves the branch checked out, and only a seat that writes moves one, its own task's`;
-  if (command === "worktree" && rest[0] !== "list") return "git worktree changes working copies, and that is the desk's to do";
+  if (command === "worktree" && rest[0] !== "list")
+    return ["git worktree changes working copies, and that is the desk's to do", INSTEAD.worktree].join("; ");
   if ((command === "fetch" || command === "remote") && fetchMoves(globals, command, rest))
     return "a fetch that writes outside refs/remotes/ or refs/tags/ moves a branch, and that is the desk's to do; fetch into refs/remotes/ and read it from there";
   if (command === "branch" && rest.some(rewritesBranch)) return "git branch that forces, deletes, renames or overwrites a branch is the desk's to do";
