@@ -199,6 +199,8 @@ before landing, where review changes stand that nothing on record answers; land.
 `land_lane` is refused for a waiting lane, which is dropped instead, and for a lane on hold. Otherwise, in order:
 
 1. It waits for queued merges; a project lands one lane at a time.
+   A base that is the branch of a lane landed since is spent: the lane lands where that lane's work went, and the
+   reply says so.
 2. If the base moved on, it merges the base into the lane in the lane's copy. With a seat mid-turn there it stops, and
    CAN LAND comes when that turn ends. On conflicts the merge is aborted, the Lead gets BASE CONFLICT, and the lane counts
    as not reported ready. It is refused while a task holds the lane's copy on its own branch, until that task is merged

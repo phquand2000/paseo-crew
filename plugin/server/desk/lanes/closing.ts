@@ -10,7 +10,7 @@ import { no, ok, str } from "../context.ts";
 import { keptLetters } from "../letters/kept-letters.ts";
 import { landLetters } from "../letters/land-letters.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Ledger, findLane } from "../../domain/ledger.ts";
+import { type Ledger, findLane, landsOnto } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { closeIncidentsOf } from "../watch/notice.ts";
@@ -47,10 +47,17 @@ export async function closeLane(desk: DeskServices, project: Project, by: string
     await merges.retry(project);
     await merges.settled(project);
     // One landing at a time moves a project's base; the next reads it again, bringing in what the last one landed.
-    const landing = () => {
+    const landing = async () => {
       const now = loadLedger(project.state);
+      const current = now.lanes[lane.id] ?? lane;
+      const { base, spent } = landsOnto(now, current);
       const over = { overGate: args.overGate === true, reason: str(args.reason) };
-      return landLane(desk, project, now, now.lanes[lane.id] ?? lane, by, over);
+      const landed = await landLane(desk, project, now, { ...current, base }, by, over);
+      if (!spent || "text" in landed) return landed;
+      return {
+        ...landed,
+        how: `${spent.id} had landed its branch ${current.base} into ${base}, so this went there: ${landed.how}`,
+      };
     };
     const kept = { how: `the branch ${lane.branch} is kept for the Human`, note: "" };
     const landed = args.land ? await landings.run(`${project.slug}:land`, landing) : kept;

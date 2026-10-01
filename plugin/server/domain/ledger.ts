@@ -132,6 +132,21 @@ export function ownCopyHolder(lanes: Lane[]): Lane | undefined {
   return lanes.find((lane) => lane.status === "open" && !lane.slot) ?? lanes.find((lane) => lane.restoring);
 }
 
+/** Where a lane lands: its base, unless that is the branch of a lane landed since, whose work went on to that lane's own base. */
+export function landsOnto(ledger: Ledger, lane: Lane): { base: string; spent?: Lane } {
+  const lanes = Object.values(ledger.lanes);
+  const seen = new Set([lane.id]);
+  let base = lane.base;
+  let spent: Lane | undefined;
+  for (;;) {
+    const owner = lanes.find((other) => other.branch === base && !seen.has(other.id));
+    if (owner?.status !== "closed" || !owner.landed || owner.onBranch) return { base, spent };
+    seen.add(owner.id);
+    spent ??= owner;
+    base = owner.base;
+  }
+}
+
 export function tasksOf(ledger: Ledger, laneId: string): Task[] {
   return Object.values(ledger.tasks).filter((task) => task.lane === laneId);
 }
