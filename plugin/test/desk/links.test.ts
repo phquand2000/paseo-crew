@@ -64,7 +64,7 @@ test("a role that commits also writes the repository's git directory, where a la
   assert.deepEqual(seatWrites(role("lead"), project), []);
 });
 
-test("a path the Human grants outside the project is absolute, real, never home or above it, and only for a role that writes code", () => {
+test("a path the Human grants outside the project is absolute, real, never home or above it, and for every seat", () => {
   const kit = makeKit();
   const root = repo();
   const home = realpathSync(tempDir("crew-links-home-"));
@@ -82,12 +82,11 @@ test("a path the Human grants outside the project is absolute, real, never home 
   const role = (name: string) => kit.roles.find((entry) => entry.role === name)!;
   const peer = role("peer");
   assert.deepEqual(seatWrites({ ...peer, can: ["work", "write"] }, project), [cache, join(root, ".git")]);
-  assert.deepEqual(seatWrites({ ...peer, can: ["work", "review"] }, project), [join(root, ".git")]);
-  assert.deepEqual(seatWrites(role("lead"), project), []);
+  assert.deepEqual(seatWrites({ ...peer, can: ["work", "review"] }, project), [cache, join(root, ".git")]);
+  assert.deepEqual(seatWrites(role("lead"), project), [cache], "a Lead's commands use the build cache too");
 });
 
-test("a socket the Human grants is an absolute path to a unix socket, and only for a role that writes code", async () => {
-  const kit = makeKit();
+test("a socket the Human grants is an absolute path to a unix socket, and every seat may reach it", async () => {
   const dir = realpathSync(tempDir("crew-links-sock-"));
   const path = join(dir, "d.sock");
   const server = createServer();
@@ -101,9 +100,7 @@ test("a socket the Human grants is an absolute path to a unix socket, and only f
     const state = tempDir("crew-links-state-");
     saveConfig(state, { ...loadConfig(state), sockets: [path, join(dir, "file"), "relative"] });
     const project = { root: repo(), slug: "x", state };
-    const peer = kit.roles.find((entry) => entry.role === "peer")!;
-    assert.deepEqual(seatSockets({ ...peer, can: ["work", "write"] }, project), [path]);
-    assert.deepEqual(seatSockets({ ...peer, can: ["work", "review"] }, project), []);
+    assert.deepEqual(seatSockets(project), [path]);
   } finally {
     server.close();
   }

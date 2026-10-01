@@ -38,9 +38,8 @@ export function projectWrites(project: Project): string[] {
     .map((rel) => realpathSync(join(project.root, normalize(rel))));
 }
 
-/** The Human's `writableOutside` paths a role that writes code may also write, resolved. */
-export function outsideWrites(role: RoleSpec, project: Project): string[] {
-  if (!can(role, "write")) return [];
+/** The Human's `writableOutside` paths, resolved: any seat's commands may need a build cache, whether or not it writes code. */
+export function outsideWrites(project: Project): string[] {
   return loadConfig(project.state)
     .writableOutside.filter((path) => !outsideProblem(path))
     .map((path) => realpathSync(path));
@@ -54,9 +53,8 @@ export function socketProblem(path: string): string | undefined {
   return undefined;
 }
 
-/** The Human's `sockets` a role that writes code may connect to through its sandbox, resolved. */
-export function seatSockets(role: RoleSpec, project: Project): string[] {
-  if (!can(role, "write")) return [];
+/** The Human's `sockets` a seat may connect to through its sandbox, resolved. */
+export function seatSockets(project: Project): string[] {
   return loadConfig(project.state)
     .sockets.filter((path) => !socketProblem(path))
     .map((path) => realpathSync(path));
@@ -71,19 +69,14 @@ function copyGitDirs(common: string): string[] {
     .map((entry) => join(dir, entry.name));
 }
 
-/** What a seat writes beyond state: the Human's `writable`, for a role that writes code the Human's `writableOutside`, and for a role that commits the git directory a lane copy keeps its index in. */
+/** What a seat writes beyond state: the Human's `writable` and `writableOutside`, and for a role that commits the git directory a lane copy keeps its index in. */
 export function seatWrites(role: RoleSpec, project: Project): string[] {
   const common = can(role, "work") || can(role, "write") ? gitCommonDir(project.root) : undefined;
-  return [
-    ...projectWrites(project),
-    ...outsideWrites(role, project),
-    ...(common ? [common, ...copyGitDirs(common)] : []),
-  ];
+  return [...projectWrites(project), ...outsideWrites(project), ...(common ? [common, ...copyGitDirs(common)] : [])];
 }
 
-/** A directory under /tmp for a project's seats that write code: short enough for a socket's path, and none other's to reach. */
-export function seatTemp(role: RoleSpec, project: Project): string | undefined {
-  if (!can(role, "write")) return undefined;
+/** A directory under /tmp for a project's seats: short enough for a socket's path, and none other's to reach. */
+export function seatTemp(project: Project): string {
   const parent = join(realpathSync("/tmp"), `paseo-crew-${process.getuid!()}`);
   mkdirSync(parent, { recursive: true, mode: 0o700 });
   const found = lstatSync(parent);
@@ -107,8 +100,8 @@ export function seatGrants(
   harness: HarnessSpec,
   project: Project,
 ): { writes: string[]; sockets: string[]; temp?: string } {
-  const temp = harness.tempDirEnv ? seatTemp(role, project) : undefined;
+  const temp = harness.tempDirEnv ? seatTemp(project) : undefined;
   const own = temp ? [temp] : [];
   const writes = [...seatWrites(role, project), ...own, ...(temp ? machineTemp() : [])];
-  return { writes, sockets: [...seatSockets(role, project), ...own], temp };
+  return { writes, sockets: [...seatSockets(project), ...own], temp };
 }

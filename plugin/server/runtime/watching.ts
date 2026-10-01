@@ -68,7 +68,7 @@ export class Watching {
         gates: gateCommands(seat.cwd, loadConfig(project.state).gate, this.deps.kit.ecosystem),
         cwd: seat.cwd,
         temp: tmpdir(),
-        outside: outsideWrites(found.role, project),
+        outside: outsideWrites(project),
         scope,
         planFirst,
         repeatsAt: attention.repeatsAt,

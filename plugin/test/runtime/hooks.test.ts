@@ -177,7 +177,7 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
   }
 });
 
-test("a codex seat Paseo creates may reach the Human's sockets and write their outside paths only where its role writes code", async () => {
+test("a codex seat Paseo creates may reach the Human's sockets and write their outside paths, whether or not it writes code", async () => {
   const h = harness();
   const host = new PaseoHost();
   h.restart(host);
@@ -197,15 +197,14 @@ test("a codex seat Paseo creates may reach the Human's sockets and write their o
       const { seat } = (parse(readFileSync(file, "utf-8")) as { permissions: { seat: Grants } }).permissions;
       return [seat.filesystem?.[outside], seat.network?.unix_sockets?.[socket]];
     };
-    for (const name of ["peer", "backup-peer"]) assert.deepEqual(granted(name), ["write", "allow"], name);
-    for (const name of ["lead", "supervisor", "senior-reviewer"])
-      assert.deepEqual(granted(name), [undefined, undefined], `${name} writes no code, so it is granted neither`);
+    for (const name of ["peer", "backup-peer", "lead", "supervisor"])
+      assert.deepEqual(granted(name), ["write", "allow"], `${name}: its commands build and test too`);
   } finally {
     server.close();
   }
 });
 
-test("a seat that writes code gets a temp directory of its own, where its commands keep their files and it alone may bind a socket", () => {
+test("a seat gets its project's temp directory, where its commands keep their files and only the project's seats may bind a socket", () => {
   const h = harness();
   const host = new PaseoHost();
   h.restart(host);
@@ -244,10 +243,9 @@ test("a seat that writes code gets a temp directory of its own, where its comman
     assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(temp), true);
     assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(machine), true);
     assert.deepEqual(sandbox.settings.sandbox.network.allowUnixSockets, [temp]);
-    const lead = launch("lead", "codex");
-    assert.equal(lead.env.TMPDIR, undefined, "a role that writes no code keeps the machine's temp directory");
-    assert.equal(codexGrants("lead").network?.unix_sockets, undefined, "and binds no socket");
-    assert.equal(launch("lead", "claude").env.CLAUDE_CODE_TMPDIR, undefined);
+    assert.equal(launch("lead", "codex").env.TMPDIR, temp, "a Lead's commands, which run checks too, write there");
+    assert.equal(codexGrants("lead").network?.unix_sockets?.[temp], "allow");
+    assert.equal(launch("reviewer", "claude").env.CLAUDE_CODE_TMPDIR, temp, "as do a Reviewer's");
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }
