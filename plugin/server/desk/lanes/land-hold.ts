@@ -74,7 +74,7 @@ export async function checkLanding(
   recordEvent(project, { kind: "land.held", lane: lane.id, signals: hits.length });
   await mail.post(lane.lead, landLetters.landHeld(lane, texts(hits), head));
   return {
-    held: `Lane ${lane.id} was not landed: it waits for the Human's approval, on the Flow tab of the panel. ${texts(hits)}\n\nEvidence: ${evidence.join(" ")}\n\nYou cannot approve it; tell them it waits, and why. LANDED or SENT BACK comes as mail.`,
+    held: `Lane ${lane.id} was not landed: it waits for the Human's approval, on the Flow tab of the panel or in your chat. ${texts(hits)}\n\nEvidence: ${evidence.join(" ")}\n\nTell them it waits, and why. Once they approve it in your chat, land_lane it again with approval, their words; on the panel, LANDED or SENT BACK comes as mail.`,
     note: "",
   };
 }

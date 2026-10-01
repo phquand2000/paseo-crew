@@ -16,7 +16,7 @@ function mainBusy({ h }: Landable) {
   writeFileSync(join(h.root, "a.txt"), "the Human is editing\n");
 }
 
-test("a lane touching a path the Human asked to be asked about first waits for them: nothing lands, its Lead is told to hold still, and only the panel approves it", async () => {
+test("a lane touching a path the Human asked to be asked about first waits for them: nothing lands, its Lead is told to hold still, and the panel approves it", async () => {
   const { h, sup, lane, land, onMain } = await laneWith(risky, ["src/auth"]);
   await h.idle(sup);
   assert.match(
@@ -26,7 +26,7 @@ test("a lane touching a path the Human asked to be asked about first waits for t
   const held = await land();
   assert.match(
     held.text,
-    /Lane L1 was not landed: it waits for the Human's approval, on the Flow tab of the panel\. It changes src\/auth\/login\.ts, under src\/auth[^]*1 commit; 1 file[^]*You cannot approve it/,
+    /Lane L1 was not landed: it waits for the Human's approval, on the Flow tab of the panel or in your chat\. It changes src\/auth\/login\.ts, under src\/auth[^]*1 commit; 1 file[^]*Once they approve it in your chat, land_lane it again with approval/,
   );
   assert.equal(onMain("src/auth/login.ts"), false);
   assert.equal(h.ledger().lanes.L1!.status, "open");
@@ -221,4 +221,21 @@ test("a landing the Human approves twice at once lands once, and the second appr
   looked.release();
   assert.ok("decided" in (await first));
   assert.equal(h.events("lane.closed").length, 1);
+});
+
+test("the Human's approval written in the Supervisor's chat lands a held landing, and words they did not write land nothing", async () => {
+  const { h, sup, land, onMain } = await laneWith(risky, ["src/auth"]);
+  await land();
+  const approve = (approval: string) => h.call(sup, "supervisor", "land_lane", { lane: "L1", approval });
+  assert.match(
+    (await approve("yes, land it")).text,
+    /^The Human's own words "yes, land it" are not in this chat as far back as the desk reads/,
+  );
+  assert.equal(onMain("src/auth/login.ts"), false);
+  h.timelineOf(sup).add({ type: "user_message", text: "Yes, land L1.", clientMessageId: "app-1" });
+  assert.match((await approve("yes, land L1")).text, /^Approved: Lane L1 closed; squashed lane\/l1-cart/);
+  assert.ok(onMain("src/auth/login.ts"));
+  assert.equal(h.ledger().lanes.L1!.landApproval, undefined);
+  await h.idle(sup);
+  assert.match(h.heard(sup).join("\n"), /LANDED L1 \(Cart\) after the Human approved it: in chat, "yes, land L1"\./);
 });

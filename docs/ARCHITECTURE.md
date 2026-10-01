@@ -77,10 +77,10 @@ the Supervisor); and a permission prompt (WAITING FOR PERMISSION to the seat's o
 |---|---|---|---|
 | Lead | `report` with `ready` | queued merges settle; the lane gate and its rehearsals run; `ready` is set, red gate or not; open `costly` questions about the lane are parked and the lane held | REPORT to the Supervisor, with the gate's verdict, the `askFirst` hits and what the desk read of the lane |
 | Supervisor | `land_lane` | base merged in, the gate run, the change read against `askFirst`, then landed on the local base: the lane `closed` and `landed`, its open questions canceled, its unsettled tasks cut and named, its Peers let go | BASE CONFLICT or LAND HELD to the Lead; CAN LAND to the Supervisor; LANE CLOSED to the Lead, which stays; CLEARED to the lane a detour served |
-| The Human | Approve or Send back, on the Flow tab | approved, the desk tries to land the lane at once; sent back, the hold is dropped and the lane stays open | LANDED, HELD AGAIN, APPROVED, CHANGED or SENT BACK to the Supervisor; LAND SENT BACK to the Lead |
+| The Human | Approve or Send back on the Flow tab, or approve in the Supervisor's chat (`land_lane` with `approval`) | approved, the desk tries to land the lane at once; sent back, the hold is dropped and the lane stays open | LANDED, HELD AGAIN, APPROVED, CHANGED or SENT BACK to the Supervisor; LAND SENT BACK to the Lead |
 | Supervisor | `drop_lane`, `release` | the lane `closed` without landing, its branch kept; a kept Lead archived, its copy put away | LANE CLOSED to the Lead; CLEARED, as on landing |
 
-A landing that touches an `askFirst` path waits for the Human's approval on the Flow tab. `ready` is evidence,
+A landing that touches an `askFirst` path waits for the Human's approval, on the Flow tab or in the Supervisor's chat. `ready` is evidence,
 not a condition: a lane never reported ready still lands, saying so in its evidence, approved or not. An
 approval holds again only for an `askFirst` path the Human was not asked about. [A lane](#a-lane) has the order
 `land_lane` works in.
@@ -421,7 +421,8 @@ The Human is asked what only they can decide and told what they cannot take back
   chose (CHANGED to the Supervisor). Otherwise, approved, the desk tries to land the lane at once for the
   Supervisor, with the `overGate` and reason it was held with, and tells it LANDED, HELD AGAIN or APPROVED (not landed
   yet, the approval standing while the head does); sent back, the hold drops, the lane stays open with `ready`
-  as it was, and LAND SENT BACK brings the note to the Lead. No verb lets a seat approve. A hold calls off a
+  as it was, and LAND SENT BACK brings the note to the Lead. A seat approves only with the Human's words, which the desk finds
+  in its chat before the landing goes on. A hold calls off a
   landing still waiting for the Human; one they approved stands.
 - **Pages.** Only `irreversible` opens one. As its incident opens, INCIDENT goes to the Supervisor whatever the
   watch's switch, budget or marks say, and the desk starts a Pager in the project's workspace, with no tools

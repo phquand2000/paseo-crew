@@ -208,7 +208,8 @@ before landing, where review changes stand that nothing on record answers; land.
 3. It runs the lane gate. A red gate lands only with `overGate` and a `reason`.
 4. A lane that changes a path in `askFirst`, or whose standing orders cannot be read, or whose change cannot be read
    while `askFirst` is set, waits for the Human: its Lead gets LAND HELD, and LANDED or SENT BACK comes to the
-   Supervisor as mail.
+   Supervisor as mail. The Human may approve it in the Supervisor's chat instead: `land_lane` with `approval`,
+   their words, lands it once the desk finds them there.
 5. It lands the head the gate saw, as `landAs` says; a lane that moved after its gate lands nothing, and neither does
    one whose base has uncommitted changes where it is checked out, or is checked out in another copy. A lane carried on
    the Human's own branch merges nowhere, and its work stays there.

@@ -214,6 +214,10 @@
           "reason": {
             "type": "string",
             "description": "Why, kept with the landing. Required with overGate."
+          },
+          "approval": {
+            "type": "string",
+            "description": "The Human's approval of a landing waiting for them, quoted from their words in your chat; the desk finds them there before it lands."
           }
         },
         "required": [
