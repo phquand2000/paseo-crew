@@ -260,6 +260,9 @@ test(
     const handed = await h.call(task.peer!, "peer", "done", { outcome: "complete", summary: "a" });
     assert.equal(handed.ok, true, handed.text);
     await h.idle(lane.lead!);
-    assert.match(h.heard(lane.lead!).join("\n"), /Not brought up to date with lane\/l1-cart: git merge failed\./);
+    assert.match(
+      h.heard(lane.lead!).join("\n"),
+      /Not brought up to date with lane\/l1-cart: git was stopped at its time limit of 300 ms\./,
+    );
   },
 );

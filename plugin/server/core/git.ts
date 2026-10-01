@@ -8,12 +8,15 @@ type Run = { code: number; stdout: string; stderr: string };
 function spawnGit(args: string[], timeout: number): Promise<Run> {
   return new Promise((resolve) => {
     execFile("git", args, { timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
-      const code = error
-        ? typeof (error as { code?: unknown }).code === "number"
-          ? (error as { code: number }).code
-          : 1
-        : 0;
-      resolve({ code, stdout: String(stdout), stderr: String(stderr) });
+      if (!error) return resolve({ code: 0, stdout: String(stdout), stderr: String(stderr) });
+      if (typeof error.code === "number")
+        return resolve({ code: error.code, stdout: String(stdout), stderr: String(stderr) });
+      // A git that never started or was killed says nothing itself: say why, or the reason reads empty.
+      const why =
+        typeof error.code !== "string" && error.killed
+          ? `git was stopped at its time limit of ${timeout} ms`
+          : error.message;
+      resolve({ code: 1, stdout: String(stdout), stderr: [String(stderr).trim(), why].filter(Boolean).join("\n") });
     });
   });
 }

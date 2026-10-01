@@ -1,4 +1,5 @@
 import { git, headSha } from "./git.ts";
+import { clip } from "./text.ts";
 
 /** What the desk commits is made as paseo-crew and unsigned: the Human's name and signer are for their own commits. */
 export const AS_DESK = [
@@ -36,7 +37,9 @@ export async function mergeBranch(
     .map((line) => line.trim())
     .filter(Boolean);
   if (!leave || conflicts.length === 0) await git(cwd, ["merge", "--abort"]);
-  return { ok: false, conflicts, message: (run.stdout + run.stderr).trim().slice(-1500) };
+  // git's reason leads its stderr, ahead of the files it names: keep the head, not the tail.
+  const said = [run.stderr.trim(), run.stdout.trim()].filter(Boolean).join("\n");
+  return { ok: false, conflicts, message: clip(said || `git merge exited ${run.code} with nothing to say`, 1500) };
 }
 
 /** The tree merging `ours` and `theirs` would make, conflicts written in with their markers; undefined when git cannot make it. */
