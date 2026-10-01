@@ -51,7 +51,6 @@ test("a Peer parked on an ask its Lead carries up waits unnudged and unwatched u
   assert.deepEqual([task().status, task().silent], ["running", 0], "a Peer waiting on its open ask is not silent");
   assert.doesNotMatch(heard(peer), /without calling done or ask/);
   assert.doesNotMatch(heard(lead), /SILENT L1-T1/);
-  assert.doesNotMatch(heard(sup), /STRUGGLING L1-T1/);
 
   await h.idle(lead);
   await h.idle(sup);

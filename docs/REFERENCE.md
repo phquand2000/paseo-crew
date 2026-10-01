@@ -46,7 +46,7 @@ on its role's name.
 | `take_paths` | Adds paths to the caller's open lane's write set, keeping what it was before, and why; the lane counts as not reported ready. An open lane that writes or depends on one, or may write a one-writer path it reaches, is named in the reply and in TAKEN, and its Lead gets LANE BESIDE; refused for a lane that declared no write set. Whoever supervises gets TAKEN, which waits for their next letter. The reply says when the lane now meets the Human's ask-first paths |
 | `done` | A Peer hands its task back: an outcome (`complete`, `partial` or `blocked`), a summary and its checks. A Reviewer hands back its verdict. Refused once the task is in the merge queue, merged or cut. See [a hand-back](#a-hand-back) |
 | `accept` | Queues a handed-back task for merging, the only way the lane branch takes work: see [a merge](#a-merge). Its Peer stays until it is released, takes a task named for it, or the lane closes. Refused while the lane is on hold, for a review or a task not handed back, while the task's copy is off its branch or has work uncommitted, and over a red gate on the same commit without `overGate` and a `reason` |
-| `rework` | Sends a task back to its Peer with REWORK, a merged one too while that Peer is kept: it goes back onto its branch with the lane brought in, and the lane counts as not reported ready. Refused for a Peer that is gone, a parallel task whose copy is being put away, and a task in the lane's copy while another holds it (or, merged, while it has work uncommitted). A second rework sends STRUGGLING to whoever supervises |
+| `rework` | Sends a task back to its Peer with REWORK, a merged one too while that Peer is kept: it goes back onto its branch with the lane brought in, and the lane counts as not reported ready. Refused for a Peer that is gone, a parallel task whose copy is being put away, and a task in the lane's copy while another holds it (or, merged, while it has work uncommitted) |
 | `reseat` | Lets a task's Peer go and starts a fresh one on the same branch and copy, told why and given the task's last hand-backs and reviews as an account to check. A task handed back or failed goes back to `rework`, a stalled one runs again; `role` may name another writing role. Refused for a review, a parallel task whose copy is gone or being put away, and a task in the lane's copy while another holds it |
 | `cut` | Stops a task and archives its Peer: none of its work reaches the lane branch. A task in the lane's copy leaves it on the lane branch, its uncommitted work gone, save on the Human's own branch, where nothing uncommitted is discarded and git may refuse the switch. The task's branch stays only if it holds commits nothing else has. Refused while its merge runs. Cutting a review lets its Reviewer go |
 | `release` | The Lead lets go of the Peer kept from a merged task: it is archived, a parallel task's copy and merged branch with it. Refused for a task not merged, a parallel task a review still reads, a review, and a Peer that took another task since. The Supervisor lets go of the Peer kept from a task in any lane, its Lead told first with RELEASED, or of the Lead kept from a closed lane: it is archived after its turn, and its copy put away once nobody writes there, a landed lane's branch with it. A kept Lead archived in Paseo has its copy put away by the next round |
@@ -272,7 +272,7 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 | The Human | HUMAN WROTE, HUMAN ANSWERED |
 | A lane stopped | HOLD, RESUMED |
 | The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, PERMISSION ANSWERED, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, INCIDENT, PAGE, the bare nudge |
-| A moment to look | ARCHITECTURE, STRUGGLING, TURNING |
+| A moment to look | ARCHITECTURE, TURNING |
 | Answering late | ANSWER to your `<tool>` call, NO ANSWER to your `<tool>` call |
 
 | Letter | Tells its reader |
@@ -291,7 +291,7 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 | CAN LAND | Whoever tried to land a lane under a seat mid-turn: the turn has ended |
 | HUMAN WROTE, HUMAN ANSWERED | Whoever supervises: what the Human typed straight into a Lead's or Peer's chat; what they chose for a question on the panel |
 | HOLD | The seats of a lane: stop. The one letter sent past the outbox, cutting a running turn short where the agent allows |
-| ARCHITECTURE, STRUGGLING, TURNING | Whoever supervises, at the three moments SLP names, as the desk sees them: a Lead widening what a parallel task holds; a task sent back a second time, or stalled; a Lead changing what a task is for |
+| ARCHITECTURE, TURNING | Whoever supervises, at the moments SLP names, as the desk sees them: a Lead widening what a parallel task holds; a Lead changing what a task is for |
 | LIMITED, LIMIT RESET | A seat's owner, once a spell: it stopped on its agent's usage limit, when the desk wakes it, and which roles on another agent can take the work meanwhile. The seat, once the reset its agent named is 5 minutes past: continue. A reset the agent's words give no clock time for wakes nothing |
 | NO ANSWER | A seat: the plugin stopped before a call it was told to wait for by mail had finished |
 

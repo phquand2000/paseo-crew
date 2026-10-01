@@ -15,8 +15,8 @@ function limitAt(at: number): string {
   return `You've hit your session limit · resets ${clock.replace(/\s/g, "").toLowerCase()} (Asia/Saigon)`;
 }
 
-test("a turn stopped on its agent's usage limit is not silence: no nudge, no stall, nothing struggling", async () => {
-  const { h, sup, lane, peer } = await laneWithPeer();
+test("a turn stopped on its agent's usage limit is not silence: no nudge, no stall", async () => {
+  const { h, lane, peer } = await laneWithPeer();
   for (const _ of [1, 2]) {
     await h.beginTurn(peer);
     await h.endTurn(peer, LIMIT, { type: "assistant_message", text: "Checking the trace next." });
@@ -24,7 +24,6 @@ test("a turn stopped on its agent's usage limit is not silence: no nudge, no sta
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running");
   assert.doesNotMatch(h.heard(peer).join("\n"), /Your turn ended without calling done/);
   assert.doesNotMatch(h.heard(lane.lead!).join("\n"), /SILENT L1-T1/);
-  assert.doesNotMatch(h.heard(sup).join("\n"), /STRUGGLING/);
   assert.deepEqual(
     h.events("seat.limited").map(({ agent, resets }) => [agent, resets]),
     [

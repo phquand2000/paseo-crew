@@ -44,7 +44,7 @@ test("a Lead widening what a task beside others holds, or turning a task to anot
   );
 });
 
-test("a task sent back a second time, gone quiet until it stalls, or stopped on a refused call wakes whoever supervises once", async () => {
+test("a task sent back again and again, gone quiet until it stalls, or stopped on a refused call is its Lead's to settle: whoever supervises hears nothing of it", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();
   const blocked = { outcome: "blocked", summary: "stuck" };
   assert.equal((await h.call(peer, "peer", "done", blocked)).ok, true);
@@ -74,13 +74,7 @@ test("a task sent back a second time, gone quiet until it stalls, or stopped on 
   }
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
   const said = () => h.heard(sup).join("\n");
-  assert.match(said(), /STRUGGLING L1-T1 \(Clean build\) in L1: its Lead sent it back a second time: not yet, round 2/);
-  assert.match(said(), /STRUGGLING L1-T1 \(Clean build\) in L1: its Peer ended 2 turns without a hand-back/);
-  assert.equal(
-    said().match(/STRUGGLING L1-T1/g)!.length,
-    2,
-    "unblocking is no sending-back; a third one, or a third quiet turn, is the same struggle",
-  );
+  assert.doesNotMatch(said(), /L1-T1/);
 
   await h.call(lane.lead!, "lead", "add_tasks", { tasks: [parser] });
   const beside = h.ledger().tasks["L1-T2"]!.peer!;
@@ -100,5 +94,5 @@ test("a task sent back a second time, gone quiet until it stalls, or stopped on 
       .at(-1),
     ["L1-T2", "Bash: git log", true],
   );
-  assert.match(said(), /STRUGGLING L1-T2 \(Parser\) in L1: its Peer's last call was refused: Bash: git log/);
+  assert.doesNotMatch(said(), /L1-T2/);
 });

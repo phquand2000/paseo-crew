@@ -9,7 +9,6 @@ import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
 import { keyOf } from "../desk/letters/envelope.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
 import { messageLetters } from "../desk/letters/message-letters.ts";
-import { watchLetters } from "../desk/letters/watch-letters.ts";
 import { seatName } from "../desk/seats/names.ts";
 import { type Project, projectOf } from "../desk/project/project.ts";
 import type { TeamSource } from "./team-source.ts";
@@ -251,7 +250,7 @@ export class TurnRules {
     await desk.post(owner.to, seatLetters.limited(agent.id, who, since, { resets, wakeAt }, meanwhile, owner.reader));
   }
 
-  /** A turn ended with no hand-back and no ask: counted and nudged, then stalled and told to its Lead, and once to whoever supervises. */
+  /** A turn ended with no hand-back and no ask: counted and nudged, then stalled and told to its Lead, whose call the fix is. */
   private async silent(
     project: Project,
     lane: Lane | undefined,
@@ -286,10 +285,5 @@ export class TurnRules {
       denied: denied?.what ?? null,
       refused: denied?.refused ?? false,
     });
-    if (task.status === "stalled" || task.silent >= QUIET) return;
-    const why = denied
-      ? `its Peer's last call ${denied.refused ? "was refused" : "did not finish"}: ${denied.what}`
-      : `its Peer ended ${updated.silent} turns without a hand-back`;
-    await desk.post(await desk.supervisorFor(project, lane?.opener), watchLetters.moment("STRUGGLING", updated, why));
   }
 }

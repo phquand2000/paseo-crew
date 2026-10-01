@@ -5,14 +5,12 @@ import type { Finding } from "../../domain/incident.ts";
 import type { Incident } from "../store/incidents.ts";
 import { type Letter, mail } from "./envelope.ts";
 
-/** The three moments SLP wakes whoever supervises for, as the desk sees them happen. */
-export type Moment = "ARCHITECTURE" | "STRUGGLING" | "TURNING";
+/** The moments SLP wakes whoever supervises for, as the desk sees them happen. */
+export type Moment = "ARCHITECTURE" | "TURNING";
 
 const MOMENT_NEXT: Record<Moment, string> = {
   ARCHITECTURE:
     "A reach past what a task was given is structure settling: if the directive did not foresee it, ask its Lead why. The call is the Lead's.",
-  STRUGGLING:
-    "Read where it stuck with record on the task, then send its Lead one open question carrying what you saw. The fix is the Lead's.",
   TURNING:
     "A turn this sharp often has a reason nobody wrote down: ask its Lead whether the lane's outcome still holds.",
 };

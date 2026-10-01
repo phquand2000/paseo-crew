@@ -45,7 +45,6 @@ test("a Lead holds a Peer at work until another task lands: its quiet turns are 
   await h.idle(lead);
   await h.idle(sup);
   assert.doesNotMatch(heard(lead), /SILENT L1-T2/);
-  assert.doesNotMatch(heard(sup), /STRUGGLING L1-T2/);
 
   h.commit(task("L1-T1").worktree!, "b.txt", "api\n");
   assert.equal((await h.call(api, "peer", "done", { outcome: "complete", summary: "api" })).ok, true);

@@ -5,7 +5,7 @@ import { watchLetters } from "../letters/watch-letters.ts";
 import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 
-/** Tells whoever supervises a task's lane of a moment SLP wakes it for: structure settled, a task struggling, a sharp turn. */
+/** Tells whoever supervises a task's lane of a moment SLP wakes it for: structure settled, a sharp turn. */
 export async function tellMoment(
   desk: DeskServices,
   project: Project,

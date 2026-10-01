@@ -56,7 +56,7 @@ The Human may be away. Each row is a verb a seat calls, or something the desk re
 | Lead | `add_tasks` | tasks, `waiting`; each goes `running` once what it waits for has merged, with a new Peer or the kept one it names | each Peer starts from its TASK brief |
 | Peer | `done` | the task `done`, with a hand-back file and the gate's verdict | HANDBACK to the Lead, or to the Supervisor once the Lead is gone |
 | Lead | `accept` | `queued`, then `merging` and `merged` through the lane's merge queue | MERGED, MERGE RED, MERGE CONFLICT, MERGE WAITS or MERGE FAILED to the Lead |
-| Lead | `rework`, `amend_task`, `cut` | the task back in `rework` for its Peer, changed, or `cut` | REWORK or AMENDED to the Peer; STRUGGLING, ARCHITECTURE or TURNING to the Supervisor at the moments SLP names |
+| Lead | `rework`, `amend_task`, `cut` | the task back in `rework` for its Peer, changed, or `cut` | REWORK or AMENDED to the Peer; ARCHITECTURE or TURNING to the Supervisor at the moments SLP names |
 | Lead | `start_review` | a review task, `L<n>-R<k>`, `running` at once | the Reviewer starts from its REVIEW brief; its verdict comes back as HANDBACK |
 | Peer, Reviewer | `ask` | an ask, `open`, to the Lead; a Peer's `bestGuess` is its default, a Reviewer's has none | ASK to the Lead, or to the Supervisor once the Lead is gone |
 | Lead | `ask`, with the `default` it works on meanwhile | an ask to the Supervisor | ASK to the Supervisor |
@@ -64,7 +64,7 @@ The Human may be away. Each row is a verb a seat calls, or something the desk re
 | Supervisor | `amend_lane` | the lane amended, its `ready` cleared | AMENDED to the Lead |
 | Supervisor | `hold_lane`, `resume_lane` | `onHold` set, or cleared | HOLD past the outbox to the Lead and each seat of a task not merged or cut; RESUMED |
 | The watch | a fact in a turn or in a lane's record | an incident in `incidents.json` | INCIDENT to the Lead or the Supervisor, once it is told |
-| Turn ends, the patrol | a silent, failed or gone seat; an idle Lead | a task `stalled` | the nudge, SILENT, FAILED, STRUGGLING, LANE IDLE, LEAD GONE |
+| Turn ends, the patrol | a silent, failed or gone seat; an idle Lead | a task `stalled` | the nudge, SILENT, FAILED, LANE IDLE, LEAD GONE |
 
 The Human meets the run four ways, all under [The Human in the loop](#the-human-in-the-loop): a question the
 Supervisor queues with `ask_human`; a page to their phone, sent with no hold first as a Lead's or Peer's
@@ -379,9 +379,8 @@ LAND and retries held merges; then `TurnRules` reads the turn in code, with no m
 - A Peer or Reviewer whose turn ends before its hand-back with no desk call carried out, none running and no
   ask of its own open (it was told to end its turn and wait), and not held by its Lead until another task lands
   (`amend_task` `after`, lifted with GO ON once they merge or one is cut), is nudged; on a second such turn, or one ending
-  on a call refused or left unfinished, its task is `stalled`, with SILENT to its Lead and STRUGGLING to the
-  Supervisor. A turn it starts runs the task again; one more quiet turn stalls it again, with SILENT to its
-  Lead only, until a desk call of its own restarts the count.
+  on a call refused or left unfinished, its task is `stalled`, with SILENT to its Lead, whose call the fix is. A turn it starts runs the task
+  again; one more quiet turn stalls it again, with SILENT to its Lead, until a desk call of its own restarts the count.
 
 ## The Human in the loop
 
