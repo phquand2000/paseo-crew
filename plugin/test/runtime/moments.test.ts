@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
+import type { TimelineItem } from "../../server/core/ports.ts";
 import { laneWithPeer } from "./harness.ts";
 
 const parser = {
@@ -68,11 +69,39 @@ test("a task sent back again and again, gone quiet until it stalls, or stopped o
   // A turn counts the Peer as heard from when its last record is no older than the turn: this one starts after it.
   const heard = h.ledger().agents[peer]!;
   while (Date.now() <= (heard.recordedAt ?? 0)) await sleep(1);
-  for (const words of ["Looking at it.", "Still looking.", "Still."]) {
+  const launch: TimelineItem = {
+    type: "tool_call",
+    name: "Bash",
+    status: "completed",
+    detail: {
+      type: "shell",
+      command: "npm run build",
+      output: "Command running in background with ID: bk7q2. Output is being written to: /tmp/bk7q2.output",
+    },
+  };
+  const notice: TimelineItem = {
+    type: "tool_call",
+    name: "task_notification",
+    status: "completed",
+    detail: { type: "plain_text", label: "Build" },
+  };
+  for (const [words, calls] of [
+    ["Looking at it.", [launch]],
+    ["Still looking.", [notice]],
+    ["Still.", []],
+  ] as const) {
     await h.beginTurn(peer);
-    await h.endTurn(peer, words);
+    await h.endTurn(peer, words, ...calls);
   }
-  assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
+  assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled", "what would wake a seat is only recorded yet");
+  assert.deepEqual(
+    h
+      .events("turn.silent")
+      .slice(-3)
+      .map((event) => event.wouldWait),
+    ["background job bk7q2", null, null],
+    "a job its harness will report is a wait until the harness says it ended",
+  );
   const said = () => h.heard(sup).join("\n");
   assert.doesNotMatch(said(), /L1-T1/);
 

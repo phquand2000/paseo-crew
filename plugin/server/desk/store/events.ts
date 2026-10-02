@@ -67,7 +67,14 @@ export type DeskEvent =
   | { kind: "task.accepted"; task: string; by: string; reworks: number }
   | { kind: "task.cut"; task: string; reason: string; kept: string | undefined }
   | { kind: "task.silent"; task: string; denied: string | null; refused: boolean }
-  | { kind: "turn.silent"; task: string; denied: string | null; refused: boolean; lastCall: string }
+  | {
+      kind: "turn.silent";
+      task: string;
+      denied: string | null;
+      refused: boolean;
+      lastCall: string;
+      wouldWait?: string | null;
+    }
   | { kind: "seat.limited"; agent: string; resets: string | null; wakeAt: number | null }
   | { kind: `merge.${TaskStatus}`; task: string }
   | { kind: "review.started"; task: string; of: string | null; reviewer: string }

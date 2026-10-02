@@ -13,7 +13,7 @@ import { seatName } from "../desk/seats/names.ts";
 import { type Project, projectOf } from "../desk/project/project.ts";
 import type { TeamSource } from "./team-source.ts";
 import { clearLimited, markLimited, meanwhileRoles, wakeTime } from "./limits.ts";
-import { deniedCall, lastToolCall, lastWords, limitStop, outputText } from "./timeline.ts";
+import { deniedCall, lastToolCall, lastWords, limitStop, outputText, pendingJobs } from "./timeline.ts";
 
 const QUIET = 2;
 
@@ -261,12 +261,14 @@ export class TurnRules {
     const { desk } = this.deps;
     const { agent, timeline } = event;
     const denied = deniedCall(timeline, this.deps.kit.ecosystem.watch.refused);
+    const jobs = pendingJobs(timeline, seatOf(this.deps.kit, agent.provider)?.harness.timeline?.background);
     desk.event(project, {
       kind: "turn.silent",
       task: task.id,
       denied: denied?.what ?? null,
       refused: denied?.refused ?? false,
       lastCall: JSON.stringify(lastToolCall(timeline) ?? null).slice(0, 600),
+      wouldWait: jobs.length ? `background job ${jobs.join(", ")}` : null,
     });
     const updated = desk.setTask(project, task.id, (entry) => {
       entry.silent += 1;

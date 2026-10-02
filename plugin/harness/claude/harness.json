@@ -10,7 +10,11 @@
       "input": "__unparsedToolInput",
       "error": "InputValidationError[^\"]*could not be parsed as JSON"
     },
-    "limit": "^You've (?:hit|reached) your [a-z ]*limit\\b.*?(?:resets (?<resets>.+?))?\\s*$"
+    "limit": "^You've (?:hit|reached) your [a-z ]*limit\\b.*?(?:resets (?<resets>.+?))?\\s*$",
+    "background": {
+      "launched": "running in background with ID: (?<id>\\w+)",
+      "notified": "task_notification"
+    }
   },
   "mcp": {
     "file": ".claude.json",

@@ -381,6 +381,9 @@ LAND and retries held merges; then `TurnRules` reads the turn in code, with no m
   (`amend_task` `after`, lifted with GO ON once they merge or one is cut), is nudged; on a second such turn, or one ending
   on a call refused or left unfinished, its task is `stalled`, with SILENT to its Lead, whose call the fix is. A turn it starts runs the task
   again; one more quiet turn stalls it again, with SILENT to its Lead, until a desk call of its own restarts the count.
+  In shadow, each such turn's `turn.silent` event also records `wouldWait`: a background job its harness said it
+  started and has not said ended (`timeline.background` in `harness.json`), which would make the turn a wait. Nothing
+  acts on it yet.
 
 ## The Human in the loop
 

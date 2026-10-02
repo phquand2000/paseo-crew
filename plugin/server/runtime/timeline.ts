@@ -43,6 +43,27 @@ export function limitStop(harness: HarnessSpec, said: string): { resets: string 
   return found ? { resets: found.groups?.resets?.trim() || null } : undefined;
 }
 
+/** The background jobs a harness said it started and has not said finished, oldest first: it wakes the seat as each one ends. */
+export function pendingJobs(
+  timeline: Timeline,
+  background: { launched: string; notified: string } | undefined,
+): string[] {
+  if (!background) return [];
+  const launched = new RegExp(background.launched);
+  const pending: string[] = [];
+  for (const item of timeline) {
+    if (item.type !== "tool_call") continue;
+    // A notice names no job, and a call in the foreground may have one too: it settles the oldest, so a doubt reads as none.
+    if (item.name === background.notified) {
+      pending.shift();
+      continue;
+    }
+    const id = launched.exec(JSON.stringify(item.detail ?? null))?.groups?.id;
+    if (id && !pending.includes(id)) pending.push(id);
+  }
+  return pending;
+}
+
 const QUIET_CHARS = 200;
 
 /** What ended the turn on its last tool call: a refusal, or a call that simply never finished. */
