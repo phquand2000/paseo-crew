@@ -1,7 +1,7 @@
 import type { Ask } from "./ask.ts";
 import type { Lane } from "./lane.ts";
 import type { Question } from "./question.ts";
-import { ACTIVE, SETTLED, type Task, openWork } from "./task.ts";
+import { ACTIVE, type ReviewFinding, SETTLED, type Task, openWork } from "./task.ts";
 
 /** A teardown waiting on the seats still writing in the copy. On the record, so a restart does not lose it. */
 type Releasing = { writers: string[]; dropBranch?: string; into?: string };
@@ -158,4 +158,13 @@ export function othersLeft(ledger: Ledger, task: Task): Task[] {
 
 export function activeTasks(ledger: Ledger, laneId: string): Task[] {
   return tasksOf(ledger, laneId).filter((task) => ACTIVE.includes(task.status));
+}
+
+/** The P2 and P3 findings the lane's reviews handed back: its backlog, carried as evidence rather than as fix tasks. */
+export function backlogOf(ledger: Ledger, laneId: string): { review: string; finding: ReviewFinding }[] {
+  return tasksOf(ledger, laneId).flatMap((task) =>
+    (task.handback?.findings ?? [])
+      .filter((finding) => finding.severity === "P2" || finding.severity === "P3")
+      .map((finding) => ({ review: task.id, finding })),
+  );
 }

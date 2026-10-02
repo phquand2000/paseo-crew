@@ -4,7 +4,7 @@ import { contracts } from "../../shared/rpc.ts";
 import { harness } from "./harness.ts";
 
 const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
-const finding = { severity: "P1", where: "a.txt:1", failure: "rounds half down", fix: "round half up" };
+const finding = { severity: "P1", where: "a.txt:1", failure: "rounds down", fix: "up", confirmedBy: "traced" };
 
 test("what each review and ask went on to change is counted for whoever supervises, and a default overruled is seen until its lane closes", async () => {
   const h = harness();

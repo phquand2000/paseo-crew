@@ -4,39 +4,32 @@ import type { Kit } from "../../catalog/kit/kit.ts";
 import { changedFiles, diffCounts } from "../../core/git-diff.ts";
 import { fileKinds } from "../../catalog/kit/patterns.ts";
 import { currentBranch, headSha, pristineState } from "../../core/git.ts";
-import { capped, clip, plural } from "../../core/text.ts";
+import { capped, clip } from "../../core/text.ts";
 import { IN_QUEUE, SETTLED, TASK, type TaskStatus } from "../../domain/task.ts";
 import { handbackCase } from "../watch/checks.ts";
 import { type Caller, type ToolReply, no, ok } from "../context.ts";
 import { taskGate } from "../project/gates.ts";
 import { judge } from "../watch/judging.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Ledger, taskOfPeer, tasksOf } from "../../domain/ledger.ts";
-import type { Task } from "../../domain/task.ts";
+import { type Ledger, taskOfPeer } from "../../domain/ledger.ts";
+import type { ReviewFinding, Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import { type Project, gitTimeout, serialIn } from "../project/project.ts";
 import { changeFrom } from "./change-from.ts";
+import { type Verdict, reviewBody, roundsOf, verdictRefusal } from "./review-handback.ts";
 import { reachNotes } from "./reach.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { type Synced, bringLaneIn } from "../copies/sync.ts";
 
-type Finding = { severity: string; where?: string; failure: string; fix: string; confirmedBy?: string };
-
 /** A hand-back as the done tool takes it: a task's outcome and summary, or a review's verdict and findings. */
-type HandingBack = {
+type HandingBack = Verdict & {
   outcome?: string;
   summary?: string;
   checks?: string;
   leftUndone?: string;
   discovered?: string;
-  verdict?: string;
-  answer?: string;
-  answers?: string[];
-  findings?: Finding[];
-  read?: string[];
-  ran?: string[];
 };
 
 type Lines = { src: number; test: number };
@@ -52,7 +45,13 @@ type Work = {
 };
 
 /** The hand-back as written: its file, what it says, and the gate run on it. */
-type Written = { file: string; outcome: string; body: string; gate?: { ok: boolean; note: string } };
+type Written = {
+  file: string;
+  outcome: string;
+  body: string;
+  gate?: { ok: boolean; note: string };
+  findings?: ReviewFinding[];
+};
 
 const SHOWN_CHANGED = 20;
 
@@ -90,24 +89,10 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
 }
 
-/** Reviews of the whole lane ended in changes, this one included: counted by lane, so a new fix task does not reset it. */
-function roundsOf(ledger: Ledger, task: Task, outcome: string): number {
-  if (task.kind !== "review" || task.scope !== "lane" || outcome !== "changes") return 0;
-  const earlier = tasksOf(ledger, task.lane).filter(
-    (entry) => entry.id !== task.id && entry.scope === "lane" && entry.handback?.outcome === "changes",
-  );
-  return earlier.length + 1;
-}
-
-/** Why this hand-back is refused before anything is read: a settled task, or a review leaving its risk rules unanswered. */
+/** Why this hand-back is refused before anything is read: a settled task, or a review's verdict the desk cannot carry. */
 function refusal(task: Task, args: HandingBack): string | undefined {
   if (SETTLED.includes(task.status)) return `This task is already ${task.status}; there is nothing to hand back.`;
-  if (task.kind !== "review") return undefined;
-  const asked = task.asked ?? [];
-  if (!asked.some((_, index) => !args.answers?.[index]?.trim())) return undefined;
-  const count = plural(asked.length, "a question", `${asked.length} questions`);
-  const list = asked.map((question, index) => `${index + 1}. ${question}`).join("\n");
-  return `The project's risk rules ask this review ${count}; give answers, one per question, in this order:\n${list}`;
+  return task.kind === "review" ? verdictRefusal(task, args) : undefined;
 }
 
 /** A task hands back what its lane would become: the lane comes into its copy first. */
@@ -174,7 +159,8 @@ async function write(
   const file = join(project.state, "handbacks", `${task.id}-${Date.now()}.md`);
   mkdirSync(join(project.state, "handbacks"), { recursive: true });
   writeFileSync(file, `# ${task.id} ${task.title}\n\n${gated}\n`);
-  return { file, outcome, body: gated, ...(run ? { gate: { ok: run.ok, note: run.note } } : {}) };
+  const findings = task.kind === "review" && args.findings?.length ? { findings: args.findings } : {};
+  return { file, outcome, body: gated, ...(run ? { gate: { ok: run.ok, note: run.note } } : {}), ...findings };
 }
 
 function taskBody(
@@ -197,32 +183,6 @@ function taskBody(
   ];
   return { outcome, body: lines.join("\n") };
 }
-
-function reviewBody(task: Task, args: HandingBack): { outcome: string; body: string } {
-  const outcome = args.verdict?.trim() ?? "";
-  const confirmed = (found: Finding) => (found.confirmedBy ? ` Confirmed by: ${found.confirmedBy}` : "");
-  const findings = (args.findings ?? []).map(
-    (found) =>
-      `- ${found.severity} ${found.where ? `${found.where}: ` : ""}${found.failure} Fix: ${found.fix}${confirmed(found)}`,
-  );
-  const answers = listOf(args.answers);
-  const asked = (task.asked ?? []).flatMap((question, index) => [`${index + 1}. ${question}`, `   ${answers[index]}`]);
-  const lines = [
-    `Verdict: ${outcome}`,
-    "",
-    args.answer?.trim() ?? "",
-    "",
-    "Findings:",
-    ...(findings.length > 0 ? findings : ["none"]),
-    ...(asked.length > 0 ? ["", "Asked by the project's risk rules:", ...asked] : []),
-    "",
-    `Read: ${listOf(args.read).join("; ") || "not given"}`,
-    `Ran: ${listOf(args.ran).join("; ") || "nothing"}`,
-  ];
-  return { outcome, body: lines.join("\n") };
-}
-
-const listOf = (items: string[] | undefined): string[] => (items ?? []).map((item) => item.trim()).filter(Boolean);
 
 /** Decided under the lock: an accept or cut can land during the gate, and `done` over `queued` made the merge queue skip it. */
 function record(
@@ -248,6 +208,7 @@ function record(
       summary: clip(summary, 400),
       at: Date.now(),
       ...gate,
+      ...(written.findings ? { findings: written.findings } : {}),
     };
     return undefined;
   });

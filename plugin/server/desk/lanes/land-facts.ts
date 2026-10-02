@@ -9,8 +9,9 @@ import { openWork } from "../../domain/task.ts";
 import { loadIncidents } from "../store/incidents.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { humanCite } from "../letters/directive.ts";
-import { type Ledger, tasksOf } from "../../domain/ledger.ts";
+import { type Ledger, backlogOf, tasksOf } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
+import { backlogLine } from "../letters/briefs.ts";
 import { type Project, configFile, loadConfig, serialOnlyOf } from "../project/project.ts";
 
 type LandGate = { set: boolean; ok: boolean };
@@ -97,6 +98,13 @@ export function reviewFacts(ledger: Ledger, lane: Lane): string[] {
       facts.push(
         `${entry.task} was handed back again after ${entry.review}, a review of it that ended in ${entry.outcome}, and accepted with no review since.`,
       );
+  }
+  const backlog = backlogOf(ledger, lane.id).map(({ review, finding }) => backlogLine(review, finding));
+  if (backlog.length > 0) {
+    const more = backlog.length > SHOWN ? `; and ${backlog.length - SHOWN} more` : "";
+    facts.push(
+      `Backlog from its reviews, ${plural(backlog.length, "P2/P3 finding")}: ${backlog.slice(0, SHOWN).join("; ")}${more}.`,
+    );
   }
   return facts;
 }

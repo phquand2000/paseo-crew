@@ -58,6 +58,15 @@ export const HOLDS_COPY: readonly TaskStatus[] = [
 ];
 export const ACTIVE: readonly TaskStatus[] = ["running", "rework", "queued", "merging"];
 
+/** A defect a review handed back; P0 and P1 carry how it was confirmed, P2 and P3 go to the lane's backlog. */
+export type ReviewFinding = {
+  severity: "P0" | "P1" | "P2" | "P3";
+  where?: string;
+  failure: string;
+  fix: string;
+  confirmedBy?: string;
+};
+
 type Handback = {
   file: string;
   outcome: string;
@@ -65,6 +74,7 @@ type Handback = {
   summary: string;
   at: number;
   gate?: { ok: boolean; note: string; sha?: string; over?: string };
+  findings?: ReviewFinding[];
 };
 
 /** A task on the record: its brief, where its Peer works, and how far it has got. */

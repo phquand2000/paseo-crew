@@ -188,7 +188,7 @@ test("a hand-back is asked about in shadow, and what the sensor says is kept, ne
     answers: ["Guarded by a version row; a backup table keeps the old totals."],
     ran: ["npm run migrate twice"],
   };
-  const finding = { severity: "P1", where: "db/migrations/001.sql:1", failure: "no guard", fix: "add one" };
+  const finding = { severity: "P1", where: "001.sql:1", failure: "no guard", fix: "add one", confirmedBy: "ran it" };
   await review("Is the move safe?", "changes", { answer: "Not yet.", findings: [finding], ...rounds });
   assert.equal(of("review_ran_invariant").length, 0, "a review that sends the change back is not asked");
   await review("Is it safe now?", "accept", { answer: "Safe.", ...rounds });

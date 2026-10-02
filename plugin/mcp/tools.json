@@ -1582,7 +1582,7 @@
     {
       "name": "done",
       "title": "Hand the review back",
-      "description": "Hand the review back. Call it once at the end: every defect you traced, each with its severity, and your answer to the question you were given. The Lead filters.",
+      "description": "Hand the review back. Call it once at the end: every defect you traced, each with its severity, and your answer to the question you were given. P2 and P3 alone go to the lane's backlog with accept. The Lead filters.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1599,7 +1599,7 @@
               "changes",
               "reopen"
             ],
-            "description": "accept, changes, or reopen for a wrong premise. For a question, accept unless your answer calls for a change."
+            "description": "accept, changes, or reopen for a wrong premise. changes needs a P0 or P1. For a question, accept unless your answer calls for a change."
           },
           "answer": {
             "type": "string",
@@ -1642,7 +1642,7 @@
                 },
                 "confirmedBy": {
                   "type": "string",
-                  "description": "How you confirmed it: the command, test or trace."
+                  "description": "How you confirmed it: the failing test, the command and what it printed, or the file:line trace. A P0 or P1 without it is refused."
                 }
               },
               "required": [

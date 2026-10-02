@@ -8,7 +8,7 @@ import { heldGit } from "./lane-gates.ts";
 type Harness = ReturnType<typeof harness>;
 
 const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
-const finding = { severity: "P1", where: "a.txt:1", failure: "rounds half down", fix: "round half up" };
+const finding = { severity: "P1", where: "a.txt:1", failure: "rounds down", fix: "up", confirmedBy: "traced" };
 const reviews = (h: Harness) => Object.values(h.ledger().tasks).filter((entry) => entry.kind === "review");
 
 /** A lane opened by a supervising seat, with its Lead. */
@@ -41,8 +41,6 @@ test("a review hands back a verdict and its findings, answers what the project's
   });
   assert.equal(started.ok, true, started.text);
   const reviewer = h.ledger().tasks["L1-R1"]!.peer!;
-  const unnamed = await h.call(reviewer, "reviewer", "done", { verdict: "changes", answer: "Half-up is wrong here." });
-  assert.equal(unnamed.ok, true, `a verdict is evidence its Lead weighs, findings or none: ${unnamed.text}`);
   const handed = await h.call(reviewer, "reviewer", "done", {
     verdict: "accept",
     answer: "Half-up is right for money here.",
@@ -95,9 +93,7 @@ test("a review hands back a verdict and its findings, answers what the project's
     verdict: "changes",
     answer: "Not safe twice.",
     answers: ["A second run multiplies totals by 100 again; there is no backup."],
-    findings: [
-      { severity: "P0", where: "db/migrations/001.sql:1", failure: "totals grow on every run", fix: "a version table" },
-    ],
+    findings: [{ ...finding, severity: "P0", where: "db/migrations/001.sql:1", failure: "totals grow twice" }],
   });
   assert.equal(answered.ok, true, answered.text);
   assert.match(

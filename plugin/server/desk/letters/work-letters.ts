@@ -10,18 +10,24 @@ const waited = (entry: Lane | Task, what: string): string => {
   return `WAITING ${entry.id} (${entry.title}), the ${"lane" in entry ? (after ? "task you started" : "task from your plan") : "lane you opened"}${after}: ${what}`;
 };
 
+/** What the reader does with a hand-back; from the second review of one change ended in changes, stop the rounds. */
+function handbackNext(task: Task, reader: "lead" | "supervisor", rounds: number): string {
+  if (reader === "supervisor")
+    return "Its Lead is gone: replace_lead puts a new Lead on the lane, this hand-back included; drop_lane only if the lane is no longer wanted.";
+  if (rounds >= 2 && task.of)
+    return `Reviews of ${task.of} ended in changes ${rounds} times: stop the rounds. Cut this review, then accept ${task.of} with the open findings in your report, or cut it.`;
+  if (rounds >= 2)
+    return `Whole-lane reviews ended in changes ${rounds} times: stop. Cut this review and report the lane not ready, with the open findings and your cut; another whole-lane review waits for the Human.`;
+  if (task.kind === "review")
+    return "Weigh its findings, then cut it: a review has nothing to merge. Settle a changes verdict before reporting ready, briefing each fix by class and reusing the code's guard.";
+  return "Judge it by what the work did, then accept, rework with exactly what must change, or cut; start_review first on a big or doubtful change.";
+}
+
 /** A task's and a lane's course: hand-backs and rework, reports and amendments, waits, starts and holds. */
 export const workLetters = {
-  /** `reader` is the Lead, or whoever supervises once the Lead is no longer seated; `rounds` counts the lane's whole reviews ended in changes. */
+  /** `reader` is the Lead, or whoever supervises once the Lead is no longer seated; `rounds` counts reviews of the same change ended in changes. */
   handback(task: Task, body: string, peer: string, reader: "lead" | "supervisor", rounds = 0): Letter {
-    const next =
-      reader === "supervisor"
-        ? "Its Lead is gone: replace_lead puts a new Lead on the lane, this hand-back included; drop_lane only if the lane is no longer wanted."
-        : rounds >= 2
-          ? `Whole-lane reviews ended in changes ${rounds} times: stop. Cut this review and report the lane not ready, with the open findings and your cut; another whole-lane review waits for the Human.`
-          : task.kind === "review"
-            ? "Weigh its findings, then cut it: a review has nothing to merge. Settle a changes verdict before reporting ready, briefing each fix by class and reusing the code's guard."
-            : "Judge it by what the work did, then accept, rework with exactly what must change, or cut; start_review first on a big or doubtful change.";
+    const next = handbackNext(task, reader, rounds);
     return mail(
       "done",
       [task.id, hash(body)],

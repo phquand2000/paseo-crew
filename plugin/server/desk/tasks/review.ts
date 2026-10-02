@@ -4,13 +4,13 @@ import { errorText } from "../../core/errors.ts";
 import { branchExists, currentBranch, headSha } from "../../core/git.ts";
 import { changedFiles } from "../../core/git-diff.ts";
 import { clip } from "../../core/text.ts";
-import { reviewBrief } from "../letters/briefs.ts";
+import { backlogLine, reviewBrief } from "../letters/briefs.ts";
 import { workKey } from "../claims.ts";
 import { type Caller, type ToolReply, no, ok, str } from "../context.ts";
 import { holdRefusal } from "../lanes/hold.ts";
 import { changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Ledger, findTask, laneOfLead, nextTaskId, tasksOf } from "../../domain/ledger.ts";
+import { type Ledger, backlogOf, findTask, laneOfLead, nextTaskId, tasksOf } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { seatTitle } from "../seats/names.ts";
@@ -37,7 +37,7 @@ type Planned = {
   copy: Copy;
   role: RoleSpec;
   asked: string[];
-  place: { where: string; range?: string; handedBack?: string; lane?: string; before?: Before };
+  place: { where: string; range?: string; handedBack?: string; lane?: string; before?: Before; backlog?: string[] };
 };
 
 /** Starts a read-only reviewer on a task of the Lead's lane, or on the whole lane. */
@@ -191,7 +191,7 @@ async function wholeRange(
   project: Project,
   lane: Lane,
   ledger: Ledger,
-): Promise<{ lane: string; range?: string; before?: Before }> {
+): Promise<{ lane: string; range?: string; before?: Before; backlog: string[] }> {
   const { from } = await changeOf(project, lane);
   const last = tasksOf(ledger, lane.id)
     .filter((task) => task.kind === "review" && task.scope === "lane" && task.handback && task.startSha)
@@ -206,6 +206,7 @@ async function wholeRange(
     lane: lane.title,
     ...(from ? { range: `git diff ${from}..${lane.branch}` } : {}),
     ...(before ? { before } : {}),
+    backlog: backlogOf(ledger, lane.id).map(({ review, finding }) => backlogLine(review, finding)),
   };
 }
 

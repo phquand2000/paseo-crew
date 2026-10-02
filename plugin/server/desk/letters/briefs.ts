@@ -1,7 +1,7 @@
 import { SETTLED } from "../../domain/task.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
-import type { Task } from "../../domain/task.ts";
+import type { ReviewFinding, Task } from "../../domain/task.ts";
 import { list } from "./envelope.ts";
 
 /** Whether `task` waits on the task `on` through `after`, however far down: it comes after it, not beside it. */
@@ -120,9 +120,16 @@ export function reseatBrief(task: Task, lane: Lane, beside: Task[], why: string,
 
 type Before = { id: string; file: string; range: string };
 
+/** One backlog finding as a line: the review it came from, its severity, and where or what. */
+export const backlogLine = (review: string, finding: ReviewFinding): string =>
+  `${review} ${finding.severity} ${finding.where ? `${finding.where}: ` : ""}${finding.failure}`;
+
 /** A review of the whole lane; once one has handed back, the next reviews only its findings and the change since. */
-function laneLines(review: Task, place: { where: string; range?: string; lane?: string; before?: Before }): string[] {
-  const { before } = place;
+function laneLines(
+  review: Task,
+  place: { where: string; range?: string; lane?: string; before?: Before; backlog?: string[] },
+): string[] {
+  const { before, backlog = [] } = place;
   return [
     `REVIEW ${review.id} of lane ${review.lane}: ${place.lane ?? review.title}`,
     "",
@@ -132,6 +139,9 @@ function laneLines(review: Task, place: { where: string; range?: string; lane?: 
           "",
           `The whole lane was reviewed before, last by ${before.id}, whose findings are in ${before.file}. Review only two things: whether each of those findings is settled, and the change since ${before.id} began: ${before.range}. The lane's whole change is context for those, and the open question below is answered within them. A new finding outside the change since is P2 unless it is P0.`,
         ]
+      : []),
+    ...(backlog.length > 0
+      ? ["", "Already in the lane's backlog from its reviews, so not to report again:", list(backlog)]
       : []),
     "",
     "Acceptance it must meet:",
@@ -150,6 +160,7 @@ export function reviewBrief(
     handedBack?: string;
     lane?: string;
     before?: Before;
+    backlog?: string[];
   },
 ): string {
   const lines = target
