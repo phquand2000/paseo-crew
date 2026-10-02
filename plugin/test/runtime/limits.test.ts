@@ -73,10 +73,29 @@ test("a Lead on its usage limit is told to whoever supervises and is not idle un
   await h.endTurn(unread, "You've hit your session limit");
   await h.tick(Date.now() + 20 * MINUTE);
   const said = h.heard(sup).join("\n");
-  assert.match(said, /Every role that could take the work runs on this agent too/);
+  assert.match(said, /Backup Lead \(Codex\)/);
   assert.match(said, /stopped on its agent's usage limit\.\nThe desk could not read when it resets/);
   assert.doesNotMatch(said, /LANE IDLE L1/);
   await h.tick(reset + 26 * 60 * MINUTE);
   assert.match(h.heard(waits).join("\n"), /LIMIT RESET/);
   assert.doesNotMatch(h.heard(unread).join("\n"), /LIMIT RESET/);
+});
+
+test("a Lead on its usage limit with a hand-back waiting can be replaced on another agent, and is let go", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "built" })).ok, true);
+  h.agents.get(lane.lead!)!.status = "idle";
+  await h.endTurn(lane.lead!, limitAt(Math.floor((Date.now() + 2 * 60 * MINUTE) / MINUTE) * MINUTE));
+  await h.tick(Date.now() + 20 * MINUTE);
+  assert.match(
+    h.heard(sup).join("\n"),
+    /Waiting on it: L1-T1's hand-back\.[^]*Next: If the lane cannot wait for the reset, replace_lead with a role named above/,
+  );
+  const replaced = await h.call(sup, "supervisor", "replace_lead", { lane: "L1", role: "backup-lead" });
+  assert.equal(replaced.ok, true, replaced.text);
+  assert.match(replaced.text, /stopped on its usage limit, is let go\./);
+  const now = h.ledger().lanes.L1!.lead!;
+  assert.notEqual(now, lane.lead);
+  assert.equal(h.agents.get(now)!.labels?.["crew.role"], "backup-lead");
+  assert.ok(h.agents.get(lane.lead!)!.archivedAt);
 });

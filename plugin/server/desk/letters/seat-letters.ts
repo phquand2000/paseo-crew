@@ -84,13 +84,13 @@ export const seatLetters = {
     return mail("failed", [agent, turn], failedText(who, message), next);
   },
 
-  /** `meanwhile` names the roles on another agent that do the same work; with no `wakeAt`, nothing wakes it. */
+  /** `meanwhile` names the roles on another agent that do the same work, `waiting` what waits on a Lead's word; with no `wakeAt`, nothing wakes it. */
   limited(
     agent: string,
     who: string,
     since: number,
     limit: { resets: string | null; wakeAt?: number },
-    meanwhile: string[],
+    { meanwhile, waiting }: { meanwhile: string[]; waiting: string[] },
     reader: "lead" | "supervisor" | "leadGone",
   ): Letter {
     const lines = [
@@ -101,11 +101,14 @@ export const seatLetters = {
       meanwhile.length > 0
         ? `Meanwhile ${meanwhile.join(" or ")} runs on another agent and can take the work.`
         : "Every role that could take the work runs on this agent too; the Human can move one to another agent in settings.",
+      ...(waiting.length > 0 ? [`Waiting on it: ${waiting.join(", ")}.`] : []),
     ];
+    const moves = waiting.length > 0 && meanwhile.length > 0;
     const next = {
       lead: "If the lane can wait, leave it: it keeps its work and carries on at the reset. If it cannot, reseat the task on a role named above: the fresh Peer carries on from its branch.",
-      supervisor:
-        "If the lane can wait, leave it: it carries on at the reset. If it cannot, tell the Human, who may move the work to another agent meanwhile.",
+      supervisor: moves
+        ? "If the lane cannot wait for the reset, replace_lead with a role named above takes it to another agent and lets this Lead go."
+        : "If the lane can wait, leave it: it carries on at the reset. If it cannot, tell the Human, who may move the work to another agent meanwhile.",
       leadGone:
         "Its Lead is gone: replace_lead puts a Lead on the lane, which can wait for it or move its task to a role named above.",
     }[reader];

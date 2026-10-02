@@ -7,63 +7,91 @@ import { type Caller, type ToolReply, no, ok } from "../context.ts";
 import { takeoverFor } from "../letters/directive.ts";
 import { holdRefusal } from "./hold.ts";
 import type { Lane } from "../../domain/lane.ts";
+import type { Project } from "../project/project.ts";
 import { findLane } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { seatTitle } from "../seats/names.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { leadSeatOf } from "./lead-seat.ts";
+import type { SeatView } from "../../core/paseo.ts";
+import { letGo } from "../seats/gone.ts";
 
 type Seated = { lead: string; role: string };
 
-/** Seats a new Lead on an open lane whose Lead is gone, where the lane stands; a Lead Paseo already started is taken on. */
+/** Why the lane's Lead cannot be replaced now; a Lead stopped on its usage limit can be, though Paseo still holds it. */
+function whyNot(lane: Lane | undefined, asked: string, seats: SeatView[], limited: boolean): string | undefined {
+  if (!lane) return `There is no lane ${asked}.`;
+  if (lane.status !== "open") return `Lane ${lane.id} is ${lane.status}; only an open lane has a Lead to replace.`;
+  const held = holdRefusal(lane);
+  if (held) return held;
+  if (!limited && seats.some((seat) => seat.id === lane.lead))
+    return `Lane ${lane.id}'s Lead ${lane.lead} is still seated; message it instead.`;
+  return undefined;
+}
+
+/** Seats a new Lead on an open lane whose Lead is gone or stopped on its usage limit, where the lane stands; a Lead Paseo already started is taken on. */
 export async function replaceLead(
   desk: DeskServices,
   caller: Caller,
   asked: { lane: string; role: string },
 ): Promise<ToolReply> {
-  const { ledgers, seating, roster } = desk;
+  const { seating, roster } = desk;
   const { project } = caller;
-  const lane = findLane(loadLedger(project.state), asked.lane);
-  if (!lane) return no(`There is no lane ${asked.lane}.`);
-  if (lane.status !== "open") return no(`Lane ${lane.id} is ${lane.status}; only an open lane has a Lead to replace.`);
-  const held = holdRefusal(lane);
-  if (held) return no(held);
+  const ledger = loadLedger(project.state);
+  const lane = findLane(ledger, asked.lane);
+  const limited = Boolean(lane?.lead && ledger.agents[lane.lead]?.limited);
   const seats = await roster.open();
-  if (seats.some((seat) => seat.id === lane.lead))
-    return no(`Lane ${lane.id}'s Lead ${lane.lead} is still seated; message it instead.`);
+  const refused = whyNot(lane, asked.lane, seats, limited);
+  if (refused || !lane) return no(refused ?? "");
   const key = workKey(project, lane.id);
-  const claimed = ledgers.transact(project, (ledger) => {
-    const entry = ledger.lanes[lane.id];
-    if (entry?.status !== "open" || entry.lead !== lane.lead || seating.has(key)) return false;
-    seating.take(key);
-    return true;
-  });
-  if (!claimed)
+  if (!claim(desk, project, lane, key))
     return no(`Lane ${lane.id} changed while this was asked; read status and ask again if its Lead is still gone.`);
   try {
-    const started = leadSeatOf(seats, project, lane.id);
+    const started = leadSeatOf(
+      seats.filter((seat) => seat.id !== lane.lead),
+      project,
+      lane.id,
+    );
     const seated = started
       ? { lead: started.id, role: started.labels?.["crew.role"] ?? "lead" }
       : await takeOver(desk, caller, lane, asked.role);
     if (typeof seated === "string") return no(seated);
     const moved = bind(desk, caller, lane, seated);
+    if (limited) await letGo(desk, roster, project, lane.lead);
     recordEvent(project, {
       kind: "lead.replaced",
       lane: lane.id,
       was: lane.lead ?? null,
       lead: seated.lead,
       adopted: Boolean(started),
+      limited,
     });
     const how = started
       ? `the Lead ${seated.lead} that Paseo already had seated for it`
       : `a new Lead ${seated.lead}, told it takes over where the lane stands`;
     const asks =
       moved > 0 ? ` The ${moved} open ${plural(moved, "ask", "asks")} to the Lead that left now wait on it.` : "";
-    return ok(`Lane ${lane.id} has ${how}.${asks}`);
+    const gone = limited ? ` ${lane.lead}, stopped on its usage limit, is let go.` : "";
+    return ok(`Lane ${lane.id} has ${how}.${asks}${gone}`);
   } finally {
     seating.release(key);
   }
+}
+
+/** Takes the lane for seating, if it still has the Lead it was asked about and no seating under way. */
+function claim(
+  { ledgers, seating }: Pick<DeskServices, "ledgers" | "seating">,
+  project: Project,
+  lane: Lane,
+  key: string,
+): boolean {
+  return ledgers.transact(project, (ledger) => {
+    const entry = ledger.lanes[lane.id];
+    if (entry?.status !== "open" || entry.lead !== lane.lead || seating.has(key)) return false;
+    seating.take(key);
+    return true;
+  });
 }
 
 /** Records the new Lead on its lane, and turns the open asks to the one that left over to it; how many moved. */

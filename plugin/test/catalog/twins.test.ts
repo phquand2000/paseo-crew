@@ -15,6 +15,7 @@ test("a role that shares another's prompt gets that role's harness files, differ
     return base === twin ? [] : [{ base, twin }];
   });
   assert.deepEqual(twins.map(({ base, twin }) => `${twin.role}:${base.role}`).sort(), [
+    "backup-lead:lead",
     "backup-peer:peer",
     "senior-reviewer:reviewer",
   ]);

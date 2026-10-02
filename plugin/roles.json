@@ -117,6 +117,35 @@
       ]
     },
     {
+      "role": "backup-lead",
+      "label": "Backup Lead",
+      "description": "Leads a lane on another agent, for when its Lead's is out of quota",
+      "defaults": {
+        "harness": "codex",
+        "model": "gpt-5.6-luna",
+        "thinking": "max"
+      },
+      "can": [
+        "lead",
+        "watched"
+      ],
+      "tools": "lead",
+      "prompt": "prompts/LEAD.md",
+      "skills": "lead",
+      "paseoTools": {
+        "enabled": false
+      },
+      "hidesWords": [
+        "supervisor"
+      ],
+      "writes": [
+        "plans/",
+        "council/",
+        "ultra-review/",
+        "repo-refresh/"
+      ]
+    },
+    {
       "role": "reviewer",
       "label": "Reviewer",
       "description": "Read-only Peer that reviews a task branch with clean context",

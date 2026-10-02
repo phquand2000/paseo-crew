@@ -31,7 +31,7 @@ on its role's name.
 | Role | Tools |
 |---|---|
 | Supervisor | `open_lane` `message` `answer` `land_lane` `drop_lane` `amend_lane` `hold_lane` `resume_lane` `ask_human` `record_human_answer` `replace_lead` `release` `set_project` `status` `incidents` `mark_incident` `record` `outcomes` `consult` |
-| Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `reseat` `amend_task` `take_paths` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` |
+| Lead, Backup Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `reseat` `amend_task` `take_paths` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` |
 | Peer, Backup Peer, Reviewer, Senior Reviewer | `done` `ask` |
 <!-- end -->
 

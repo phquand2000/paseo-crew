@@ -290,7 +290,15 @@ test("a pasted server that names no roles is given to every role that works with
       .sort();
   const team = resolveTeam(kit, { mcp: { pasted } });
   assert.deepEqual(team.errors, []);
-  assert.deepEqual(given(team), ["backup-peer", "lead", "peer", "reviewer", "senior-reviewer", "supervisor"]);
+  assert.deepEqual(given(team), [
+    "backup-lead",
+    "backup-peer",
+    "lead",
+    "peer",
+    "reviewer",
+    "senior-reviewer",
+    "supervisor",
+  ]);
   assert.deepEqual(given(resolveTeam(kit, { mcp: { pasted: { ...pasted, roles: ["reviewer"] } } })), ["reviewer"]);
 });
 
@@ -304,6 +312,6 @@ test("the desk names each seat's fixed choices from the kit: who writes and with
     start_review: { role: ["reviewer", "senior-reviewer"] },
     note: { kind: ["plans", "council", "ultra-review", "repo-refresh"] },
   });
-  assert.deepEqual(choices("supervisor"), { open_lane: { role: ["lead"] } });
+  assert.deepEqual(choices("supervisor"), { open_lane: { role: ["lead", "backup-lead"] } });
   assert.deepEqual(choices("peer"), {}, "a seat is named choices only for tools it has");
 });

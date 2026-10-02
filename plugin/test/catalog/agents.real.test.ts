@@ -40,7 +40,7 @@ const refusesReading = (rules: string[]) =>
 const SEARCHES = ["supervisor", "lead", "peer", "advisor"];
 
 /** A role that does another's work on another model is held to that role's terms. */
-const TWIN: Record<string, string> = { "backup-peer": "peer", "senior-reviewer": "reviewer" };
+const TWIN: Record<string, string> = { "backup-peer": "peer", "backup-lead": "lead", "senior-reviewer": "reviewer" };
 const BUILT_INS: Record<string, string[]> = {
   claude:
     "Bash Edit Write MultiEdit NotebookEdit Read Glob Grep LSP WebFetch WebSearch Skill TodoWrite TaskCreate TaskGet TaskList TaskUpdate AskUserQuestion".split(

@@ -30,7 +30,7 @@ export type DeskEvent =
   | { kind: "lane.onBranch"; branch: string; from?: string }
   | { kind: "lane.unstarted"; branch: string; from: string }
   | { kind: "lane.gaveBack"; branch: string; base: string }
-  | { kind: "lead.replaced"; lane: string; was: string | null; lead: string; adopted: boolean }
+  | { kind: "lead.replaced"; lane: string; was: string | null; lead: string; adopted: boolean; limited: boolean }
   | { kind: "land.held"; lane: string; signals: number }
   | { kind: "land.approved" | "land.sentBack"; lane: string }
   | {

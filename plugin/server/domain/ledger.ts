@@ -168,3 +168,17 @@ export function backlogOf(ledger: Ledger, laneId: string): { review: string; fin
       .map((finding) => ({ review: task.id, finding })),
   );
 }
+
+/** What waits on a Lead's word: its lane's hand-backs to judge and the open asks to it. */
+export function waitingOn(ledger: Ledger, lead: string): string[] {
+  const lane = laneOfLead(ledger, lead);
+  const handed = lane
+    ? tasksOf(ledger, lane.id)
+        .filter((task) => task.kind !== "review" && task.status === "done")
+        .map((task) => `${task.id}'s hand-back`)
+    : [];
+  const asks = Object.values(ledger.asks)
+    .filter((ask) => ask.status === "open" && ask.to === lead)
+    .map((ask) => `ask ${ask.id}`);
+  return [...handed, ...asks];
+}

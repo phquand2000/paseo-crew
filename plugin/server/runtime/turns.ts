@@ -4,7 +4,7 @@ import type { HookAgent, PermissionRequested, PermissionResolved, Seats, TurnEnd
 import type { Lane } from "../domain/lane.ts";
 import { DECIDED, TASK, type Task } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
-import { type Ledger, laneOfLead, leadLaneOf, openAskOf, taskOfPeer } from "../domain/ledger.ts";
+import { type Ledger, laneOfLead, leadLaneOf, openAskOf, taskOfPeer, waitingOn } from "../domain/ledger.ts";
 import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
 import { keyOf } from "../desk/letters/envelope.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
@@ -246,8 +246,10 @@ export class TurnRules {
     if (since === undefined || can(seat.role, "supervise")) return;
     const owner = await this.ownerOf(project, agent.id, seat.role);
     const meanwhile = meanwhileRoles(this.deps.source.teamFor(project), seat.role, seat.harness.id);
+    const waiting = can(seat.role, "lead") ? waitingOn(loadLedger(project.state), agent.id) : [];
     const who = this.nameOf(project, agent, seat.role);
-    await desk.post(owner.to, seatLetters.limited(agent.id, who, since, { resets, wakeAt }, meanwhile, owner.reader));
+    const take = { meanwhile, waiting };
+    await desk.post(owner.to, seatLetters.limited(agent.id, who, since, { resets, wakeAt }, take, owner.reader));
   }
 
   /** A turn ended with no hand-back and no ask: counted and nudged, then stalled and told to its Lead, whose call the fix is. */
