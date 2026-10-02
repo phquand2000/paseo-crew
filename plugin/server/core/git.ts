@@ -75,6 +75,11 @@ export async function currentBranch(cwd: string): Promise<string | undefined> {
   return run.code === 0 ? run.stdout.trim() : undefined;
 }
 
+export async function treeOf(cwd: string, ref = "HEAD"): Promise<string | undefined> {
+  const run = await git(cwd, ["rev-parse", "--verify", `${ref}^{tree}`]);
+  return run.code === 0 ? run.stdout.trim() : undefined;
+}
+
 export async function headSha(cwd: string, ref = "HEAD"): Promise<string | undefined> {
   const run = await git(cwd, ["rev-parse", "--verify", `${ref}^{commit}`]);
   return run.code === 0 ? run.stdout.trim() : undefined;

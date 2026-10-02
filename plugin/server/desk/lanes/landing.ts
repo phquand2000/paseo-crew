@@ -1,24 +1,19 @@
-import { mergeBranch } from "../../core/git-merge.ts";
-import { currentBranch, headSha, isAncestor, landedRef } from "../../core/git.ts";
+import { headSha, landedRef } from "../../core/git.ts";
 import { landLane as landOnBase } from "../../core/land.ts";
 import { no, ok } from "../context.ts";
 import { laneGate } from "../project/gates.ts";
 import { type Lane, loseReady } from "../../domain/lane.ts";
 import { type Ledger, tasksOf } from "../../domain/ledger.ts";
 import { landLetters } from "../letters/land-letters.ts";
-import { type Project, gitTimeout, loadConfig } from "../project/project.ts";
-import type { Roster } from "../seats/roster.ts";
+import { type Project, loadConfig } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
-import { midTurnAmong } from "../seats/writing.ts";
 import { unsavedIn } from "../copies/unsaved.ts";
+import { bringBaseIn } from "./base-in.ts";
 import { type Closed, type Held, type OverGate, checkLanding, waitsForHuman } from "./land-hold.ts";
 
 /** How a lane landed, as its CLOSED reply and letters say; `note` is the evidence that went with it. */
 export type Landed = { how: string; note: string };
-
-/** What stops the base merge a landing starts with; `writers` are the seats mid-turn in the lane's copy. */
-type Stop = { why: string; then: string; writers?: string[] };
 
 const SETTLE = "land_lane it again once the Lead reports it ready, or drop_lane it.";
 
@@ -43,7 +38,14 @@ export async function landLane(
     return { ...no(text), blocked: why };
   }
   // Land before closing: a closed lane cannot be closed again, so a landing that cannot happen is refused while open.
-  const stop = await bringBaseIn(desk, project, ledger, lane);
+  const stop = await bringBaseIn(desk.roster, project, ledger, lane);
+  if (stop?.conflicts) {
+    // What it was reported ready as is not what it holds now.
+    desk.ledgers.setLane(project, lane.id, loseReady);
+    await desk.mail.post(lane.lead, landLetters.baseConflict(lane, stop.conflicts));
+    const then = `Nothing was left in the lane's copy, and its Lead has a letter to have a task take ${lane.base} in; ${SETTLE}`;
+    return { ...no(`Lane ${lane.id} was not closed: ${stop.why}. ${then}`), blocked: stop.why };
+  }
   if (stop) {
     const { writers } = stop;
     if (writers)
@@ -104,64 +106,6 @@ async function gateThenLand(
   }
   if (!gate.ok) recordEvent(project, { kind: "gate.overridden", lane: lane.id, by });
   return { how: `${result.how}${gate.ok ? "" : ", over a red gate"}`, note: check.note };
-}
-
-/** Merges base into the lane in its own copy, never under a seat mid-turn there; on conflicts a task takes base in on its own branch. */
-async function bringBaseIn(
-  { ledgers, mail, roster }: Pick<DeskServices, "ledgers" | "mail" | "roster">,
-  project: Project,
-  ledger: Ledger,
-  lane: Lane,
-): Promise<Stop | undefined> {
-  const copy = lane.worktree;
-  if (!copy)
-    return { why: `it has no working copy on record to merge ${lane.base} into`, then: "Drop it with drop_lane." };
-  const blocked = await baseMergeBlocked(roster, ledger, lane, copy);
-  if (blocked) return blocked === "current" ? undefined : blocked;
-  // Never left mid-merge: every task in the copy starts by switching branch, which git refuses then.
-  const merged = await mergeBranch(copy, lane.base, `Bring ${lane.base} into ${lane.branch}`, {
-    timeout: gitTimeout(project),
-  });
-  if (merged.ok) return undefined;
-  if (merged.conflicts.length === 0)
-    return {
-      why: `${lane.base} has moved on and does not merge into ${lane.branch}: ${merged.message}`,
-      then: "Nothing was changed. Message its Lead, or drop_lane it.",
-    };
-  // What it was reported ready as is not what it holds now.
-  ledgers.setLane(project, lane.id, loseReady);
-  await mail.post(lane.lead, landLetters.baseConflict(lane, merged.conflicts));
-  return {
-    why: `${lane.base} has moved on and conflicts with ${lane.branch} in ${merged.conflicts.join(", ")}`,
-    then: `Nothing was left in the lane's copy, and its Lead has a letter to have a task take ${lane.base} in; ${SETTLE}`,
-  };
-}
-
-/** Why base cannot be merged into the lane's copy now, or "current" when it holds base already; an unseen seat counts as writing. */
-async function baseMergeBlocked(
-  roster: Roster,
-  ledger: Ledger,
-  lane: Lane,
-  copy: string,
-): Promise<Stop | "current" | undefined> {
-  // A task's branch there is work the lane has not taken: neither base nor the gate would meet the lane's own tree.
-  const on = await currentBranch(copy);
-  const holding = tasksOf(ledger, lane.id).find((task) => task.kind === "code" && task.branch === on);
-  if (holding)
-    return {
-      why: `its working copy is on ${on}, ${holding.id}'s branch, not ${lane.branch}`,
-      then: `Land it once ${holding.id} is merged or cut.`,
-    };
-  if (await isAncestor(copy, lane.base, lane.branch)) return "current";
-  // Readers count too: a merge changes the files under whoever is reading them.
-  const inCopy = tasksOf(ledger, lane.id).filter((task) => task.mode !== "parallel");
-  const busy = await midTurnAmong(roster, [lane.lead, ...inCopy.map((task) => task.peer)]);
-  if (busy.length === 0) return undefined;
-  return {
-    why: `${lane.base} has moved on, so landing it starts with merging ${lane.base} into ${lane.branch} in its copy, and a seat is mid-turn there`,
-    then: "CAN LAND comes as mail when that turn ends; land_lane it again then, or drop_lane it.",
-    writers: busy,
-  };
 }
 
 /** What a lane lands under as one commit or a merge: its title, its outcome and the tasks that went into it. */

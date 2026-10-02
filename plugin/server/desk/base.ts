@@ -17,6 +17,9 @@ type Mail = {
   heededSince(to: string, at: number): boolean;
 };
 
+/** A lane gate that passed: the tree it ran on, its commands and what it said, kept until the lane closes. */
+type GatePass = { tree: string; commands: string; text: string; at: number };
+
 /** What every part of the desk is built from: the kit, the stores, the mail, what the host provides and the work in hand. */
 export type DeskBase = {
   kit: Kit;
@@ -32,5 +35,6 @@ export type DeskBase = {
   seating: Claims;
   closing: Claims;
   landings: KeyedQueue;
+  gatesPassed: Map<string, GatePass>;
   stopping: AbortSignal;
 };

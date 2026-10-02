@@ -1,6 +1,9 @@
 import { recordEvent } from "../store/event-log.ts";
 import { join } from "node:path";
 import { runGate } from "../../core/gate.ts";
+import { treeOf } from "../../core/git.ts";
+import { minutesSince } from "../../core/time.ts";
+import { workKey } from "../claims.ts";
 import { unsavedIn } from "../copies/unsaved.ts";
 import type { DeskBase } from "../base.ts";
 import { changeOf } from "../lanes/land-facts.ts";
@@ -18,6 +21,7 @@ async function onLane(
   lane: Lane & { worktree: string },
   command: string,
   stopping: AbortSignal,
+  tree: string | undefined,
   rehearsing?: string,
 ): Promise<GateVerdict> {
   const minutes = loadConfig(project.state).gateTimeoutMinutes;
@@ -28,6 +32,7 @@ async function onLane(
     lane: lane.id,
     seconds: result.seconds,
     command,
+    ...(tree ? { tree } : {}),
   });
   const what = rehearsing ? `${command}, rehearsing that ${rehearsing},` : command;
   if (result.ok) return { ok: true, text: `${what} passed on the lane branch in ${result.seconds}s`, ran: true };
@@ -45,7 +50,7 @@ async function onLane(
 
 /** The project's gate on the lane, then a rehearsal for each risk rule its change reaches: red in any is a red gate. */
 export async function laneGate(
-  { kit, stopping }: Pick<DeskBase, "kit" | "stopping">,
+  { kit, stopping, gatesPassed }: Pick<DeskBase, "kit" | "stopping" | "gatesPassed">,
   project: Project,
   lane: Lane,
 ): Promise<GateVerdict> {
@@ -58,14 +63,31 @@ export async function laneGate(
   // In the Human's own checkout an untracked file is theirs, not the lane's unsaved work.
   const unsaved = await unsavedIn(lane.worktree, Boolean(lane.slot));
   if (unsaved) return { ok: false, text: `the gate did not run: the lane's working copy ${unsaved}`, ran: false };
+  const key = workKey(project, lane.id);
+  const commands = [gate, ...rehearsals.map((rule) => rule.rehearse)].filter(Boolean).join("\n");
+  const tree = await treeOf(lane.worktree);
+  const passed = gatesPassed.get(key);
+  if (tree && passed?.tree === tree && passed.commands === commands) {
+    recordEvent(project, { kind: "gate.reused", lane: lane.id, tree });
+    const ago = minutesSince(Date.now(), passed.at);
+    return {
+      ok: true,
+      text: `${passed.text}; that run was ${ago} min ago on this same tree, so it was not run again`,
+      ran: true,
+    };
+  }
   const copy = { ...lane, worktree: lane.worktree };
-  const verdicts: GateVerdict[] = gate ? [await onLane(project, copy, gate, stopping)] : [];
-  for (const rule of rehearsals) verdicts.push(await onLane(project, copy, rule.rehearse!, stopping, rule.invariant));
-  return {
-    ok: verdicts.every((verdict) => verdict.ok),
-    text: verdicts.map((verdict) => verdict.text).join("\n\n"),
+  const verdicts: GateVerdict[] = gate ? [await onLane(project, copy, gate, stopping, tree)] : [];
+  for (const rule of rehearsals)
+    verdicts.push(await onLane(project, copy, rule.rehearse!, stopping, tree, rule.invariant));
+  const verdict = {
+    ok: verdicts.every((one) => one.ok),
+    text: verdicts.map((one) => one.text).join("\n\n"),
     ran: true,
   };
+  if (verdict.ok && tree) gatesPassed.set(key, { tree, commands, text: verdict.text, at: Date.now() });
+  else gatesPassed.delete(key);
+  return verdict;
 }
 
 type GateRun = { ok: boolean; note: string; tail: string; logFile: string };

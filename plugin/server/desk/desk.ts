@@ -89,6 +89,7 @@ export class Desk {
       seating: new Claims(),
       closing: new Claims(),
       landings: new KeyedQueue(),
+      gatesPassed: new Map(),
       stopping: this.stop.signal,
     };
     this.intents = new Intents(intentsPath());

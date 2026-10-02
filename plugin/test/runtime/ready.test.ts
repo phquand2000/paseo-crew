@@ -85,7 +85,6 @@ test("a READY is what the lane's copy holds with nobody writing there, and whate
 
   const dir = tempDir("ready-gate-");
   const [started, go] = [join(dir, "started"), join(dir, "go")];
-  await h.call(sup, "supervisor", "set_project", { gate: `touch ${started}; until [ -f ${go} ]; do sleep 0.05; done` });
   const meanwhile: [string, () => Promise<unknown>, RegExp][] = [
     [
       "amended",
@@ -96,6 +95,9 @@ test("a READY is what the lane's copy holds with nobody writing there, and whate
     ["held", () => h.call(sup, "supervisor", "hold_lane", { lane: "L1", reason: "wait for the Human" }), /on hold/],
   ];
   for (const [what, change, refusal] of meanwhile) {
+    // A gate that passed on this tree is reused, so each round runs a command of its own.
+    const gate = `touch ${started}; until [ -f ${go} ]; do sleep 0.05; done # ${what}`;
+    await h.call(sup, "supervisor", "set_project", { gate });
     rmSync(started, { force: true });
     rmSync(go, { force: true });
     const reporting = report();

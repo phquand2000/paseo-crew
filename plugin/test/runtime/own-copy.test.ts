@@ -133,11 +133,11 @@ test("a lane whose base moved lands only once nobody writes in its copy: main is
   await h.call(sup, "supervisor", "open_lane", numbers);
   const lane = h.ledger().lanes.L1!;
   h.commit(h.root, "a.txt", "one\ntwo\nthree\nfour\n");
-  h.commitTo("main", "other.txt", "main moved\n");
-  const moved = h.git(h.root, "rev-parse", "main").trim();
   await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
   await h.idle(sup);
   assert.match(h.heard(sup).join("\n"), /REPORT L1 \(Numbers\)[^]*- 1 commit; 1 file, 1 line changed\./);
+  h.commitTo("main", "other.txt", "main moved\n");
+  const moved = h.git(h.root, "rev-parse", "main").trim();
 
   const head = h.git(h.root, "rev-parse", "HEAD");
   const refused = await land("L1");

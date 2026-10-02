@@ -92,6 +92,7 @@ async function retire(
   landed: Landed,
 ): Promise<Closed> {
   const { ledgers, mail, roster, agents } = desk;
+  desk.gatesPassed.delete(workKey(project, lane.id));
   const left = ledgers.transact(project, (current) => {
     const entry = current.lanes[lane.id];
     if (entry && LANE.move(entry, "close"))

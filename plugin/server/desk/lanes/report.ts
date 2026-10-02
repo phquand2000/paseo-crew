@@ -2,11 +2,13 @@ import { currentBranch } from "../../core/git.ts";
 import { plural } from "../../core/text.ts";
 import { type Caller, type ToolReply, no, ok, str, strs } from "../context.ts";
 import { laneGate } from "../project/gates.ts";
+import { bringBaseIn } from "./base-in.ts";
 import { holdRefusal, putOnHold } from "./hold.ts";
 import { askFirstHits, changeOf, changesStanding, landFacts, reviewFacts } from "./land-facts.ts";
 import { type Lane, loseReady } from "../../domain/lane.ts";
 import { type Ledger, laneOfLead, tasksOf } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
+import { landLetters } from "../letters/land-letters.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
@@ -26,7 +28,7 @@ export async function reportLane(desk: DeskServices, caller: Caller, args: Repor
   if (!lane) return no("You have no open lane.");
   const ready = args.ready === true;
   if (ready) {
-    const blocked = await readyBlocked(desk, project, lane);
+    const blocked = (await readyBlocked(desk, project, lane)) ?? (await takeBase(desk, project, lane, caller.id));
     if (blocked) return no(blocked);
   }
   const lost = loadLedger(project.state).lanes[lane.id]?.readyLost ?? 0;
@@ -78,6 +80,14 @@ async function readyBlocked(desk: DeskServices, project: Project, lane: Lane): P
   return unsaved
     ? `The lane's working copy ${unsaved}: only what is committed is gated and lands. Report ready once it is committed or cleared.`
     : undefined;
+}
+
+/** Brings base in before the gate, so READY gates the tree landing it would; a conflict is the lane's to settle first. */
+async function takeBase(desk: DeskServices, project: Project, lane: Lane, lead: string): Promise<string | undefined> {
+  const stop = await bringBaseIn(desk.roster, project, loadLedger(project.state), lane, lead);
+  if (!stop) return undefined;
+  if (stop.conflicts) return landLetters.baseConflict(lane, stop.conflicts).text;
+  return `Ready gates the lane with ${lane.base} in, and ${stop.why}. Report ready once that is settled.`;
 }
 
 async function tell(
