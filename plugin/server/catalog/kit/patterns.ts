@@ -26,6 +26,7 @@ export function watchPatterns(kit: Kit, attention: Attention) {
     irreversible: new RegExp(attention.irreversible, "i"),
     testPath: new RegExp(attention.testPath, "i"),
     suppressed: new RegExp(attention.suppressed, "i"),
+    denied: new RegExp(kit.ecosystem.watch.denied, "i"),
     ...testMarkers(kit),
   };
 }

@@ -102,6 +102,7 @@
     "suppressed": "@ts-ignore|@ts-expect-error|@ts-nocheck|eslint-disable|#\\s*type:\\s*ignore|#\\s*noqa|\\bas\\s+any\\b(?![ \\t]+(?!as\\b)[a-z])",
     "skipped": "\\.(skip|only|todo)\\b|\\bx(it|describe|test)\\b|@Disabled\\b|pytest\\.mark\\.skip\\b",
     "assertion": "\\b(assert|expect)\\b|\\.should\\b",
-    "refused": "permission|denied|not allowed|refused|blocked by"
+    "refused": "permission|denied|not allowed|refused|blocked by",
+    "denied": "operation not permitted|read-only file system"
   }
 }

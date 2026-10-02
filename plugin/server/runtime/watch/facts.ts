@@ -10,6 +10,8 @@ export type Rules = {
   irreversible: RegExp;
   testPath: RegExp;
   suppressed: RegExp;
+  /** What a sandbox says when it refuses a write. */
+  denied: RegExp;
   skipped: RegExp;
   assertion: RegExp;
   desk?: (call: Call) => boolean;
@@ -192,13 +194,28 @@ function hits(text: string, pattern: RegExp): string[] {
   return text.match(new RegExp(pattern.source, "gi")) ?? [];
 }
 
+const PATH = /(?:^|[\s'"`(=:])(\/(?!\/)[^\s'"`:,;()\\]+)/g;
+/** The path a failed call says it was refused, the last on the first line that says so: the tools all end such a line with it. */
+function deniedPath(call: Call, denied: RegExp): string | undefined {
+  const error =
+    typeof call.error === "string" ? call.error : JSON.stringify(call.error ?? null).replaceAll("\\n", "\n");
+  for (const line of `${str(call.detail.output)}\n${error}`.split("\n")) {
+    const path = denied.test(line) ? [...line.matchAll(PATH)].at(-1)?.[1] : undefined;
+    if (path) return path.replace(/\.+$/, "");
+  }
+  return undefined;
+}
+
 export function onSettle(call: Call, rules: Rules, known?: (path: string) => string | undefined): Fact[] {
   const facts: Fact[] = [];
   const detail = call.detail;
   const bad = failed(call);
   // The desk's refusals already told the seat why and what instead, and the desk records them.
-  if (bad && !rules.desk?.(call))
+  if (bad && !rules.desk?.(call)) {
     facts.push(fact(isGate(call, rules.gates) ? "gate-failed" : "call-failed", oneLine(describe(call))));
+    const refused = deniedPath(call, rules.denied);
+    if (refused) facts.push(fact("sandbox-denied", refused));
+  }
   const writes = detail.type === "edit" || detail.type === "write";
   const both = writes && !bad ? sides(detail, known) : undefined;
   if (both) {

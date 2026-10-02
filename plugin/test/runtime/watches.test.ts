@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
+import { loadConfig, saveConfig } from "../../server/desk/project/project.ts";
 import { reported } from "../console.ts";
 import { settle } from "./fake-timeline.ts";
 import { laneWithPeer } from "./harness.ts";
@@ -144,4 +147,48 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   assert.ok(idOf("stuck") < idOf("claim-contradicted"), "the loop is ranked above the claim, so it opens first");
   assert.match(listed, /- I\d+ \[attend, told [^\]]*\][^\n]*: stuck /, "and takes the lane's last slot for the day");
   assert.match(listed, /- I\d+ \[attend, not sent: its lane's limit for today is reached\][^\n]*: claim-contradicted /);
+});
+
+test("a write the sandbox refused is a note, and the Supervisor's status names where once it repeats, for the Human to grant", async (t) => {
+  const { h, sup, timeline } = await laneWithPeer();
+  const noticed = noticesOf(h, t);
+  const cache = join(homedir(), "Library", "Caches", "go-build");
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Build it" }, "t1");
+  const build = (callId: string, output: string) =>
+    timeline.add(
+      {
+        type: "tool_call",
+        callId,
+        name: "Bash",
+        status: "failed",
+        detail: { type: "shell", command: `go build ./cmd/${callId}`, output },
+      },
+      "t1",
+    );
+  build("b1", `go: creating work dir: mkdir ${cache}/ab/12-d: operation not permitted`);
+  build("b2", `open ${cache}/cd/34-d: read-only file system\nopen ${cache}/cd/78-d: read-only file system`);
+  build("b3", "ld: undefined symbol _main");
+  build("b4", `/bin/sh: ${cache}/ef/56-d: Operation not permitted.`);
+  await settle();
+  await noticed();
+  assert.deepEqual(
+    h
+      .events("watch.fact")
+      .filter((event) => event.fact === "sandbox-denied")
+      .map((event) => event.quote),
+    [`${cache}/ab/12-d`, `${cache}/cd/34-d`, `${cache}/ef/56-d`],
+    "one path for each call refused, the one its first refusal names",
+  );
+  assert.deepEqual(h.events("incident.open"), [], "a note opens no incident");
+  const status = (await h.call(sup, "supervisor", "status", {})).text;
+  assert.match(status, new RegExp(`^- ${cache}: refused 3 times$`, "m"));
+  assert.match(status, /Only the Human can grant one, in writableOutside/);
+
+  saveConfig(h.project.state, { ...loadConfig(h.project.state), writableOutside: [cache] });
+  assert.doesNotMatch(
+    (await h.call(sup, "supervisor", "status", {})).text,
+    /sandbox refused/,
+    "a granted path is not asked for again",
+  );
 });

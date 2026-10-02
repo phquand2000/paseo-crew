@@ -33,5 +33,6 @@ export const EcosystemFile = z.strictObject({
     skipped: pattern,
     assertion: pattern,
     refused: pattern,
+    denied: pattern,
   }),
 });

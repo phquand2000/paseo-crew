@@ -6,6 +6,7 @@ import { leadLaneOf } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { loadConfig } from "../project/project.ts";
 import { defineTool } from "../services.ts";
+import { deniedLines } from "../views/denials.ts";
 import { type OwnCheckout, statusText } from "../views/status.ts";
 
 async function ownCopy(root: string): Promise<OwnCheckout> {
@@ -18,11 +19,11 @@ async function ownCopy(root: string): Promise<OwnCheckout> {
   };
 }
 
-/** A supervisor also sees the Human's own checkout, read from git only here, when it asks. */
+/** A supervisor also sees the Human's own checkout, read from git only here, when it asks, and the writes a sandbox keeps refusing. */
 export const status = defineTool({
   name: "status",
   input: z.strictObject({}),
-  async handle({ roster, doing }, caller) {
+  async handle({ roster, doing, teamFor }, caller) {
     const ledger = loadLedger(caller.project.state);
     const seats = new Map((await roster.open()).map((seat) => [seat.id, seat]));
     const led = can(caller.role, "lead") ? leadLaneOf(ledger, caller.id) : undefined;
@@ -31,13 +32,14 @@ export const status = defineTool({
         `Lane ${led.id} (${led.title}) is closed${led.landed ? " and landed" : ""}. You are kept on with what you know of it until the owner releases you: nothing of it is yours to do.`,
       );
     const lane = led?.id;
-    const copy = can(caller.role, "supervise") ? await ownCopy(caller.project.root) : undefined;
+    const supervises = can(caller.role, "supervise");
+    const copy = supervises ? await ownCopy(caller.project.root) : undefined;
+    const config = loadConfig(caller.project.state);
+    const now = Date.now();
+    const repeatsAt = teamFor(caller.project).attention.repeatsAt;
+    const denied = supervises ? await deniedLines(caller.project.state, config, repeatsAt, now) : [];
     return ok(
-      statusText(caller.project, ledger, loadConfig(caller.project.state), seats, Date.now(), {
-        laneId: lane,
-        copy,
-        doing,
-      }),
+      [statusText(caller.project, ledger, config, seats, now, { laneId: lane, copy, doing }), ...denied].join("\n"),
     );
   },
 });
