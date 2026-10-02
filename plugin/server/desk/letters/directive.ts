@@ -90,7 +90,9 @@ export function directive(
     "Acceptance:",
     cited(lane, lane.acceptance),
     "",
-    `Appetite: ${lane.appetite ?? "not given"}`,
+    lane.appetite
+      ? `Appetite: ${lane.appetite}. Past twice that, stop and report to your owner what you would cut; going on is the Human's word.`
+      : "Appetite: not given",
     `Deadline: ${lane.deadline ?? "none"}`,
     "",
     "Out of scope:",

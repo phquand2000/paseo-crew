@@ -11,7 +11,7 @@ import { type Caller, type ToolReply, no, ok } from "../context.ts";
 import { taskGate } from "../project/gates.ts";
 import { judge } from "../watch/judging.ts";
 import type { Lane } from "../../domain/lane.ts";
-import { type Ledger, taskOfPeer } from "../../domain/ledger.ts";
+import { type Ledger, taskOfPeer, tasksOf } from "../../domain/ledger.ts";
 import type { Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
@@ -84,9 +84,19 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
         : `${task.id} is already ${already}; there is nothing to hand back.`,
     );
   }
-  await tell(desk, caller, task, lane, { ...written, summary, commit: work.commit, lines: work.lines });
+  const rounds = roundsOf(ledger, task, written.outcome);
+  await tell(desk, caller, task, lane, { ...written, summary, commit: work.commit, lines: work.lines, rounds });
   const reminder = task.kind === "review" ? "" : await reminderOf(task, work.uncommitted);
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
+}
+
+/** Reviews of the whole lane ended in changes, this one included: counted by lane, so a new fix task does not reset it. */
+function roundsOf(ledger: Ledger, task: Task, outcome: string): number {
+  if (task.kind !== "review" || task.scope !== "lane" || outcome !== "changes") return 0;
+  const earlier = tasksOf(ledger, task.lane).filter(
+    (entry) => entry.id !== task.id && entry.scope === "lane" && entry.handback?.outcome === "changes",
+  );
+  return earlier.length + 1;
 }
 
 /** Why this hand-back is refused before anything is read: a settled task, or a review leaving its risk rules unanswered. */
@@ -249,13 +259,13 @@ async function tell(
   caller: Caller,
   task: Task,
   lane: Lane | undefined,
-  handed: Written & { summary: string; commit?: string; lines?: Lines | undefined },
+  handed: Written & { summary: string; commit?: string; lines?: Lines | undefined; rounds: number },
 ): Promise<void> {
   const { kit, mail, roster } = desk;
   const heading =
     task.kind === "review" ? { ...task, title: task.of ? `review of ${task.of}` : `review: ${task.title}` } : task;
   const reader = await roster.readerOf(caller.project, lane);
-  await mail.post(reader.to, workLetters.handback(heading, handed.body, caller.id, reader.as));
+  await mail.post(reader.to, workLetters.handback(heading, handed.body, caller.id, reader.as, handed.rounds));
   const done = { task: task.id, outcome: handed.outcome, commit: handed.commit };
   recordEvent(
     caller.project,

@@ -61,9 +61,9 @@ and answer a Lead in the turn you read its mail.
 
 ## Watching
 
-- Step in early at three moments: a Lead about to settle something architectural, a Peer circling a
-  vague idea, a sharp turn with no written reason. Your move is one question, a second reviewer, or
-  the Human; never a fix.
+- Step in early: a Lead about to settle something architectural, a Peer circling a vague idea, a sharp
+  turn with no written reason, a lane past twice its appetite. Your move is one question, a second
+  reviewer, or the Human; never a fix.
 - An incident points at a step, not a verdict. The smallest step is usually nothing, else one question,
   else advice naming the episode, its cost and the fix; the same episode again earns the next.
 

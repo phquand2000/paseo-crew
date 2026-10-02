@@ -214,13 +214,17 @@ test("only the lane's own review is the review of the whole lane, read against i
     await h.runtime.desk.settled(h.project);
     return task.id;
   };
-  const review = async (which: Record<string, unknown>) => {
+  const review = async (which: Record<string, unknown>, verdict = "accept") => {
     const started = await h.call(lead, "lead", "start_review", { ...which, focus: "Does it hold?" });
     const reviewer = reviews(h).at(-1)!.peer!;
-    await h.call(reviewer, "reviewer", "done", { verdict: "accept", answer: "It holds." });
+    const findings = verdict === "accept" ? {} : { findings: [finding] };
+    await h.call(reviewer, "reviewer", "done", { verdict, answer: "It holds.", ...findings });
     await new Promise((resolve) => setTimeout(resolve, 2));
-    return { started: started.text, brief: h.agents.get(reviewer)!.prompt ?? "" };
+    const heard = h.heard(lead).join("\n");
+    const next = /\nNext: (.*)/.exec(heard.slice(heard.lastIndexOf("HANDBACK")))![1]!;
+    return { started: started.text, brief: h.agents.get(reviewer)!.prompt ?? "", next };
   };
+  const tip = () => h.git(h.root, "rev-parse", lane.branch).trim();
   const ready = async () => (await h.call(lead, "lead", "report", { summary: "done", ready: true })).text;
 
   const first = await merge("one", "one.js");
@@ -234,6 +238,7 @@ test("only the lane's own review is the review of the whole lane, read against i
     /No review of the whole lane is on record./,
     "a scout's question is not the lane's review",
   );
+  const atOwn = tip();
   const own = await review({ scope: "lane" });
   assert.match(own.started, /on the whole lane/);
   assert.match(
@@ -249,6 +254,17 @@ test("only the lane's own review is the review of the whole lane, read against i
     new RegExp(`No review of the whole lane since its last merge, ${last}\\.`),
     "a review of the lane before its last merge read a lane it no longer is",
   );
+
+  const atAgain = tip();
+  const again = await review({ scope: "lane" }, "changes");
+  const since = (id: string, at: string) => `the change since ${id} began: git diff ${at}\\.\\.${lane.branch}\\.`;
+  const found = `L1-R2, whose findings are in \\S*L1-R2-\\d+\\.md\\. Review only two things: whether each`;
+  assert.match(again.brief, new RegExp(`${found}[^]*${since("L1-R2", atOwn)}`), "a repeat reads only what changed");
+  assert.match(again.next, /^Weigh its findings, then cut it/, "one round of changes is ordinary");
+  await merge("three", "three.js");
+  const third = await review({ scope: "lane" }, "changes");
+  assert.match(third.brief, new RegExp(since("L1-R3", atAgain)));
+  assert.match(third.next, /^Whole-lane reviews ended in changes 2 times: stop\./, "a fix task does not reset it");
 });
 
 test("a review's changes stand until a hand-back after them or a review accepting the task answers them, and only then does the report stop asking", async () => {

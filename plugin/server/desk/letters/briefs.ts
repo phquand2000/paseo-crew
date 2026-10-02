@@ -118,12 +118,39 @@ export function reseatBrief(task: Task, lane: Lane, beside: Task[], why: string,
   ].join("\n");
 }
 
+type Before = { id: string; file: string; range: string };
+
+/** A review of the whole lane; once one has handed back, the next reviews only its findings and the change since. */
+function laneLines(review: Task, place: { where: string; range?: string; lane?: string; before?: Before }): string[] {
+  const { before } = place;
+  return [
+    `REVIEW ${review.id} of lane ${review.lane}: ${place.lane ?? review.title}`,
+    "",
+    `${place.where}${place.range ? ` See the lane's change with ${place.range}.` : ""}`,
+    ...(before
+      ? [
+          "",
+          `The whole lane was reviewed before, last by ${before.id}, whose findings are in ${before.file}. Review only two things: whether each of those findings is settled, and the change since ${before.id} began: ${before.range}. The lane's whole change is context for those, and the open question below is answered within them. A new finding outside the change since is P2 unless it is P0.`,
+        ]
+      : []),
+    "",
+    "Acceptance it must meet:",
+    list(review.acceptance),
+  ];
+}
+
 /** `change` says where the change can be read and how; the desk works it out, because where it is depends on what has happened to the task's copy and branch since. */
 export function reviewBrief(
   review: Task,
   target: Task | undefined,
   focus: string,
-  place: { where: string; range?: string; handedBack?: string; lane?: string },
+  place: {
+    where: string;
+    range?: string;
+    handedBack?: string;
+    lane?: string;
+    before?: Before;
+  },
 ): string {
   const lines = target
     ? [
@@ -141,14 +168,7 @@ export function reviewBrief(
         list(target.acceptance),
       ]
     : review.scope === "lane"
-      ? [
-          `REVIEW ${review.id} of lane ${review.lane}: ${place.lane ?? review.title}`,
-          "",
-          `${place.where}${place.range ? ` See the lane's change with ${place.range}.` : ""}`,
-          "",
-          "Acceptance it must meet:",
-          list(review.acceptance),
-        ]
+      ? laneLines(review, place)
       : [`REVIEW ${review.id}: ${review.title}`, "", `${place.where} Read whatever the question needs.`];
   lines.push("", "Open question:", focus);
   if (review.asked)

@@ -1,7 +1,7 @@
 import type { RoleSpec } from "../../catalog/kit/kit.ts";
 import { namedOrNot, roleThatCan } from "../../catalog/kit/roles.ts";
 import { errorText } from "../../core/errors.ts";
-import { branchExists, currentBranch } from "../../core/git.ts";
+import { branchExists, currentBranch, headSha } from "../../core/git.ts";
 import { changedFiles } from "../../core/git-diff.ts";
 import { clip } from "../../core/text.ts";
 import { reviewBrief } from "../letters/briefs.ts";
@@ -25,15 +25,19 @@ type ReviewCall = { task?: string; scope?: "lane"; focus: string; title?: string
 type Change = { where: string; spec: string };
 type Copy = { id?: string; path: string; workspaceId?: string };
 
+/** The latest review of the whole lane before this one: what it found, and the change since it began. */
+type Before = { id: string; file: string; range: string };
+
 /** What a review is set up with before it is recorded: where it reads, what it reads, what it is asked, and by which role. */
 type Planned = {
   lane: Lane;
   target?: Task;
   whole: boolean;
+  tip?: string;
   copy: Copy;
   role: RoleSpec;
   asked: string[];
-  place: { where: string; range?: string; handedBack?: string; lane?: string };
+  place: { where: string; range?: string; handedBack?: string; lane?: string; before?: Before };
 };
 
 /** Starts a read-only reviewer on a task of the Lead's lane, or on the whole lane. */
@@ -77,8 +81,9 @@ async function plan(desk: DeskServices, caller: Caller, args: ReviewCall): Promi
         range: `git diff ${change.spec}`,
         ...(target?.handback ? { handedBack: handbackText(target.handback.file) } : {}),
       }
-    : { where: await laneView(ledger, lane, copy.path), ...(whole ? await wholeRange(project, lane) : {}) };
-  return { lane, target, whole, copy, role, asked, place };
+    : { where: await laneView(ledger, lane, copy.path), ...(whole ? await wholeRange(project, lane, ledger) : {}) };
+  const tip = whole ? await headSha(project.root, lane.branch) : undefined;
+  return { lane, target, whole, tip, copy, role, asked, place };
 }
 
 /** A review is a task of the lane that holds nothing, recorded running and claimed; the lane is read again, as it may have closed or been held meanwhile. */
@@ -89,7 +94,7 @@ function record(
   title: string,
   focus: string,
 ): Task | string {
-  const { lane, target, whole, copy, asked } = planned;
+  const { lane, target, whole, tip, copy, asked } = planned;
   return ledgers.transact(project, (current): Task | string => {
     const now = current.lanes[lane.id];
     if (now?.status !== "open") return `Lane ${lane.id} closed while its review was being set up.`;
@@ -114,6 +119,7 @@ function record(
       context: lane.branch,
       worktree: copy.path,
       slot: copy.id,
+      ...(tip ? { startSha: tip } : {}),
       status: "running",
       openedAt: at,
       updatedAt: at,
@@ -180,10 +186,27 @@ async function rangeOf(project: Project, target: Task, lane: Lane, inOwnCopy: bo
   return undefined;
 }
 
-/** The review of the whole lane reads the lane's change from where it began. */
-async function wholeRange(project: Project, lane: Lane): Promise<{ lane: string; range?: string }> {
+/** The review of the whole lane reads the lane's change from where it began, and after an earlier one, what changed since. */
+async function wholeRange(
+  project: Project,
+  lane: Lane,
+  ledger: Ledger,
+): Promise<{ lane: string; range?: string; before?: Before }> {
   const { from } = await changeOf(project, lane);
-  return { lane: lane.title, ...(from ? { range: `git diff ${from}..${lane.branch}` } : {}) };
+  const last = tasksOf(ledger, lane.id)
+    .filter((task) => task.kind === "review" && task.scope === "lane" && task.handback && task.startSha)
+    .sort((a, b) => a.handback!.at - b.handback!.at)
+    .at(-1);
+  const before = last && {
+    id: last.id,
+    file: last.handback!.file,
+    range: `git diff ${last.startSha!}..${lane.branch}`,
+  };
+  return {
+    lane: lane.title,
+    ...(from ? { range: `git diff ${from}..${lane.branch}` } : {}),
+    ...(before ? { before } : {}),
+  };
 }
 
 /** Where a review on the lane reads it: the lane branch, which a task at work in the lane's copy has off its own. */

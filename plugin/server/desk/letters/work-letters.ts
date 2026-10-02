@@ -12,14 +12,16 @@ const waited = (entry: Lane | Task, what: string): string => {
 
 /** A task's and a lane's course: hand-backs and rework, reports and amendments, waits, starts and holds. */
 export const workLetters = {
-  /** `reader` is the Lead, or whoever supervises once the Lead is no longer seated. */
-  handback(task: Task, body: string, peer: string, reader: "lead" | "supervisor"): Letter {
+  /** `reader` is the Lead, or whoever supervises once the Lead is no longer seated; `rounds` counts the lane's whole reviews ended in changes. */
+  handback(task: Task, body: string, peer: string, reader: "lead" | "supervisor", rounds = 0): Letter {
     const next =
       reader === "supervisor"
         ? "Its Lead is gone: replace_lead puts a new Lead on the lane, this hand-back included; drop_lane only if the lane is no longer wanted."
-        : task.kind === "review"
-          ? "Weigh its findings, then cut it: a review has nothing to merge. A changes verdict is settled before you report the lane ready."
-          : "Judge it by what the work did, then accept, rework with exactly what must change, or cut; start_review first on a big or doubtful change.";
+        : rounds >= 2
+          ? `Whole-lane reviews ended in changes ${rounds} times: stop. Cut this review and report the lane not ready, with the open findings and your cut; another whole-lane review waits for the Human.`
+          : task.kind === "review"
+            ? "Weigh its findings, then cut it: a review has nothing to merge. Settle a changes verdict before reporting ready, briefing each fix by class and reusing the code's guard."
+            : "Judge it by what the work did, then accept, rework with exactly what must change, or cut; start_review first on a big or doubtful change.";
     return mail(
       "done",
       [task.id, hash(body)],
@@ -34,7 +36,7 @@ export const workLetters = {
       "rework",
       [task.id, task.reworks ?? 0, task.updatedAt],
       ["REWORK requested by your lead", "", text].join("\n"),
-      "Change what it names, commit on your branch, then call done again.",
+      "Change what it names; for a finding, fix its class: the red test adds a variant it did not name, and the proof runs production code. Commit, then call done again.",
     );
   },
 
