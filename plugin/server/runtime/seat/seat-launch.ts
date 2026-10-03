@@ -66,7 +66,7 @@ export class SeatLaunch {
     const opened = seatEnv(this.kit, request, dir, project, seatBin(this.kit));
     const ssh = this.sshConfig(seat.role, project);
     const tempEnv = seat.harness.tempDirEnv;
-    const temp = tempEnv && seatTemp(project);
+    const temp = tempEnv && seatTemp(project, request.cwd);
     return {
       ...opened,
       env: {

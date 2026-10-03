@@ -23,6 +23,7 @@ import { type Slot, nextSlotId } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { type Project, gitTimeout } from "../project/project.ts";
 import { errorText } from "../../core/errors.ts";
+import { dropSeatTemp } from "../project/writes.ts";
 
 type Holder = { lane?: string; task?: string };
 
@@ -106,6 +107,7 @@ export class Slots {
     const off = slot.lane && existsSync(slot.path) ? await currentBranch(slot.path) : undefined;
     if (existsSync(slot.path)) {
       await git(slot.path, ["switch", "--detach"]);
+      dropSeatTemp(project, slot.path);
       await removeWorktree(project.root, slot.path);
       // And the directory the desk made: git leaves one often enough, and nothing else reliably sweeps it.
       this.discard(project, slot.path);

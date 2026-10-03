@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { parse } from "smol-toml";
@@ -226,12 +226,13 @@ test("a seat gets its project's temp directory, where its commands keep their fi
     return (parse(readFileSync(file, "utf-8")) as { permissions: { seat: Grants } }).permissions.seat;
   };
   const temp = launch("peer", "codex").env.TMPDIR!;
+  const project = dirname(temp);
   try {
     const found = lstatSync(temp);
     assert.equal(found.isDirectory() && (found.mode & 0o777) === 0o700, true, "a directory this user alone may enter");
-    assert.equal(temp.length < 40, true, "short, so a socket's path under it stays within what the system allows");
+    assert.equal(temp.length < 48, true, "short, so a socket's path under it stays within what the system allows");
     const seat = codexGrants("peer");
-    assert.deepEqual([seat.filesystem?.[temp], seat.network?.unix_sockets?.[temp]], ["write", "allow"]);
+    assert.deepEqual([seat.filesystem?.[project], seat.network?.unix_sockets?.[project]], ["write", "allow"]);
     const machine = realpathSync(execFileSync("getconf", ["DARWIN_USER_TEMP_DIR"], { encoding: "utf-8" }).trim());
     assert.deepEqual(
       [seat.filesystem?.[machine], seat.network?.unix_sockets?.[machine]],
@@ -243,19 +244,19 @@ test("a seat gets its project's temp directory, where its commands keep their fi
       settings: { sandbox: { filesystem: { allowWrite: string[] }; network: { allowUnixSockets: string[] } } };
     };
     assert.equal(claude.env.CLAUDE_CODE_TMPDIR, temp, "Claude sets its commands' TMPDIR from its own variable");
-    assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(temp), true);
+    assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(project), true);
     assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(machine), true);
     assert.equal(
       sandbox.settings.sandbox.filesystem.allowWrite.includes(realpathSync("/tmp")),
       true,
       "a script that names /tmp outright writes there",
     );
-    assert.deepEqual(sandbox.settings.sandbox.network.allowUnixSockets, [temp]);
+    assert.deepEqual(sandbox.settings.sandbox.network.allowUnixSockets, [project]);
     assert.equal(launch("lead", "codex").env.TMPDIR, temp, "a Lead's commands, which run checks too, write there");
-    assert.equal(codexGrants("lead").network?.unix_sockets?.[temp], "allow");
+    assert.equal(codexGrants("lead").network?.unix_sockets?.[project], "allow");
     assert.equal(launch("reviewer", "claude").env.CLAUDE_CODE_TMPDIR, temp, "as do a Reviewer's");
   } finally {
-    rmSync(temp, { recursive: true, force: true });
+    rmSync(project, { recursive: true, force: true });
   }
 });
 
@@ -279,4 +280,39 @@ test("a seat that commits in a copy is granted that copy's own git directory by 
   };
   assert.equal(launch("peer")?.[own], "write");
   assert.equal(launch("lead")?.[own], undefined, "a Lead commits nothing");
+});
+
+test("a seat's temp directory sits under the temp the Human set, one per working copy, and goes with its copy", async () => {
+  const h = harness();
+  const root = tempDir("crew-temp-");
+  saveConfig(h.project.state, { ...loadConfig(h.project.state), temp: root });
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  await h.call(sup, "supervisor", "open_lane", {
+    title: "Build",
+    outcome: "x",
+    acceptance: ["a"],
+    outOfScope: ["b"],
+    isolate: true,
+  });
+  const { worktree: copy, lead } = h.ledger().lanes.L1!;
+  const host = new PaseoHost();
+  h.restart(host);
+  const hook = daemon(host, h);
+  const tempIn = (cwd: string) => {
+    const provider = providerId(h.runtime.kit, "peer", "codex");
+    const made = hook("agent.create", { request: { config: { provider, cwd }, env: {} } }) as Made;
+    const request = { agentId: "peer-codex", reason: "create", purpose: "interactive", provider, cwd, env: made.env };
+    return (hook("agent.session_open", { request }) as Made).env.TMPDIR!;
+  };
+  const [lane, top] = [tempIn(copy!), tempIn(h.root)];
+  assert.equal(lane.startsWith(realpathSync(root)), true, lane);
+  assert.notEqual(lane, top, "each copy's commands keep their files apart");
+  writeFileSync(join(lane, "baseline.bin"), "x");
+  h.restart();
+  assert.equal((await h.call(sup, "supervisor", "drop_lane", { lane: "L1", reason: "not wanted" })).ok, true);
+  h.agents.get(lead!)!.archivedAt = new Date().toISOString();
+  await h.tick(Date.now());
+  assert.equal(existsSync(copy!), false);
+  assert.equal(existsSync(lane), false, "what the lane's seats left in temp goes with its copy");
+  assert.equal(existsSync(top), true);
 });

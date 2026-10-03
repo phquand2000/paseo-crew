@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, normalize, sep } from "node:path";
 import { can } from "../../catalog/kit/roles.ts";
 import type { HarnessSpec, RoleSpec } from "../../catalog/kit/kit.ts";
 import { gitCommonDir } from "../../core/git.ts";
+import { realPath } from "../../core/paths.ts";
 import { type Project, loadConfig } from "./project.ts";
 
 /** Why `rel` cannot name a path inside the project's own checkout, or undefined when it can. */
@@ -75,9 +76,12 @@ export function seatWrites(role: RoleSpec, project: Project): string[] {
   return [...projectWrites(project), ...outsideWrites(project), ...(common ? [common, ...copyGitDirs(common)] : [])];
 }
 
-/** A directory under /tmp for a project's seats: short enough for a socket's path, and none other's to reach. */
-export function seatTemp(project: Project): string {
-  const parent = join(realpathSync("/tmp"), `paseo-crew-${process.getuid!()}`);
+/** A directory for a project's seats, under the Human's `temp` or /tmp: short enough for a socket's path, and none other's to reach. */
+function projectTemp(project: Project): string {
+  const root = loadConfig(project.state).temp;
+  const problem = root && outsideProblem(root);
+  if (problem) throw new Error(`The project's temp ${root} ${problem}, so no seat is given a temp directory in it`);
+  const parent = join(realpathSync(root ?? "/tmp"), `paseo-crew-${process.getuid!()}`);
   mkdirSync(parent, { recursive: true, mode: 0o700 });
   const found = lstatSync(parent);
   if (!found.isDirectory() || found.uid !== process.getuid!() || (found.mode & 0o077) !== 0)
@@ -85,6 +89,25 @@ export function seatTemp(project: Project): string {
   const dir = join(parent, createHash("sha256").update(project.state).digest("hex").slice(0, 8));
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
+}
+
+const copyTemp = (project: Project, copy: string): string =>
+  join(projectTemp(project), createHash("sha256").update(realPath(copy)).digest("hex").slice(0, 6));
+
+/** The temp directory of the seats working in `copy`, which goes when the copy does. */
+export function seatTemp(project: Project, copy: string): string {
+  const dir = copyTemp(project, copy);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  return dir;
+}
+
+/** Removes the temp directory of a copy about to go, while its path still resolves. */
+export function dropSeatTemp(project: Project, copy: string): void {
+  try {
+    rmSync(copyTemp(project, copy), { recursive: true, force: true });
+  } catch {
+    // Scratch left behind, or a temp the Human set that no longer serves: never a reason to keep the copy.
+  }
 }
 
 /** Where macOS makes temp files whatever TMPDIR says, as `mktemp` does with no template; none elsewhere. */
@@ -100,7 +123,7 @@ export function seatGrants(
   harness: HarnessSpec,
   project: Project,
 ): { writes: string[]; sockets: string[]; temp?: string } {
-  const temp = harness.tempDirEnv ? seatTemp(project) : undefined;
+  const temp = harness.tempDirEnv ? projectTemp(project) : undefined;
   const own = temp ? [temp] : [];
   // Commands and the scripts they run name /tmp outright, whatever TMPDIR says; sockets stay in the seat's own.
   const writes = [...seatWrites(role, project), ...own, ...(temp ? [realpathSync("/tmp"), ...machineTemp()] : [])];
