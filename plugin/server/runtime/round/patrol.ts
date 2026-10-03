@@ -146,8 +146,8 @@ export class Patrol {
         });
     const live = new Set(seats.keys());
     for (const project of this.deps.source.known()) {
-      await this.step(project, "the merges queued when the plugin stopped could not be taken up", () =>
-        desk.resumeMerges(project),
+      await this.step(project, "the merges and tasks held when the plugin stopped could not be taken up", () =>
+        desk.resumeWork(project),
       );
       if (!desk.projects.has(project.slug))
         await this.step(project, "a copy left behind by a restart could not be put away", () =>

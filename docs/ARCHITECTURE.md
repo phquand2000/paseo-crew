@@ -504,7 +504,8 @@ turns, then, for each project the desk has met since it started:
 10. Write `status.md`.
 
 The first round after a start also ends what waited on turns that ended while the plugin was down, sends NO
-ANSWER for answers the stop lost, and takes up the merge queues. Then every seat with mail is pumped.
+ANSWER for answers the stop lost, takes up the merge queues and tries each held task once more. Then every seat with mail
+is pumped.
 
 ## Settings
 

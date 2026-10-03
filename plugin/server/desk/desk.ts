@@ -209,9 +209,10 @@ export class Desk {
     }
   }
 
-  /** The first round after a start: what the merge queue held when the plugin stopped goes through. */
-  resumeMerges(project: Project): Promise<void> {
-    return this.services.merges.resume(project);
+  /** The first round after a start: the merges held when the plugin stopped go through, and held tasks are tried once more. */
+  async resumeWork(project: Project): Promise<void> {
+    await this.services.merges.resume(project);
+    await startWaiting(this.services, project, true);
   }
 
   /** In the round: finish a teardown whose writers are not seats any more, and put away a copy kept for a Lead that is gone. */

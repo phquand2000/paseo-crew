@@ -59,7 +59,7 @@ test("merges a stop left go through once each, in turn, when the plugin starts a
   h.restart();
   // Accepted before the first round, so its merge is under way when the queue is taken up.
   assert.equal((await h.call(lead, "lead", "accept", { task: first.id })).ok, true);
-  await h.runtime.desk.resumeMerges(h.project);
+  await h.runtime.desk.resumeWork(h.project);
   await h.runtime.desk.settled(h.project);
   assert.deepEqual([status(first.id), merges()], ["merged", 2], "the merges a stop left wait behind it");
 
@@ -302,4 +302,23 @@ test("a Lead seated before a stop is taken on where it works, the commit its lan
     });
     assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", String(h.ledger().tasks["L1-T1"]!.held?.why));
   }
+});
+
+test("a task whose start failed is tried once more at the first round after the plugin starts again", async () => {
+  const { h, lane } = await laneWithPeer();
+  const home = [...h.workspaceNames].find(([, name]) => name === h.project.slug)![0];
+  const filed = h.workspaceProjects.get(home)!;
+  h.workspaceProjects.set(home, "");
+  await h.call(lane.lead!, "lead", "add_tasks", {
+    tasks: [
+      { key: "b", title: "Side", goal: "g", acceptance: ["a"], outOfScope: ["x"], holds: ["b.txt"], parallel: true },
+    ],
+  });
+  assert.equal(h.ledger().tasks["L1-T2"]!.held?.tried, true);
+  h.workspaceProjects.set(home, filed);
+  await h.tick();
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "waiting", "a round alone does not try it again");
+  h.restart();
+  await h.tick();
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "running");
 });

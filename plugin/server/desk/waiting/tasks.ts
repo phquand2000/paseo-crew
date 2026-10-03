@@ -129,12 +129,17 @@ async function namedPeer(
   };
 }
 
-/** A start that failed waits for a merge or a cut, unless the kept Peer it named is gone: a new one takes it next round. */
+/** A start that failed waits for a task added, merged or cut, or a reload; if the kept Peer it named is gone, a new one
+ * takes it next round. */
 function failedStart(project: Project, task: Task, kept: { from: string } | undefined, why: string): Holding {
   const ledger = loadLedger(project.state);
   if (kept && typeof keptFor(ledger, ledger.tasks[kept.from], task.opening!.role) === "string")
     return { why, next: "A new Peer takes it at the desk's next round; cut it to drop it." };
-  return { why, next: "It is tried again when a task is merged or cut; cut it to drop it.", tried: true };
+  return {
+    why,
+    next: "It is tried again when a task is added, merged or cut, or the plugin reloads; cut it to drop it.",
+    tried: true,
+  };
 }
 
 /** Tells the Lead a task started, if `said`, and whoever writes in the lane's copy what a task beside it holds. */

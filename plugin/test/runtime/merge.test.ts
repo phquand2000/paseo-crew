@@ -173,7 +173,7 @@ test("a merge that cannot take its lane safely waits, says why, and goes round a
     return h.ledger().tasks[id]!;
   };
   const again = async (id: string) => {
-    await h.runtime.desk.resumeMerges(h.project);
+    await h.runtime.desk.resumeWork(h.project);
     await h.runtime.desk.settled(h.project);
     return h.ledger().tasks[id]!.status;
   };
@@ -271,7 +271,7 @@ test("each lane merges in its own queue, and a merge under way is neither cut no
     "the second lane's merge ran while the first lane's gate ran, and waits for its own copy",
   );
   h.git(lanes[1]!.worktree!, "checkout", "--", "a.txt");
-  void h.runtime.desk.resumeMerges(h.project);
+  void h.runtime.desk.resumeWork(h.project);
   assert.ok(await within(5000, () => h.ledger().tasks["L2-T1"]!.status === "merged"));
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merging", "the first lane's merge is still its own, running");
   writeFileSync(go, "");
