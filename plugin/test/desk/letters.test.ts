@@ -187,7 +187,10 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   const found = { asks: [] as string[], facts: [] as string[] };
   const report = (ready: boolean, more: Partial<Parameters<typeof workLetters.report>[4]> = {}) =>
     next(workLetters.report(lane, "done", ready, [], { ...found, ...more }));
-  assert.match(report(false), /^Reply only if it needs a decision of yours/);
+  const notReady = workLetters.report(lane, "done", false, [], found);
+  assert.equal(notReady.wakes, false, "a report of a lane not ready asks nothing now, so it waits for word that does");
+  assert.match(next(notReady), /^Reply only if it needs a decision of yours/);
+  assert.equal(workLetters.report(lane, "done", true, [], found).wakes, undefined);
   assert.match(
     report(true, { gate: { ok: true, text: "passed" } }),
     /^land_lane it if acceptance is met and nothing carried loses or corrupts data/,

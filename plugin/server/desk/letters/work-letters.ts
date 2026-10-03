@@ -78,7 +78,8 @@ export const workLetters = {
               ? "land_lane it if acceptance is met: it then waits for the Human on the Flow tab, so tell them it waits, and why."
               : "land_lane it if acceptance is met and nothing carried loses or corrupts data; then tell the Human in two lines.";
     const text = lines.join("\n");
-    return mail("report", [lane.id, hash(`${text}\n${next}`)], text, next);
+    const letter = mail("report", [lane.id, hash(`${text}\n${next}`)], text, next);
+    return ready ? letter : fyi(letter);
   },
 
   /** `human` is whose word the change put behind lines of a lane, and the lines it took from the Human without it. */
