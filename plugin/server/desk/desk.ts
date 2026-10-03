@@ -41,6 +41,7 @@ import { openWaiting } from "./waiting/lanes.ts";
 import { startAfterTurn, startWaiting } from "./waiting/tasks.ts";
 import type { Moment } from "./watch/checks.ts";
 import { type Noticed, closeIncidentsOf, notice, retell, reweigh } from "./watch/notice.ts";
+import { pageLimited } from "./watch/pager.ts";
 
 type DeskOptions = {
   kit: Kit;
@@ -125,6 +126,10 @@ export class Desk {
 
   notice(project: Project, seat: Noticed, findings: Finding[], moment?: Moment): ReturnType<typeof notice> {
     return notice(this.services, project, seat, findings, moment);
+  }
+
+  pageLimited(project: Project, resets: string | null, waiting: string[]): Promise<void> {
+    return pageLimited(this.services, project, resets, waiting);
   }
 
   retell(project: Project): Promise<string[]> {

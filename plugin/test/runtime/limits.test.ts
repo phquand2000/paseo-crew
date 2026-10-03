@@ -99,3 +99,21 @@ test("a Lead on its usage limit with a hand-back waiting can be replaced on anot
   assert.equal(h.agents.get(now)!.labels?.["crew.role"], "backup-lead");
   assert.ok(h.agents.get(lane.lead!)!.archivedAt);
 });
+
+test("a Supervisor on its usage limit pages the Human once a spell, naming what waits on it", async () => {
+  const { h, sup, lane } = await laneWithPeer();
+  const asked = await h.call(lane.lead!, "lead", "ask", {
+    kind: "need",
+    text: "Which port the bridge uses.",
+    default: "7447",
+  });
+  assert.equal(asked.ok, true, asked.text);
+  const pagers = () => [...h.agents.values()].filter((agent) => agent.provider.startsWith("crew-pager-"));
+  const reset = Math.floor((Date.now() + 2 * 60 * MINUTE) / MINUTE) * MINUTE;
+  for (const _ of [1, 2]) await h.endTurn(sup, limitAt(reset));
+  assert.equal(pagers().length, 1);
+  assert.match(
+    pagers()[0]!.prompt ?? "",
+    /its Supervisor stopped on its usage limit until \d+:\d\d[ap]m \(Asia\/Saigon\); 1 ask waits on it\.\nSeat a Supervisor on another agent, or wait\./,
+  );
+});

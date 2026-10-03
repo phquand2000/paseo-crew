@@ -243,7 +243,11 @@ export class TurnRules {
     const wakeAt = wakeTime(resets, now);
     desk.event(project, { kind: "seat.limited", agent: agent.id, resets, wakeAt: wakeAt ?? null });
     const since = markLimited(desk, project, { id: agent.id, role: seat.role.role }, wakeAt, now);
-    if (since === undefined || can(seat.role, "supervise")) return;
+    if (since === undefined) return;
+    if (can(seat.role, "supervise")) {
+      await desk.pageLimited(project, resets, waitingOn(loadLedger(project.state), agent.id));
+      return;
+    }
     const owner = await this.ownerOf(project, agent.id, seat.role);
     const meanwhile = meanwhileRoles(this.deps.source.teamFor(project), seat.role, seat.harness.id);
     const waiting = can(seat.role, "lead") ? waitingOn(loadLedger(project.state), agent.id) : [];

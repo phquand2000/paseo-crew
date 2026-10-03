@@ -43,3 +43,19 @@ export async function pageIncident(
     clip(`${basename(project.root)}: ${where} ran ${clip(incident.quote, 90)}.\n${who}; ${held}.`, 220),
   );
 }
+
+/** Two lines for the Human's phone as the Supervisor stops on its usage limit: no seat answers for it until it resets. */
+export async function pageLimited(
+  desk: DeskServices,
+  project: Project,
+  resets: string | null,
+  waiting: string[],
+): Promise<void> {
+  const until = resets ? `until ${resets}` : "with no reset time the desk could read";
+  const held =
+    waiting.length === 0
+      ? "nothing waits on it yet"
+      : `${waiting.length} ask${waiting.length === 1 ? "" : "s"} wait${waiting.length === 1 ? "s" : ""} on it`;
+  const text = `${basename(project.root)}: its Supervisor stopped on its usage limit ${until}; ${held}.`;
+  await page(desk, project, clip(`${text}\nSeat a Supervisor on another agent, or wait.`, 220));
+}
