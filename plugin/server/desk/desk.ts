@@ -13,6 +13,7 @@ import { Claims } from "./claims.ts";
 import { consulted } from "./messaging/consult.ts";
 import type { CodeIndex, Mailer, Posted, ToolReply, ToolRequest } from "./context.ts";
 import { OwnCopy } from "./copies/own-copy.ts";
+import { sweepCaches } from "./project/caches.ts";
 import { Slots } from "./copies/slots.ts";
 import { Human } from "./human/human.ts";
 import { expireLeases, leaveLeases } from "./leases/leases.ts";
@@ -92,6 +93,7 @@ export class Desk {
       closing: new Claims(),
       landings: new KeyedQueue(),
       gatesPassed: new Map(),
+      gating: new Map(),
       stopping: this.stop.signal,
     };
     this.intents = new Intents(intentsPath());
@@ -218,6 +220,11 @@ export class Desk {
   /** In the round: finish a teardown whose writers are not seats any more, and put away a copy kept for a Lead that is gone. */
   reapSlots(project: Project, live: Set<string>): Promise<void> {
     return reapKept(this.services, project, live);
+  }
+
+  /** In the round: remove the caches of lanes that are closed or gone, once nothing uses them. */
+  sweepCaches(project: Project, ledger: Ledger): void {
+    sweepCaches(this.services, project, ledger);
   }
 
   setTask(project: Project, taskId: string, change: (task: Task) => void): Task | undefined {

@@ -1,18 +1,7 @@
 import { spawn } from "node:child_process";
-import {
-  chmodSync,
-  closeSync,
-  mkdirSync,
-  mkdtempSync,
-  openSync,
-  readSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeSync,
-} from "node:fs";
+import { closeSync, mkdirSync, mkdtempSync, openSync, readSync, statSync, writeSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { daemonLog } from "./logger.ts";
+import { dropDir } from "./fs.ts";
 
 type GateResult = {
   ok: boolean;
@@ -60,21 +49,6 @@ export function lastBytes(file: string, limit = 64 * 1024): string {
   }
 }
 
-function openUp(dir: string): void {
-  chmodSync(dir, 0o700);
-  for (const entry of readdirSync(dir, { withFileTypes: true })) if (entry.isDirectory()) openUp(join(dir, entry.name));
-}
-
-/** Test suites lock directories to test what cannot be read, and leave them locked: those are opened before removal. */
-function dropTemp(dir: string): void {
-  try {
-    openUp(dir);
-    rmSync(dir, { recursive: true, force: true });
-  } catch (error) {
-    daemonLog.error(`could not remove the gate's temp directory ${dir}:`, error);
-  }
-}
-
 function closeLog(fd: number): void {
   try {
     closeSync(fd);
@@ -83,14 +57,14 @@ function closeLog(fd: number): void {
   }
 }
 
-function start(command: string, cwd: string, logFile: string, scratch: string) {
+function start(command: string, cwd: string, logFile: string, env: Record<string, string>) {
   mkdirSync(dirname(logFile), { recursive: true });
   const fd = openSync(logFile, "w");
   writeSync(fd, `$ ${command}\n`);
   // Straight to the log fd: a pipe would be inherited by leftover processes and hold "close" open indefinitely.
   const child = spawn("/bin/sh", ["-c", command], {
     cwd,
-    env: { ...process.env, CI: "1", TMPDIR: scratch },
+    env: { ...process.env, CI: "1", ...env },
     detached: true,
     stdio: ["ignore", fd, fd],
   });
@@ -99,7 +73,8 @@ function start(command: string, cwd: string, logFile: string, scratch: string) {
 
 /**
  * `stop` kills the gate's group when the plugin stops: a gate left running would write into a copy nobody watches.
- * Each run gets a TMPDIR of its own under `temp`, removed when it ends, so what its scripts leave there never piles up.
+ * Each run gets a TMPDIR of its own under `temp`, removed when it ends, so what its scripts leave there never piles up;
+ * `env` adds to it from that directory.
  */
 export function runGate(
   command: string,
@@ -108,10 +83,11 @@ export function runGate(
   timeoutMs: number,
   temp: string,
   stop?: AbortSignal,
+  env: (scratch: string) => Record<string, string> = () => ({}),
 ): Promise<GateResult> {
   const scratch = mkdtempSync(join(temp, "gate-"));
   const started = Date.now();
-  const { child, fd } = start(command, cwd, logFile, scratch);
+  const { child, fd } = start(command, cwd, logFile, { ...env(scratch), TMPDIR: scratch });
   return new Promise((resolve) => {
     let ended: "timedOut" | "stopped" | undefined;
     let answered = false;
@@ -129,7 +105,7 @@ export function runGate(
       clearTimeout(timer);
       stop?.removeEventListener("abort", stopped);
       killGroup(child.pid);
-      dropTemp(scratch);
+      dropDir(scratch);
       closeLog(fd);
       resolve({
         ok: code === 0 && !ended,

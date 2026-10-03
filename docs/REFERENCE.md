@@ -369,7 +369,10 @@ gate set empty with `set_project` is the Human's answer, and nothing is detected
 | `pyproject.toml` or `pytest.ini` | `pytest -q` |
 
 A gate runs in the lane's or the task's copy through `/bin/sh -c`, with `CI=1` set and `TMPDIR` a directory of its own
-in the project's temp directory, removed with all it holds when the run ends. Whatever it leaves running is killed
+in the project's temp directory, removed with all it holds when the run ends; `CREW_SCRATCH` names that directory too,
+and `CREW_CACHE` its lane's cache, `<project temp>/cache/<lane>`. A seat in a copy of an open lane gets the same
+`CREW_CACHE`, and `CREW_SCRATCH` its own temp directory. The round removes a lane's cache once the lane is closed or
+dropped, no gate of it runs and nobody still writes in its copy. Whatever a gate leaves running is killed
 when it ends, and a run past `gateTimeoutMinutes` is killed and counts as failed. Each run writes its output to
 `gates/<lane or task>-<ms>.log` (a task's rehearsals add `-<n>`), and a failure is told with its last 40 lines, at most
 3,000 characters.

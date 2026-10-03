@@ -36,5 +36,6 @@ export type DeskBase = {
   closing: Claims;
   landings: KeyedQueue;
   gatesPassed: Map<string, GatePass>;
+  gating: Map<string, number>;
   stopping: AbortSignal;
 };

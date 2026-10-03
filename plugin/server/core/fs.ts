@@ -1,17 +1,20 @@
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   readlinkSync,
+  rmSync,
   statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { daemonLog } from "./logger.ts";
 
 /** Something that is not a link stands where one should go: it is left alone, since deleting it would lose what it holds. */
 export class LeftAlone extends Error {}
@@ -74,4 +77,21 @@ export function digest(sources: string[]): string {
         .update("\0");
   }
   return hash.digest("hex").slice(0, 12);
+}
+
+function openUp(dir: string): void {
+  chmodSync(dir, 0o700);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) if (entry.isDirectory()) openUp(join(dir, entry.name));
+}
+
+/** Test suites lock directories to test what cannot be read, and leave them locked: those are opened before removal. */
+export function dropDir(dir: string): boolean {
+  try {
+    openUp(dir);
+    rmSync(dir, { recursive: true, force: true });
+    return true;
+  } catch (error) {
+    daemonLog.error(`could not remove ${dir}:`, error);
+    return false;
+  }
 }

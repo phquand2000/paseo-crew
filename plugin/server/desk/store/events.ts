@@ -103,6 +103,7 @@ export type DeskEvent =
   | { kind: "slot.released"; slot: string; removed: boolean; kept: string | undefined }
   | { kind: "workspace.swept"; workspace: string; name: string }
   | { kind: "worktree.swept"; path: string }
+  | { kind: "cache.removed"; lane: string }
   | { kind: "index.opened"; server: string; slot: string; reused: boolean; ok: boolean; detail: string }
   | { kind: "index.closed"; server: string; slot: string; ok: boolean; detail: string }
   | { kind: "watch.fact"; agent: string; fact: string; level: Level; quote: string }

@@ -8,8 +8,10 @@ import { daemonLog } from "../../core/logger.ts";
 import { guidesDir, home } from "../../core/paths.ts";
 import type { AgentConfig, SessionOpen } from "../../core/ports.ts";
 import { type Project, projectOf } from "../../desk/project/project.ts";
+import { CACHE_ENV, SCRATCH_ENV, laneAt, laneCache } from "../../desk/project/caches.ts";
 import { SEAT_SSH, seatSsh } from "../../desk/project/ssh.ts";
 import { seatGrants, seatTemp } from "../../desk/project/writes.ts";
+import { readLedger } from "../../desk/store/ledger.ts";
 import type { SeatKeys } from "./keys.ts";
 import type { Seating } from "./seating.ts";
 
@@ -67,6 +69,7 @@ export class SeatLaunch {
     const ssh = this.sshConfig(seat.role, project);
     const tempEnv = seat.harness.tempDirEnv;
     const temp = tempEnv && seatTemp(project, request.cwd);
+    const lane = laneAt(readLedger(project.state), project, request.cwd);
     return {
       ...opened,
       env: {
@@ -77,7 +80,8 @@ export class SeatLaunch {
         ...(can(seat.role, "write") ? { [SEAT_WRITES]: "1" } : {}),
         ...(key ? { [SEAT_KEY]: key } : {}),
         ...(ssh ? { [SEAT_SSH]: ssh } : {}),
-        ...(temp ? Object.fromEntries(tempEnv.map((name) => [name, temp])) : {}),
+        ...(temp ? { ...Object.fromEntries(tempEnv.map((name) => [name, temp])), [SCRATCH_ENV]: temp } : {}),
+        ...(lane ? { [CACHE_ENV]: laneCache(project, lane) } : {}),
       },
     };
   }

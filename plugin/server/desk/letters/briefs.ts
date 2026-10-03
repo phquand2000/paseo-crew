@@ -2,6 +2,7 @@ import { SETTLED } from "../../domain/task.ts";
 import type { Lane } from "../../domain/lane.ts";
 import type { Ledger } from "../../domain/ledger.ts";
 import type { ReviewFinding, Task } from "../../domain/task.ts";
+import { CACHE_ENV, SCRATCH_ENV } from "../project/caches.ts";
 import { list } from "./envelope.ts";
 
 /** Whether `task` waits on the task `on` through `after`, however far down: it comes after it, not beside it. */
@@ -90,6 +91,8 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
     task.mode === "parallel"
       ? `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit what you change, then call done; a task that changes nothing hands back with no commit.`
       : `You work on branch ${task.branch} in the lane's working copy, branched from ${lane.branch}. Commit what you change, then call done; a task that changes nothing hands back with no commit.${task.startSha ? ` Your task started from ${task.startSha}: that is BASE for anything that asks what existed before you began.` : ""}`,
+    "",
+    `Keep build and test caches in $${CACHE_ENV}, which your lane shares, and scratch files in $${SCRATCH_ENV}: the desk removes both once nothing uses them, so make no cache directory elsewhere.`,
     ...(task.planFirst
       ? [
           "",

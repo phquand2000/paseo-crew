@@ -9,12 +9,19 @@ import type { DeskBase } from "../base.ts";
 import { changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Project, loadConfig, riskRulesOf, rulesFor } from "./project.ts";
+import { CACHE_ENV, SCRATCH_ENV, gating, laneCache } from "./caches.ts";
 import { projectTemp } from "./writes.ts";
 
 /** `ran` is whether anything ran: a lane with no gate and nothing to rehearse passes with nothing run. */
 type GateVerdict = { ok: boolean; text: string; ran: boolean };
 
 const STOPPED = "was stopped as the plugin stopped";
+
+/** A gate's scratch is its run's own temp directory; its cache is its lane's. */
+const gateEnv = (project: Project, lane: string) => (scratch: string) => ({
+  [SCRATCH_ENV]: scratch,
+  [CACHE_ENV]: laneCache(project, lane),
+});
 
 /** One command on the lane's copy, as whoever lands it reads it: passed, or how it failed with its tail and its log. */
 async function onLane(
@@ -27,7 +34,16 @@ async function onLane(
 ): Promise<GateVerdict> {
   const minutes = loadConfig(project.state).gateTimeoutMinutes;
   const logFile = join(project.state, "gates", `${lane.id}-${Date.now()}.log`);
-  const result = await runGate(command, lane.worktree, logFile, minutes * 60_000, projectTemp(project), stopping);
+  const temp = projectTemp(project);
+  const result = await runGate(
+    command,
+    lane.worktree,
+    logFile,
+    minutes * 60_000,
+    temp,
+    stopping,
+    gateEnv(project, lane.id),
+  );
   recordEvent(project, {
     kind: result.ok ? "gate.passed" : result.stopped ? "gate.stopped" : "gate.failed",
     lane: lane.id,
@@ -51,6 +67,14 @@ async function onLane(
 
 /** The project's gate on the lane, then a rehearsal for each risk rule its change reaches: red in any is a red gate. */
 export async function laneGate(
+  desk: Pick<DeskBase, "kit" | "stopping" | "gatesPassed" | "gating">,
+  project: Project,
+  lane: Lane,
+): Promise<GateVerdict> {
+  return gating(desk, workKey(project, lane.id), () => gateLane(desk, project, lane));
+}
+
+async function gateLane(
   { kit, stopping, gatesPassed }: Pick<DeskBase, "kit" | "stopping" | "gatesPassed">,
   project: Project,
   lane: Lane,
@@ -98,9 +122,19 @@ type GateRun = { ok: boolean; note: string; tail: string; logFile: string };
  * stopping at the first that fails. Undefined when this project does not gate tasks.
  */
 export async function taskGate(
+  desk: Pick<DeskBase, "kit" | "stopping" | "gating">,
+  project: Project,
+  task: { id: string; lane: string },
+  cwd: string,
+  files: string[] | undefined,
+): Promise<GateRun | undefined> {
+  return gating(desk, workKey(project, task.lane), () => gateTask(desk, project, task, cwd, files));
+}
+
+async function gateTask(
   { kit, stopping }: Pick<DeskBase, "kit" | "stopping">,
   project: Project,
-  taskId: string,
+  { id: taskId, lane }: { id: string; lane: string },
   cwd: string,
   files: string[] | undefined,
 ): Promise<GateRun | undefined> {
@@ -123,6 +157,7 @@ export async function taskGate(
       config.gateTimeoutMinutes * 60_000,
       projectTemp(project),
       stopping,
+      gateEnv(project, lane),
     );
     const failed = result.stopped
       ? STOPPED
