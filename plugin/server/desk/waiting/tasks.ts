@@ -56,9 +56,9 @@ export async function startWaiting(
 
 /** Under the disk's soft floor a new task waits, since what it builds could fill it; work already running goes on. */
 function diskLow(desk: DeskServices, project: Project): Holding | undefined {
-  const { level, soft } = readDisk(desk.freeGiB, project);
+  const { level, soft, where } = readDisk(desk.disk, project);
   if (level === "ok") return undefined;
-  const why = `The disk under the project's temp has less than its soft floor of ${soft} GiB free.`;
+  const why = `The disk under ${where} has less than its soft floor of ${soft} GiB free.`;
   return { why, next: "It starts once space is freed there; cut it to drop it." };
 }
 

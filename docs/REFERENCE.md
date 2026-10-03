@@ -82,7 +82,7 @@ Every field is optional; one left out keeps its value.
 | `base` | The branch lanes start from and land on. It must exist | none: a lane starts from the branch the Human's copy is on, and is refused while that copy is on none |
 | `gate` | The command that proves a lane works, run in its copy. An empty string is an answer: no gate, and the desk never detects one over it | [detected](#gate-detection) |
 | `gateTimeoutMinutes` | How long a gate run, or a merge or working copy the desk makes, may take before it counts as failed | 30 |
-| `diskFloorGiB` | GiB free on the disk under the project's temp: under `soft` new tasks wait and the Human hears once, under `hard` (below `soft`) the Human is paged | `{soft: 100, hard: 50}` |
+| `diskFloorGiB` | GiB free on the disks under the project's temp and its copies: under `soft` new tasks wait and the Human hears once, under `hard` (below `soft`) the Human is paged. The disk under the state directory is held to 10 and 3 GiB the same way | `{soft: 100, hard: 50}` |
 | `gateOn` | `task` also gates each hand-back and each merge, unless the gate already ran on that commit. `lane` gates only the ready report and the landing, for a slow suite | `task` |
 | `serialOnly` | Globs only one writer at a time may write. Replaces the kit's list | the kit's |
 | `landAs` | How a lane goes onto its base: `squash` one commit, `merge` a merge commit, `ff` a fast-forward | `squash` |
@@ -298,7 +298,7 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 | LIMITED, LIMIT RESET | A seat's owner, once a spell: it stopped on its agent's usage limit, when the desk wakes it, and which roles on another agent can take the work meanwhile. The seat, once the reset its agent named is 5 minutes past: continue. A reset the agent's words give no clock time for wakes nothing |
 | RETRY | A seat whose turn failed on words its harness names `transient` (`timeline.transient`): continue, once until a turn goes through; refused again, its owner gets FAILED. A failure on `timeline.signedOut` pages the Human once a spell per agent, and FAILED tells the owner a fresh seat on that agent fails the same way |
 | LEASE, LEASE ENDED | A seat: a lease it waited for is its now, until when; a lease it held or waited for ended because its turn was stopped or its time ran out, so it takes it again before using it |
-| DISK LOW, DISK OK | Whoever supervises, as the disk under the project's temp falls under `diskFloorGiB.soft` and comes back over it: new tasks wait meanwhile, and gates and work already running go on. Under `hard` an INCIDENT pages instead |
+| DISK LOW, DISK OK | Whoever supervises, as a disk the project uses (under its temp, its copies or the state directory) falls under its soft floor, named with its path, and as all are back over theirs: new tasks wait meanwhile, and gates and work already running go on. Under `hard` an INCIDENT pages instead |
 | NO ANSWER | A seat: the plugin stopped before a call it was told to wait for by mail had finished |
 
 Some letters ask nothing of their reader, so they wait for the next letter that does. For the Supervisor: OPENED,
@@ -501,9 +501,11 @@ other to whoever supervises, never to the seat it is about. Until then it may be
   a Pager for it: a role with no tools but, on Codex, a read-only shell. Its one reply is two lines the desk writes: the
   repository, the seat and the command, whether its Supervisor was told, and whether the lane is on hold. Paseo pushes
   an agent's first finished turn, and pushes an agent once until someone opens it, so each page has a Pager of its own.
-- The disk under the project's temp under `diskFloorGiB.hard` opens a page about the seat `disk`, which no agent is,
-  without shadow: a reading of free space cannot be wrong, and a full disk stops every lane. It closes once the disk is
-  back over that floor. Each round reads the disk; between the floors the Human's phone hears once, from a Pager.
+- A disk the project uses under its hard floor opens a page about the seat `disk`, which no agent is, without shadow: a
+  reading of free space cannot be wrong, and a full disk stops every lane. It closes once the disk is back over that
+  floor. Each round reads the disks under the project's temp and its copies against `diskFloorGiB`, and the one under
+  the state directory against 10 and 3 GiB, each volume once; between the floors the Human's phone hears once, from a
+  Pager.
 - An attention-level sighting in words already marked `noise` for that seat and kind opens nothing; a page always does.
 - A seat's incidents close when it is archived and when the lane it leads closes, not when its task merges; closed, they
   still wait to be marked. `incidents.json` keeps the open ones and the newest 500 closed.

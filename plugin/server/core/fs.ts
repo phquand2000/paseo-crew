@@ -97,8 +97,13 @@ export function dropDir(dir: string): boolean {
   }
 }
 
-/** The space anyone but root may still write on the volume holding `dir`, in GiB to one decimal. */
-export function freeGiB(dir: string): number {
-  const stats = statfsSync(dir);
-  return Math.floor((stats.bavail * stats.bsize * 10) / 1024 ** 3) / 10;
-}
+/** Which volume holds `dir`, and the space anyone but root may still write on it, in GiB to one decimal. */
+export type Disk = { volumeOf: (dir: string) => string; freeGiB: (dir: string) => number };
+
+export const localDisk: Disk = {
+  volumeOf: (dir) => String(statSync(dir).dev),
+  freeGiB: (dir) => {
+    const stats = statfsSync(dir);
+    return Math.floor((stats.bavail * stats.bsize * 10) / 1024 ** 3) / 10;
+  },
+};

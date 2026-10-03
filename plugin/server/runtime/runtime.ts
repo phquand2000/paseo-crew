@@ -5,6 +5,7 @@ import { reloadDaemon } from "../catalog/paseo/providers.ts";
 import { type IndexedProxy, choicesFor, indexedProxies } from "../catalog/seat/servers.ts";
 import { placeGuides, sweepSnapshots } from "../catalog/seat/snapshots.ts";
 import { errorText } from "../core/errors.ts";
+import type { Disk } from "../core/fs.ts";
 import { daemonLog } from "../core/logger.ts";
 import { deskSocket, home, nodeBin, outboxPath, stateRoot } from "../core/paths.ts";
 import type {
@@ -51,7 +52,7 @@ type RuntimeOptions = {
   codeIndex?: (proxy: IndexedProxy) => CodeIndex;
   reloadDaemon?: () => Promise<boolean>;
   sensor?: (spec: SensorSpec, key: string) => Judge;
-  freeGiB?: (dir: string) => number;
+  disk?: Disk;
 };
 
 export class Runtime implements HostHooks {
@@ -95,7 +96,7 @@ export class Runtime implements HostHooks {
       teamFor: (project) => this.source.teamFor(project),
       indexesFor: (project) => this.indexesFor(project),
       sensor: options.sensor,
-      freeGiB: options.freeGiB,
+      disk: options.disk,
       doing: (seat) => this.watches.get(seat)?.doing(),
     });
     this.socket = this.teamSocket();

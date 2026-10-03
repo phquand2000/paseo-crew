@@ -1,6 +1,6 @@
 import type { Kit, SensorSpec } from "../catalog/kit/kit.ts";
 import type { Team } from "../catalog/team/team.ts";
-import { freeGiB } from "../core/fs.ts";
+import { type Disk, localDisk } from "../core/fs.ts";
 import { KeyedQueue } from "../core/keyed-queue.ts";
 import { midTurn } from "../core/paseo.ts";
 import { intentsPath } from "../core/paths.ts";
@@ -57,7 +57,7 @@ type DeskOptions = {
   teamFor: (project?: Project) => Team;
   indexesFor?: (project: Project) => CodeIndex[];
   sensor?: (spec: SensorSpec, key: string) => Judge;
-  freeGiB?: (dir: string) => number;
+  disk?: Disk;
   doing: (seat: string) => Doing | undefined;
 };
 
@@ -91,7 +91,7 @@ export class Desk {
       teamFor: options.teamFor,
       indexesFor: options.indexesFor ?? (() => []),
       sensorFor: (spec, key) => options.sensor?.(spec, key),
-      freeGiB: options.freeGiB ?? freeGiB,
+      disk: options.disk ?? localDisk,
       doing: options.doing,
       seating: new Claims(),
       closing: new Claims(),

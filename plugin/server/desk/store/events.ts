@@ -105,7 +105,7 @@ export type DeskEvent =
   | { kind: "workspace.swept"; workspace: string; name: string }
   | { kind: "worktree.swept"; path: string }
   | { kind: "cache.removed"; lane: string }
-  | { kind: "disk.level"; level: DiskLevel; free: number }
+  | { kind: "disk.level"; level: DiskLevel; free: number; where: string }
   | { kind: "index.opened"; server: string; slot: string; reused: boolean; ok: boolean; detail: string }
   | { kind: "index.closed"; server: string; slot: string; ok: boolean; detail: string }
   | { kind: "watch.fact"; agent: string; fact: string; level: Level; quote: string }

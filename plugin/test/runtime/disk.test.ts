@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { realpathSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
+import { stateRoot, worktreeRoot } from "../../server/core/paths.ts";
 import { loadIncidents } from "../../server/desk/store/incidents.ts";
 import { laneWithPeer } from "./harness.ts";
 
@@ -52,4 +55,22 @@ test("under the disk's soft floor new tasks wait and the Supervisor and the Huma
   assert.equal(diskIncident()?.open, false, "closed once the disk is back over its floors");
   assert.notEqual(side().status, "waiting", "the task that waited starts");
   assert.equal(pagers().length, 2);
+
+  const state = realpathSync(stateRoot());
+  const copies = realpathSync(join(worktreeRoot(), h.project.slug));
+  h.setFreeGiB(2, state);
+  h.setFreeGiB(1000, copies);
+  await h.tick();
+  const open = () => Object.values(loadIncidents(h.project.state).items).find((item) => item.open);
+  assert.equal(open()?.quote, `low: the crew's state (${state}) has 2 GiB free, under its hard floor of 3 GiB`);
+  h.setFreeGiB(1000);
+  await h.tick();
+  assert.equal(open(), undefined);
+
+  h.setFreeGiB(15, copies);
+  await h.tick();
+  assert.match(
+    lows().at(-1) ?? "",
+    new RegExp(`^DISK LOW: the disk under the project's copies \\(${copies}\\) has 15 GiB`),
+  );
 });

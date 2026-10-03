@@ -5,6 +5,7 @@ import { errorText } from "../../core/errors.ts";
 import { clip } from "../../core/text.ts";
 import type { Incident } from "../store/incidents.ts";
 import type { Lane } from "../../domain/lane.ts";
+import type { DiskReading } from "../project/disk.ts";
 import type { Project } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 
@@ -66,8 +67,12 @@ export async function pageSignedOut(desk: DeskServices, project: Project, agent:
   await page(desk, project, clip(`${text}\nSign ${agent} in again; each owner is told which work stopped.`, 220));
 }
 
-/** Two lines for the Human's phone as the disk under a project's temp falls under its soft floor: new tasks wait until space is freed. */
-export async function pageDiskLow(desk: DeskServices, project: Project, free: number, soft: number): Promise<void> {
-  const text = `${basename(project.root)}: the disk under its temp has ${free} GiB free, under its soft floor of ${soft} GiB.`;
+/** Two lines for the Human's phone as a disk a project uses falls under its soft floor: new tasks wait until space is freed. */
+export async function pageDiskLow(
+  desk: DeskServices,
+  project: Project,
+  { free, soft, where }: DiskReading,
+): Promise<void> {
+  const text = `${basename(project.root)}: the disk under ${where} has ${free} GiB free, under its soft floor of ${soft} GiB.`;
   await page(desk, project, clip(`${text}\nNew tasks wait to start until space is freed; gates go on.`, 220));
 }

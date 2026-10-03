@@ -86,7 +86,10 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   const { paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf } =
     fakePaseo();
   const project = projectOf(root);
-  let free = 1000;
+  // GiB free by the path a volume is under; the longest that holds a directory is its volume.
+  const free = new Map([["", 1000]]);
+  const volumeOf = (dir: string) =>
+    [...free.keys()].filter((at) => dir.startsWith(at)).reduce((a, b) => (b.length > a.length ? b : a));
   const start = (host = new PaseoHost(paseo)) => {
     const next = new Runtime(kit, host, {
       codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({
@@ -96,7 +99,7 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
       }),
       reloadDaemon: async () => true,
       sensor: options.sensor,
-      freeGiB: () => free,
+      disk: { volumeOf, freeGiB: (dir: string) => free.get(volumeOf(dir))! },
     });
     made.push(next);
     // Paseo seats a project's agents through the create hook, which records the project; the seats added here skip it.
@@ -194,9 +197,10 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   return {
     root,
     git,
-    // The GiB free on the disk under the project's temp, as the desk reads it from now on.
-    setFreeGiB: (gib: number) => {
-      free = gib;
+    // The GiB free on the volume under `under`, or on every one, as the desk reads it from now on.
+    setFreeGiB: (gib: number, under = "") => {
+      if (!under) free.clear();
+      free.set(under, gib);
     },
     paseo,
     agents,
