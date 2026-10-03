@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../tempdir.ts";
 import { harness } from "./harness.ts";
@@ -96,4 +96,15 @@ test("READY on a lane whose base conflicts with it is refused with what to do, a
   );
   assert.equal(h.ledger().lanes.L1!.ready, undefined);
   assert.equal(h.git(first!.worktree!, "status", "--porcelain").trim(), "");
+});
+
+test("a gate runs with a temp directory of its own under the project's, gone once it ends, locked leftovers too", async () => {
+  const runs = join(tempDir("crew-gate-"), "runs");
+  const leave = `mkdir -p "$TMPDIR/locked/in" && touch "$TMPDIR/locked/in/x" && chmod 000 "$TMPDIR/locked"`;
+  const { land } = await laneWith({ "a.txt": "a\n" }, [], false, `echo "$TMPDIR" >> '${runs}'; ${leave}`);
+  await land();
+  const used = readFileSync(runs, "utf-8").trim().split("\n");
+  assert.equal(used.length, 1);
+  assert.equal(basename(dirname(dirname(used[0]!))), `paseo-crew-${process.getuid!()}`);
+  assert.equal(existsSync(used[0]!), false, "what a gate leaves in its temp directory never piles up");
 });

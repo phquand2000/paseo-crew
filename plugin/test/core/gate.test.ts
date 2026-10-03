@@ -7,12 +7,12 @@ import { tempDir } from "../tempdir.ts";
 
 test("the gate reports exit, output tail and timeouts", async () => {
   const dir = tempDir("crew-gate-");
-  const pass = await runGate("echo ok", dir, join(dir, "g1.log"), 10_000);
+  const pass = await runGate("echo ok", dir, join(dir, "g1.log"), 10_000, dir);
   assert.equal(pass.ok, true);
   assert.match(pass.tail, /ok/);
-  const fail = await runGate("echo broken >&2; exit 3", dir, join(dir, "g2.log"), 10_000);
+  const fail = await runGate("echo broken >&2; exit 3", dir, join(dir, "g2.log"), 10_000, dir);
   assert.deepEqual([fail.ok, fail.code], [false, 3]);
-  const slow = await runGate("sleep 5", dir, join(dir, "g3.log"), 300);
+  const slow = await runGate("sleep 5", dir, join(dir, "g3.log"), 300, dir);
   assert.deepEqual([slow.ok, slow.timedOut], [false, true]);
   assert.equal(existsSync(join(dir, "g3.log")), true);
 
@@ -23,6 +23,7 @@ test("the gate reports exit, output tail and timeouts", async () => {
     dir,
     join(dir, "g4.log"),
     3_000,
+    dir,
   );
   assert.deepEqual([leftBehind.ok, leftBehind.code, leftBehind.timedOut], [true, 0, false]);
   assert.equal(Date.now() - started < 1_000, true, "and it answers when the command does, not when the limit runs out");
@@ -41,6 +42,7 @@ test("the gate reports exit, output tail and timeouts", async () => {
     dir,
     join(dir, "g5.log"),
     20_000,
+    dir,
   );
   assert.equal(noisy.code, 1);
   assert.match(

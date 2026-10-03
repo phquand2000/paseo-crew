@@ -9,6 +9,7 @@ import type { DeskBase } from "../base.ts";
 import { changeOf } from "../lanes/land-facts.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Project, loadConfig, riskRulesOf, rulesFor } from "./project.ts";
+import { projectTemp } from "./writes.ts";
 
 /** `ran` is whether anything ran: a lane with no gate and nothing to rehearse passes with nothing run. */
 type GateVerdict = { ok: boolean; text: string; ran: boolean };
@@ -26,7 +27,7 @@ async function onLane(
 ): Promise<GateVerdict> {
   const minutes = loadConfig(project.state).gateTimeoutMinutes;
   const logFile = join(project.state, "gates", `${lane.id}-${Date.now()}.log`);
-  const result = await runGate(command, lane.worktree, logFile, minutes * 60_000, stopping);
+  const result = await runGate(command, lane.worktree, logFile, minutes * 60_000, projectTemp(project), stopping);
   recordEvent(project, {
     kind: result.ok ? "gate.passed" : result.stopped ? "gate.stopped" : "gate.failed",
     lane: lane.id,
@@ -115,7 +116,14 @@ export async function taskGate(
   let last = { ok: true, tail: "", logFile: "" };
   for (const [index, { command, what }] of [{ command: config.gate, what: config.gate }, ...rehearsals].entries()) {
     const logFile = join(project.state, "gates", `${taskId}-${Date.now()}${index > 0 ? `-${index}` : ""}.log`);
-    const result = await runGate(command, cwd, logFile, config.gateTimeoutMinutes * 60_000, stopping);
+    const result = await runGate(
+      command,
+      cwd,
+      logFile,
+      config.gateTimeoutMinutes * 60_000,
+      projectTemp(project),
+      stopping,
+    );
     const failed = result.stopped
       ? STOPPED
       : result.timedOut

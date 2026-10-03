@@ -76,8 +76,8 @@ export function seatWrites(role: RoleSpec, project: Project): string[] {
   return [...projectWrites(project), ...outsideWrites(project), ...(common ? [common, ...copyGitDirs(common)] : [])];
 }
 
-/** A directory for a project's seats, under the Human's `temp` or /tmp: short enough for a socket's path, and none other's to reach. */
-function projectTemp(project: Project): string {
+/** A directory for a project's seats and gates, under the Human's `temp` or /tmp: short enough for a socket's path, and none other's to reach. */
+export function projectTemp(project: Project): string {
   const root = loadConfig(project.state).temp;
   const problem = root && outsideProblem(root);
   if (problem) throw new Error(`The project's temp ${root} ${problem}, so no seat is given a temp directory in it`);
