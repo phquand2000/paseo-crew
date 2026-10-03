@@ -41,7 +41,7 @@ import { openWaiting } from "./waiting/lanes.ts";
 import { startAfterTurn, startWaiting } from "./waiting/tasks.ts";
 import type { Moment } from "./watch/checks.ts";
 import { type Noticed, closeIncidentsOf, notice, retell, reweigh } from "./watch/notice.ts";
-import { pageLimited } from "./watch/pager.ts";
+import { pageLimited, pageSignedOut } from "./watch/pager.ts";
 
 type DeskOptions = {
   kit: Kit;
@@ -130,6 +130,10 @@ export class Desk {
 
   pageLimited(project: Project, resets: string | null, waiting: string[]): Promise<void> {
     return pageLimited(this.services, project, resets, waiting);
+  }
+
+  pageSignedOut(project: Project, agent: string): Promise<void> {
+    return pageSignedOut(this.services, project, agent);
   }
 
   retell(project: Project): Promise<string[]> {

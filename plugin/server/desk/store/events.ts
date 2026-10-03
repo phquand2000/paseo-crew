@@ -83,6 +83,7 @@ export type DeskEvent =
       wouldWait?: string | null;
     }
   | { kind: "seat.limited"; agent: string; resets: string | null; wakeAt: number | null }
+  | { kind: "seat.trouble"; agent: string; trouble: "signedOut" | "transient"; retried: boolean }
   | { kind: `merge.${TaskStatus}`; task: string }
   | { kind: "review.started"; task: string; of: string | null; reviewer: string }
   | {

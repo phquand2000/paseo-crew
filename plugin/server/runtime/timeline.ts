@@ -43,6 +43,14 @@ export function limitStop(harness: HarnessSpec, said: string): { resets: string 
   return found ? { resets: found.groups?.resets?.trim() || null } : undefined;
 }
 
+/** Whether its agent's provider turned the turn away rather than the work failing it, by the words its harness fails with. */
+export function troubleOf(harness: HarnessSpec, said: string): "signedOut" | "transient" | undefined {
+  const words = harness.timeline;
+  if (words?.signedOut && new RegExp(words.signedOut, "i").test(said)) return "signedOut";
+  if (words?.transient && new RegExp(words.transient, "i").test(said)) return "transient";
+  return undefined;
+}
+
 /** The background jobs a harness said it started and has not said finished, oldest first: it wakes the seat as each one ends. */
 export function pendingJobs(
   timeline: Timeline,

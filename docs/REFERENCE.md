@@ -271,7 +271,7 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 | A landing held for the Human | LAND HELD, LANDED, HELD AGAIN, CHANGED, APPROVED, SENT BACK, LAND SENT BACK |
 | The Human | HUMAN WROTE, HUMAN ANSWERED |
 | A lane stopped | HOLD, RESUMED |
-| The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, PERMISSION ANSWERED, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, INCIDENT, PAGE, the bare nudge |
+| The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, PERMISSION ANSWERED, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, RETRY, INCIDENT, PAGE, the bare nudge |
 | A moment to look | ARCHITECTURE, TURNING |
 | Answering late | ANSWER to your `<tool>` call, NO ANSWER to your `<tool>` call |
 
@@ -293,6 +293,7 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 | HOLD | The seats of a lane: stop. The one letter sent past the outbox, cutting a running turn short where the agent allows |
 | ARCHITECTURE, TURNING | Whoever supervises, at the moments SLP names, as the desk sees them: a Lead widening what a parallel task holds; a Lead changing what a task is for |
 | LIMITED, LIMIT RESET | A seat's owner, once a spell: it stopped on its agent's usage limit, when the desk wakes it, and which roles on another agent can take the work meanwhile. The seat, once the reset its agent named is 5 minutes past: continue. A reset the agent's words give no clock time for wakes nothing |
+| RETRY | A seat whose turn failed on words its harness names `transient` (`timeline.transient`): continue, once until a turn goes through; refused again, its owner gets FAILED. A failure on `timeline.signedOut` pages the Human once a spell per agent, and FAILED tells the owner a fresh seat on that agent fails the same way |
 | NO ANSWER | A seat: the plugin stopped before a call it was told to wait for by mail had finished |
 
 Some letters ask nothing of their reader, so they wait for the next letter that does. For the Supervisor: OPENED,

@@ -4,7 +4,7 @@ import type { HookAgent, PermissionRequested, PermissionResolved, Seats, TurnEnd
 import type { Lane } from "../domain/lane.ts";
 import { DECIDED, TASK, type Task } from "../domain/task.ts";
 import type { Desk } from "../desk/desk.ts";
-import { type Ledger, laneOfLead, leadLaneOf, openAskOf, taskOfPeer, waitingOn } from "../domain/ledger.ts";
+import { type Ledger, leadLaneOf, openAskOf, taskOfPeer, waitingOn } from "../domain/ledger.ts";
 import { laneOnHold, loadLedger } from "../desk/store/ledger.ts";
 import { keyOf } from "../desk/letters/envelope.ts";
 import { seatLetters } from "../desk/letters/seat-letters.ts";
@@ -12,6 +12,8 @@ import { messageLetters } from "../desk/letters/message-letters.ts";
 import { seatName } from "../desk/seats/names.ts";
 import { type Project, projectOf } from "../desk/project/project.ts";
 import type { TeamSource } from "./team-source.ts";
+import { ownerOf } from "./owner.ts";
+import { ProviderTrouble } from "./provider-trouble.ts";
 import { clearLimited, markLimited, meanwhileRoles, wakeTime } from "./limits.ts";
 import { deniedCall, lastToolCall, lastWords, limitStop, outputText, pendingJobs } from "./timeline.ts";
 
@@ -45,9 +47,11 @@ export class TurnRules {
   private readonly deps: TurnDeps;
   private readonly startedAt = new Map<string, number>();
   private readonly mailed = new Set<string>();
+  private readonly trouble: ProviderTrouble;
 
   constructor(deps: TurnDeps) {
     this.deps = deps;
+    this.trouble = new ProviderTrouble(deps.desk);
   }
 
   /** A stalled Peer at work again runs; its count stays at the stall, so one more quiet turn stalls it without a second wake. */
@@ -67,30 +71,8 @@ export class TurnRules {
   forget(agentId: string): void {
     this.startedAt.delete(agentId);
     this.lastEnding.delete(agentId);
+    this.trouble.forget(agentId);
     for (const key of this.mailed) if (key.startsWith(`${agentId}\n`)) this.mailed.delete(key);
-  }
-
-  private async ownerOf(
-    project: Project,
-    agentId: string,
-    role: RoleSpec,
-  ): Promise<{ to: string | undefined; reader: "lead" | "supervisor" | "leadGone" }> {
-    // A Lead's owner is whoever supervises; an unreadable ledger must not stop its failures reaching anyone.
-    if (can(role, "lead")) {
-      let opener: string | undefined;
-      try {
-        opener = laneOfLead(loadLedger(project.state), agentId)?.opener;
-      } catch {
-        // No opener then: whoever supervises the project is asked.
-      }
-      return { to: await this.deps.desk.supervisorFor(project, opener), reader: "supervisor" };
-    }
-    const ledger = loadLedger(project.state);
-    const task = taskOfPeer(ledger, agentId);
-    if (!task) return { to: undefined, reader: "lead" };
-    // A Lead no longer seated would never read it: whoever supervises is told, and can seat one.
-    const reader = await this.deps.desk.readerOf(project, ledger.lanes[task.lane]);
-    return { to: reader.to, reader: reader.as === "lead" ? "lead" : "leadGone" };
   }
 
   /** A seat stopped on a permission: refused while its lane is on hold, else its owner is told, for the Human to give it. */
@@ -118,7 +100,7 @@ export class TurnRules {
       this.deps.log(project, `waiting on the Human: ${agent.id} ${request.title ?? request.name ?? request.kind}`);
       return;
     }
-    const owner = await this.ownerOf(project, agent.id, role);
+    const owner = await ownerOf(this.deps.desk, project, agent.id, role);
     await this.deps.desk.post(
       owner.to,
       seatLetters.permission(agent.id, this.nameOf(project, agent, role), request, owner.reader),
@@ -133,7 +115,7 @@ export class TurnRules {
     // Only what the desk mailed is followed up: its own refusals, and the Supervisor's own requests, told nobody.
     const told = this.mailed.delete(`${agent.id}\n${requestId}`);
     if ((await this.deps.desk.withdraw(keyOf("permission", [agent.id, requestId]))) || !told) return;
-    const owner = await this.ownerOf(projectOf(agent.cwd), agent.id, role);
+    const owner = await ownerOf(this.deps.desk, projectOf(agent.cwd), agent.id, role);
     const who = this.nameOf(projectOf(agent.cwd), agent, role);
     await this.deps.desk.post(
       owner.to,
@@ -176,18 +158,16 @@ export class TurnRules {
     const limit = limitStop(seat.harness, outcome.kind === "failed" ? outcome.error.message : lastWords(timeline));
     if (limit) return this.limited(project, agent, seat, limit.resets);
     clearLimited(this.deps.desk, project, agent.id);
+    // Only a failed turn is read for provider trouble: a Peer's own words may name a 401 its work met.
+    const turn = { agent: agent.id, id: event.turnId ?? Date.now() };
+    const said = outcome.kind === "failed" ? outcome.error.message : "";
+    const trouble = await this.trouble.ended(project, { ...turn, said }, seat.harness);
+    if (trouble === "retried") return;
     if (outcome.kind === "failed") {
-      const owner = await this.ownerOf(project, agent.id, role);
-      await this.deps.desk.post(
-        owner.to,
-        seatLetters.failed(
-          agent.id,
-          event.turnId ?? Date.now(),
-          this.nameOf(project, agent, role),
-          outcome.error.message,
-          owner.reader,
-        ),
-      );
+      const owner = await ownerOf(this.deps.desk, project, agent.id, role);
+      const who = this.nameOf(project, agent, role);
+      const letter = seatLetters.failed(agent.id, turn.id, who, said, owner.reader, trouble === "signedOut");
+      await this.deps.desk.post(owner.to, letter);
       return;
     }
     const ledger = loadLedger(project.state);
@@ -248,7 +228,7 @@ export class TurnRules {
       await desk.pageLimited(project, resets, waitingOn(loadLedger(project.state), agent.id));
       return;
     }
-    const owner = await this.ownerOf(project, agent.id, seat.role);
+    const owner = await ownerOf(this.deps.desk, project, agent.id, seat.role);
     const meanwhile = meanwhileRoles(this.deps.source.teamFor(project), seat.role, seat.harness.id);
     const waiting = can(seat.role, "lead") ? waitingOn(loadLedger(project.state), agent.id) : [];
     const who = this.nameOf(project, agent, seat.role);

@@ -117,3 +117,51 @@ test("a Supervisor on its usage limit pages the Human once a spell, naming what 
     /its Supervisor stopped on its usage limit until \d+:\d\d[ap]m \(Asia\/Saigon\); 1 ask waits on it\.\nSeat a Supervisor on another agent, or wait\./,
   );
 });
+
+const BUSY = "unexpected status 503 Service Unavailable: No available accounts";
+const SIGNED_OUT = "unexpected status 401 Unauthorized: Not authenticated. Please login first";
+
+/** A turn that ended on an error, as Paseo hands it over when the agent's provider refuses it. */
+function failTurn(h: Awaited<ReturnType<typeof laneWithPeer>>["h"], id: string, message: string) {
+  const seat = h.agents.get(id)!;
+  return h.runtime.turnEnded({
+    agent: { id, provider: seat.provider, cwd: seat.cwd, title: seat.title },
+    turnId: `t-${id}-${Math.random()}`,
+    outcome: { kind: "failed", error: { message } },
+    timeline: [],
+  });
+}
+
+test("a turn the provider turned away for a moment is sent again once; refused again, it goes to the seat's Lead", async () => {
+  const { h, lane, peer } = await laneWithPeer();
+  const retries = () => h.heard(peer).filter((letter) => letter.includes("RETRY")).length;
+  await failTurn(h, peer, BUSY);
+  assert.equal(retries(), 1);
+  assert.doesNotMatch(h.heard(lane.lead!).join("\n"), /FAILED/);
+  await failTurn(h, peer, BUSY);
+  assert.equal(retries(), 1);
+  assert.match(h.heard(lane.lead!).join("\n"), /FAILED: .* No available accounts/);
+  await h.endTurn(peer, "Back on the build.");
+  await failTurn(h, peer, BUSY);
+  assert.equal(retries(), 2, "a turn that went through earns the next refusal its own retry");
+});
+
+test("an agent signed out of its provider pages the Human once a spell, and each owner hears a fresh seat fails the same way", async () => {
+  const { h, sup, lane, peer } = await laneWithPeer();
+  const pagers = () => [...h.agents.values()].filter((agent) => agent.provider.startsWith("crew-pager-"));
+  await failTurn(h, peer, SIGNED_OUT);
+  await failTurn(h, lane.lead!, SIGNED_OUT);
+  assert.equal(pagers().length, 1);
+  assert.match(
+    pagers()[0]!.prompt ?? "",
+    /Claude Code's model provider refuses its sign-in \(401\), so its seats stop\./,
+  );
+  for (const owner of [lane.lead!, sup])
+    assert.match(
+      h.heard(owner).join("\n"),
+      /FAILED: [^]*a fresh seat on that agent fails the same way until they sign it in/,
+    );
+  await h.endTurn(peer, "Signed in again; back on the build.");
+  await failTurn(h, peer, SIGNED_OUT);
+  assert.equal(pagers().length, 2, "a turn that went through ends the spell");
+});

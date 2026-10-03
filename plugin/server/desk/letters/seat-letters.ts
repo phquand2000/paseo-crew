@@ -74,6 +74,7 @@ export const seatLetters = {
     who: string,
     message: string,
     reader: "lead" | "supervisor" | "leadGone",
+    signedOut = false,
   ): Letter {
     const next = {
       lead: "Nothing restarts it: message it to continue, or reseat its task for a fresh Peer on its branch.",
@@ -81,7 +82,10 @@ export const seatLetters = {
         "Nothing restarts it: read what it did, then message the lane to continue, or drop_lane it and open it again.",
       leadGone: LEAD_GONE,
     }[reader];
-    return mail("failed", [agent, turn], failedText(who, message), next);
+    const text = signedOut
+      ? `${failedText(who, message)}\nIts agent is signed out of its model provider, and the Human is paged: a fresh seat on that agent fails the same way until they sign it in.`
+      : failedText(who, message);
+    return mail("failed", [agent, turn], text, next);
   },
 
   /** `meanwhile` names the roles on another agent that do the same work, `waiting` what waits on a Lead's word; with no `wakeAt`, nothing wakes it. */
@@ -113,6 +117,16 @@ export const seatLetters = {
         "Its Lead is gone: replace_lead puts a Lead on the lane, which can wait for it or move its task to a role named above.",
     }[reader];
     return mail("limited", [agent, since], lines.join("\n"), next);
+  },
+
+  /** Sent once when the agent's provider turned a turn away for a moment; a second refusal goes to the seat's owner. */
+  retry(agent: string, turn: string | number): Letter {
+    return mail(
+      "retry",
+      [agent, turn],
+      "RETRY: your last turn stopped on an error from your agent's model provider, not from the work.",
+      "Continue the work you were doing when it stopped, from where you left off.",
+    );
   },
 
   limitReset(wakeAt: number): Letter {

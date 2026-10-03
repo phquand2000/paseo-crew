@@ -6,6 +6,8 @@
   "configDirEnv": "CLAUDE_CONFIG_DIR",
   "skillsDir": "skills",
   "timeline": {
+    "signedOut": "\\b401\\b[^\\n]*?(?:Unauthorized|authentication_error|Not authenticated)",
+    "transient": "No available accounts",
     "unparsed": {
       "input": "__unparsedToolInput",
       "error": "InputValidationError[^\"]*could not be parsed as JSON"

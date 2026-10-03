@@ -60,6 +60,7 @@ type Kind =
   | "released"
   | "report"
   | "resumed"
+  | "retry"
   | "rework"
   | "settling"
   | "silent"

@@ -59,3 +59,9 @@ export async function pageLimited(
   const text = `${basename(project.root)}: its Supervisor stopped on its usage limit ${until}; ${held}.`;
   await page(desk, project, clip(`${text}\nSeat a Supervisor on another agent, or wait.`, 220));
 }
+
+/** Two lines for the Human's phone as an agent's model provider refuses its sign-in: every seat on it stops until they sign it in again. */
+export async function pageSignedOut(desk: DeskServices, project: Project, agent: string): Promise<void> {
+  const text = `${basename(project.root)}: ${agent}'s model provider refuses its sign-in (401), so its seats stop.`;
+  await page(desk, project, clip(`${text}\nSign ${agent} in again; each owner is told which work stopped.`, 220));
+}
