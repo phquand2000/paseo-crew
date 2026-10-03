@@ -77,7 +77,7 @@ export class SeatLaunch {
         ...(can(seat.role, "write") ? { [SEAT_WRITES]: "1" } : {}),
         ...(key ? { [SEAT_KEY]: key } : {}),
         ...(ssh ? { [SEAT_SSH]: ssh } : {}),
-        ...(temp ? { [tempEnv]: temp } : {}),
+        ...(temp ? Object.fromEntries(tempEnv.map((name) => [name, temp])) : {}),
       },
     };
   }

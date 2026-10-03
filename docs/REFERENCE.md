@@ -562,7 +562,7 @@ named, except inside the blocks passed to the agent as they are: `mcp.seed`, `mc
 | `hideSkills` | The Human's own skill folders the agent would load anyway, and the settings path where each skill found there is written as `{ path, enabled: false }` |
 | `projectContextOption` | The provider option that receives the working directory |
 | `sockets` | The sandbox setting that receives the unix sockets a seat may reach, at launch or in the settings file |
-| `tempDirEnv` | The variable that points the agent's commands at the seat's own temp directory: `TMPDIR`, or Claude Code's `CLAUDE_CODE_TMPDIR`, which sets it |
+| `tempDirEnv` | The variables that point the agent's commands at the seat's own temp directory: `TMPDIR`, or Claude Code's `CLAUDE_CODE_TMPDIR`, which sets it, and `PYTHONPYCACHEPREFIX`, since Python otherwise writes its bytecode under `~/Library/Caches` |
 | `mcpCall`, `mcpServerField` | How the agent names a call to an MCP server, or the field that holds the server's name, so a call to the desk is known as one |
 | `timeline` | Where the agent's timeline differs: where it keeps a command's exit code when not in the call, calls it sends that are not the seat's, and the marks of a call input that was not JSON |
 | `checks` | Files the Health tab looks for |

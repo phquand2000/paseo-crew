@@ -53,7 +53,10 @@
     "delivery": "file",
     "as": "allow"
   },
-  "tempDirEnv": "TMPDIR",
+  "tempDirEnv": [
+    "TMPDIR",
+    "PYTHONPYCACHEPREFIX"
+  ],
   "files": {
     "rules/paseo-crew.rules": [
       "rules/seat.rules",

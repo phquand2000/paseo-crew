@@ -98,5 +98,8 @@
     "path": "settings.sandbox.network.allowUnixSockets",
     "delivery": "launch"
   },
-  "tempDirEnv": "CLAUDE_CODE_TMPDIR"
+  "tempDirEnv": [
+    "CLAUDE_CODE_TMPDIR",
+    "PYTHONPYCACHEPREFIX"
+  ]
 }

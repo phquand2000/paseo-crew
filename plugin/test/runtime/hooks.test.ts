@@ -244,6 +244,11 @@ test("a seat gets its project's temp directory, where its commands keep their fi
       settings: { sandbox: { filesystem: { allowWrite: string[] }; network: { allowUnixSockets: string[] } } };
     };
     assert.equal(claude.env.CLAUDE_CODE_TMPDIR, temp, "Claude sets its commands' TMPDIR from its own variable");
+    assert.deepEqual(
+      [claude.env.PYTHONPYCACHEPREFIX, launch("peer", "codex").env.PYTHONPYCACHEPREFIX],
+      [temp, temp],
+      "Python writes its bytecode there, not under ~/Library/Caches, which no sandbox grants",
+    );
     assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(project), true);
     assert.equal(sandbox.settings.sandbox.filesystem.allowWrite.includes(machine), true);
     assert.equal(

@@ -19,7 +19,7 @@ export const HarnessFile = z
     hideSkills: z.strictObject({ roots: z.array(text).min(1), setting: text }).optional(),
     projectContextOption: text.optional(),
     sockets: Grant.optional(),
-    tempDirEnv: text.optional(),
+    tempDirEnv: z.array(text).min(1).optional(),
     projectInstructions: z
       .strictObject({
         reads: z.array(text).min(1),
