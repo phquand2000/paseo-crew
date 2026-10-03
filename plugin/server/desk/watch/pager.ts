@@ -65,3 +65,9 @@ export async function pageSignedOut(desk: DeskServices, project: Project, agent:
   const text = `${basename(project.root)}: ${agent}'s model provider refuses its sign-in (401), so its seats stop.`;
   await page(desk, project, clip(`${text}\nSign ${agent} in again; each owner is told which work stopped.`, 220));
 }
+
+/** Two lines for the Human's phone as the disk under a project's temp falls under its soft floor: new tasks wait until space is freed. */
+export async function pageDiskLow(desk: DeskServices, project: Project, free: number, soft: number): Promise<void> {
+  const text = `${basename(project.root)}: the disk under its temp has ${free} GiB free, under its soft floor of ${soft} GiB.`;
+  await page(desk, project, clip(`${text}\nNew tasks wait to start until space is freed; gates go on.`, 220));
+}

@@ -15,6 +15,7 @@ type Settings = {
   laneHome?: LaneHome;
   askFirst?: string[];
   riskRules?: RiskRule[];
+  diskFloorGiB?: ProjectConfig["diskFloorGiB"];
 };
 
 /** Sets the project's standing configuration, refusing as open_lane does over a file it could not read. */
@@ -25,6 +26,9 @@ export async function setProject(caller: Caller, args: Settings): Promise<ToolRe
   const config = loadConfig(caller.project.state);
   const base = str(args.base);
   if (base && !(await branchExists(caller.project.root, base))) return no(`The branch ${base} does not exist.`);
+  const floor = args.diskFloorGiB;
+  if (floor && floor.hard >= floor.soft)
+    return no(`The hard floor (${floor.hard} GiB) must be under the soft one (${floor.soft} GiB); nothing was saved.`);
   const minutes = Number(args.gateTimeoutMinutes);
   const next: ProjectConfig = {
     ...config,
@@ -41,6 +45,7 @@ export async function setProject(caller: Caller, args: Settings): Promise<ToolRe
           .filter(Boolean)
       : config.askFirst,
     riskRules: args.riskRules ?? config.riskRules,
+    diskFloorGiB: args.diskFloorGiB ?? config.diskFloorGiB,
   };
   saveConfig(caller.project.state, next);
   const home = next.laneHome
@@ -51,7 +56,9 @@ export async function setProject(caller: Caller, args: Settings): Promise<ToolRe
       ? `a landing that touches ${next.askFirst.join(", ")} waits for the Human`
       : "no landing waits for the Human";
   const rules = next.riskRules ? `${next.riskRules.length} risk rules of its own` : "the kit's risk rules";
+  const { soft, hard } = next.diskFloorGiB;
+  const floors = `new tasks wait under ${soft} GiB free on the disk under the project's temp, and the Human is paged under ${hard} GiB`;
   return ok(
-    `Base ${next.base ?? "unset"}; gate ${next.gate || "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes; lanes land as ${next.landAs}; ${home}; ${asked}; ${rules}.`,
+    `Base ${next.base ?? "unset"}; gate ${next.gate || "none"}, run per ${next.gateOn}; gate timeout ${next.gateTimeoutMinutes} minutes; lanes land as ${next.landAs}; ${home}; ${asked}; ${rules}; ${floors}.`,
   );
 }

@@ -1,0 +1,137 @@
+{
+  "seq": {
+    "lane": 1,
+    "ask": 1
+  },
+  "lanes": {
+    "L1": {
+      "id": "L1",
+      "title": "Checkout totals",
+      "outcome": "Totals include tax",
+      "acceptance": [
+        "tax shown"
+      ],
+      "outOfScope": [
+        "payments"
+      ],
+      "human": [{ "line": "tax shown", "quote": "Show the tax on the receipt." }],
+      "base": "main",
+      "branch": "lane/l1-checkout-totals",
+      "writeSet": [
+        "a.txt"
+      ],
+      "contracts": [],
+      "opener": "agent-1",
+      "status": "closed",
+      "openedAt": 1790737063660,
+      "tasks": 1,
+      "worktree": "/repos/shop",
+      "workspaceId": "ws-1",
+      "lead": "agent-2",
+      "readyLost": 2,
+      "ready": {
+        "at": 1790737063880
+      },
+      "landed": true,
+      "closedAt": 1790737064018
+    }
+  },
+  "tasks": {
+    "L1-T1": {
+      "id": "L1-T1",
+      "lane": "L1",
+      "kind": "code",
+      "mode": "lane",
+      "title": "Add tax",
+      "goal": "Totals include tax",
+      "acceptance": [
+        "tax shown"
+      ],
+      "hints": [
+        "a.txt"
+      ],
+      "holds": [],
+      "outOfScope": [
+        "payments"
+      ],
+      "skills": [],
+      "branch": "task/l1-t1-add-tax",
+      "worktree": "/repos/shop",
+      "status": "merged",
+      "after": [],
+      "opening": {
+        "role": "peer"
+      },
+      "openedAt": 1790737063697,
+      "updatedAt": 1790737063858,
+      "silent": 0,
+      "startSha": "75474959756f3b0500dcbe8c7ee91d3c4f901a3a",
+      "peer": "agent-3",
+      "handback": {
+        "file": "/home/me/.local/share/paseo-crew/projects/shop-abc123/handbacks/L1-T1-1790737063775.md",
+        "outcome": "complete",
+        "commit": "54f84d3b11fd1d1cd93855c6e9704ca21ab05324",
+        "summary": "Tax added",
+        "at": 1790737063775,
+        "gate": {
+          "ok": true,
+          "note": "true passed in 0s",
+          "sha": "54f84d3b11fd1d1cd93855c6e9704ca21ab05324"
+        }
+      },
+      "acceptedAt": 1790737063791,
+      "mergeSha": "c89e0f54bbeb928392e162de2483cd79c7cd1a4a",
+      "mergedAt": 1790737063843
+    }
+  },
+  "asks": {
+    "A1": {
+      "id": "A1",
+      "from": "agent-3",
+      "fromRole": "peer",
+      "to": "agent-2",
+      "lane": "L1",
+      "task": "L1-T1",
+      "kind": "question",
+      "text": "Round tax up?\n\nTried: the spec",
+      "default": "half down",
+      "status": "answered",
+      "openedAt": 1790737063716,
+      "answer": "Round half up.",
+      "answeredAt": 1790737063717,
+      "kept": false
+    }
+  },
+  "questions": {},
+  "agents": {
+    "agent-1": {
+      "id": "agent-1",
+      "role": "supervisor",
+      "recordedAt": 1790737064072
+    },
+    "agent-2": {
+      "id": "agent-2",
+      "role": "lead",
+      "lane": "L1",
+      "recordedAt": 1790737063917
+    },
+    "agent-3": {
+      "id": "agent-3",
+      "role": "peer",
+      "lane": "L1",
+      "task": "L1-T1",
+      "recordedAt": 1790737063780,
+      "gone": true
+    }
+  },
+  "slots": {},
+  "leases": {
+    "board": {
+      "holder": "agent-2",
+      "since": 1790737063900,
+      "until": 1790738863900,
+      "queue": [{ "seat": "agent-3", "minutes": 15 }]
+    }
+  },
+  "format": 9
+}

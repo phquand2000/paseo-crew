@@ -8,6 +8,7 @@ import {
   readFileSync,
   readlinkSync,
   rmSync,
+  statfsSync,
   statSync,
   symlinkSync,
   unlinkSync,
@@ -94,4 +95,10 @@ export function dropDir(dir: string): boolean {
     daemonLog.error(`could not remove ${dir}:`, error);
     return false;
   }
+}
+
+/** The space anyone but root may still write on the volume holding `dir`, in GiB to one decimal. */
+export function freeGiB(dir: string): number {
+  const stats = statfsSync(dir);
+  return Math.floor((stats.bavail * stats.bsize * 10) / 1024 ** 3) / 10;
 }

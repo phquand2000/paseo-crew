@@ -1,5 +1,6 @@
 import type { Kit, SensorSpec } from "../catalog/kit/kit.ts";
 import type { Team } from "../catalog/team/team.ts";
+import { freeGiB } from "../core/fs.ts";
 import { KeyedQueue } from "../core/keyed-queue.ts";
 import { midTurn } from "../core/paseo.ts";
 import { intentsPath } from "../core/paths.ts";
@@ -43,6 +44,7 @@ import { openWaiting } from "./waiting/lanes.ts";
 import { startAfterTurn, startWaiting } from "./waiting/tasks.ts";
 import type { Moment } from "./watch/checks.ts";
 import { type Noticed, closeIncidentsOf, notice, retell, reweigh } from "./watch/notice.ts";
+import { watchDisk } from "./watch/disk-watch.ts";
 import { pageLimited, pageSignedOut } from "./watch/pager.ts";
 
 type DeskOptions = {
@@ -55,6 +57,7 @@ type DeskOptions = {
   teamFor: (project?: Project) => Team;
   indexesFor?: (project: Project) => CodeIndex[];
   sensor?: (spec: SensorSpec, key: string) => Judge;
+  freeGiB?: (dir: string) => number;
   doing: (seat: string) => Doing | undefined;
 };
 
@@ -88,12 +91,14 @@ export class Desk {
       teamFor: options.teamFor,
       indexesFor: options.indexesFor ?? (() => []),
       sensorFor: (spec, key) => options.sensor?.(spec, key),
+      freeGiB: options.freeGiB ?? freeGiB,
       doing: options.doing,
       seating: new Claims(),
       closing: new Claims(),
       landings: new KeyedQueue(),
       gatesPassed: new Map(),
       gating: new Map(),
+      diskLevels: new Map(),
       stopping: this.stop.signal,
     };
     this.intents = new Intents(intentsPath());
@@ -220,6 +225,11 @@ export class Desk {
   /** In the round: finish a teardown whose writers are not seats any more, and put away a copy kept for a Lead that is gone. */
   reapSlots(project: Project, live: Set<string>): Promise<void> {
     return reapKept(this.services, project, live);
+  }
+
+  /** In the round: the disk under the project's temp against its floors, told as its level changes. */
+  watchDisk(project: Project): Promise<void> {
+    return watchDisk(this.services, project);
   }
 
   /** In the round: remove the caches of lanes that are closed or gone, once nothing uses them. */

@@ -23,6 +23,7 @@ export type LaneHome = (typeof LANE_HOMES)[number];
  * `askFirst` is the Human's standing order: a landing that touches one of these paths waits for them.
  * `links`, `writable`, `writableOutside`, `sockets` and `ssh` are the Human's alone, set by hand: they widen what seats may write or reach.
  * `temp`, also the Human's, is the directory seats' temp directories go under in place of /tmp.
+ * `diskFloorGiB` is the free space under which new tasks wait (`soft`) and the Human is paged (`hard`).
  */
 export type ProjectConfig = {
   base?: string;
@@ -40,7 +41,16 @@ export type ProjectConfig = {
   sockets: string[];
   ssh: Record<string, SshHost>;
   temp?: string;
+  diskFloorGiB: { soft: number; hard: number };
 };
+
+export const DiskFloor = z.strictObject({ soft: z.number().positive(), hard: z.number().positive() });
+
+/** Floors a full disk is caught by in time: the hard one under the soft one, so a fall passes the soft one first. */
+function diskFloors(stored: unknown): ProjectConfig["diskFloorGiB"] {
+  const floor = DiskFloor.safeParse(stored).data;
+  return floor && floor.hard < floor.soft ? floor : { soft: 100, hard: 50 };
+}
 
 const word = z.string().regex(/^[\w.:-]+$/);
 /** A host a seat reaches by its name in `ssh`: only words, since each goes into an ssh config as it is. */
@@ -172,6 +182,7 @@ export function loadConfig(state: string): ProjectConfig {
     sockets: Array.isArray(stored.sockets) ? stored.sockets.map(String) : [],
     ssh: sshHosts(stored.ssh),
     temp: typeof stored.temp === "string" && stored.temp ? stored.temp : undefined,
+    diskFloorGiB: diskFloors(stored.diskFloorGiB),
   };
 }
 

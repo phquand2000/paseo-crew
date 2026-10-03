@@ -10,6 +10,7 @@ import { loadLedger, readLedger } from "../store/ledger.ts";
 import { fyi } from "../letters/envelope.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import { seatLetters } from "../letters/seat-letters.ts";
+import { readDisk } from "../project/disk.ts";
 import { type Project, serialIn } from "../project/project.ts";
 import type { Refusal } from "../refusal.ts";
 import type { DeskServices } from "../services.ts";
@@ -37,6 +38,7 @@ export async function startWaiting(
   const due = Object.values(ledger.tasks).filter(
     (task) => task.status === "waiting" && (retryHeld || !task.held?.tried),
   );
+  const low = due.length > 0 ? diskLow(desk, project) : undefined;
   for (const waiting of due) {
     const lane = ledger.lanes[waiting.lane];
     if (lane?.status !== "open" || !lane.lead || lane.onHold) continue;
@@ -45,9 +47,19 @@ export async function startWaiting(
     const told = !answered.has(waiting.id);
     const next = "Change what it waits for with amend_task, or cut this task to drop it.";
     const held =
-      typeof pending === "string" ? { why: pending, next } : await tryStart(desk, project, lane, waiting, told);
+      typeof pending === "string"
+        ? { why: pending, next }
+        : (low ?? (await tryStart(desk, project, lane, waiting, told)));
     if (held) await noteHeld(desk, project, waiting, held, told);
   }
+}
+
+/** Under the disk's soft floor a new task waits, since what it builds could fill it; work already running goes on. */
+function diskLow(desk: DeskServices, project: Project): Holding | undefined {
+  const { level, soft } = readDisk(desk.freeGiB, project);
+  if (level === "ok") return undefined;
+  const why = `The disk under the project's temp has less than its soft floor of ${soft} GiB free.`;
+  return { why, next: "It starts once space is freed there; cut it to drop it." };
 }
 
 /** A task held for the turn of the kept Peer it names starts as that turn ends, not at the next round. */

@@ -86,6 +86,7 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   const { paseo, agents, add, workspaces, workspaceNames, workspaceProjects, archivedWorkspaces, timelineOf } =
     fakePaseo();
   const project = projectOf(root);
+  let free = 1000;
   const start = (host = new PaseoHost(paseo)) => {
     const next = new Runtime(kit, host, {
       codeIndex: (proxy: { id: string; gitExclude?: string[] }) => ({
@@ -95,6 +96,7 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
       }),
       reloadDaemon: async () => true,
       sensor: options.sensor,
+      freeGiB: () => free,
     });
     made.push(next);
     // Paseo seats a project's agents through the create hook, which records the project; the seats added here skip it.
@@ -192,6 +194,10 @@ export function harness(options: { sensor?: (spec: SensorSpec, key: string) => J
   return {
     root,
     git,
+    // The GiB free on the disk under the project's temp, as the desk reads it from now on.
+    setFreeGiB: (gib: number) => {
+      free = gib;
+    },
     paseo,
     agents,
     add,

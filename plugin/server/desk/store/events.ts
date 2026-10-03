@@ -1,6 +1,7 @@
 import type { Finding, Held, Level } from "../../domain/incident.ts";
 import type { LaneStatus } from "../../domain/lane.ts";
 import type { TaskStatus } from "../../domain/task.ts";
+import type { DiskLevel } from "../project/disk.ts";
 import type { Incident } from "./incidents.ts";
 import type { Task } from "../../domain/task.ts";
 
@@ -104,6 +105,7 @@ export type DeskEvent =
   | { kind: "workspace.swept"; workspace: string; name: string }
   | { kind: "worktree.swept"; path: string }
   | { kind: "cache.removed"; lane: string }
+  | { kind: "disk.level"; level: DiskLevel; free: number }
   | { kind: "index.opened"; server: string; slot: string; reused: boolean; ok: boolean; detail: string }
   | { kind: "index.closed"; server: string; slot: string; ok: boolean; detail: string }
   | { kind: "watch.fact"; agent: string; fact: string; level: Level; quote: string }

@@ -51,6 +51,7 @@ type RuntimeOptions = {
   codeIndex?: (proxy: IndexedProxy) => CodeIndex;
   reloadDaemon?: () => Promise<boolean>;
   sensor?: (spec: SensorSpec, key: string) => Judge;
+  freeGiB?: (dir: string) => number;
 };
 
 export class Runtime implements HostHooks {
@@ -94,6 +95,7 @@ export class Runtime implements HostHooks {
       teamFor: (project) => this.source.teamFor(project),
       indexesFor: (project) => this.indexesFor(project),
       sensor: options.sensor,
+      freeGiB: options.freeGiB,
       doing: (seat) => this.watches.get(seat)?.doing(),
     });
     this.socket = this.teamSocket();
@@ -112,12 +114,11 @@ export class Runtime implements HostHooks {
       remember,
     });
     this.clock = new PatrolClock({ host, patrol: this.patrol, source: this.source, desk: this.desk });
-    const reload = options.reloadDaemon ?? reloadDaemon;
     this.sync = new ProviderSync({
       kit,
       models: host.models,
       source: this.source,
-      reload,
+      reload: options.reloadDaemon ?? reloadDaemon,
       modelsChanged: () => this.seating.forget(),
     });
     this.launch = new SeatLaunch(kit, this.seating, this.keys, remember);

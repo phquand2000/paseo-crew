@@ -602,6 +602,26 @@
             "type": "number",
             "description": "Minutes a gate, or a merge or working copy the desk makes, may run before it counts as failed; 30 unless set."
           },
+          "diskFloorGiB": {
+            "type": "object",
+            "properties": {
+              "soft": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "GiB free under which new tasks wait to start and the Human hears once; 100 unless set."
+              },
+              "hard": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "GiB free under which the Human is paged at once; under soft, 50 unless set."
+              }
+            },
+            "required": [
+              "soft",
+              "hard"
+            ],
+            "description": "Free space on the disk under the project's temp, where gates, caches and working copies grow."
+          },
           "gateOn": {
             "type": "string",
             "enum": [

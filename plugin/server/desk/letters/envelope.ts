@@ -27,6 +27,7 @@ type Kind =
   | "closed"
   | "consulted"
   | "detour"
+  | "disk"
   | "done"
   | "failed"
   | "gone"
