@@ -1,5 +1,6 @@
 import type { Ask } from "./ask.ts";
 import type { Lane } from "./lane.ts";
+import type { Lease } from "./lease.ts";
 import type { Question } from "./question.ts";
 import { ACTIVE, type ReviewFinding, SETTLED, type Task, openWork } from "./task.ts";
 
@@ -37,6 +38,7 @@ export type Ledger = {
   questions: Record<string, Question>;
   agents: Record<string, AgentRef>;
   slots: Record<string, Slot>;
+  leases?: Record<string, Lease>;
 };
 
 export function emptyLedger(): Ledger {

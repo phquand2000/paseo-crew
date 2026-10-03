@@ -92,6 +92,7 @@ export class Patrol {
     const gone = (id: string) => !seats.has(id) && outbox.pending(id).length === 0;
     return [
       ["seats whose usage limit has reset could not be woken", () => wakeLimited(desk, project, ledger(), seats, now)],
+      ["leases past their time could not be handed on", () => desk.expireLeases(project, now)],
       ["idle lanes could not be read", () => this.idleLanes(project, ledger(), seats, now)],
       ["incidents held for nobody could not be told", async () => void (await desk.retell(project))],
       ["a task whose Peer is gone could not be recorded", () => this.goneTasks(project, ledger(), seats)],

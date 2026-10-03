@@ -16,6 +16,7 @@ const KEPT: [string, string[]][] = [
   ["server/domain/task.ts", ["TaskStatus", "ReviewFinding", "Handback", "Task"]],
   ["server/domain/question.ts", ["QuestionStatus", "QuestionClass", "Question"]],
   ["server/domain/ledger.ts", ["Releasing", "Slot", "AgentRef", "Ledger"]],
+  ["server/domain/lease.ts", ["LeaseWait", "Lease"]],
   ["server/domain/incident.ts", ["Held", "Level", "Finding", "Delivered"]],
   ["server/desk/store/incidents.ts", ["Incident", "Incidents"]],
   ["server/desk/project/project.ts", ["GateOn", "LANE_HOMES", "ProjectConfig", "SshHost"]],

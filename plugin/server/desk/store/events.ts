@@ -48,6 +48,8 @@ export type DeskEvent =
   | { kind: "lane.resumed"; lane: string; by: string }
   | { kind: "question.asked"; question: string; lane: string | null; class: string }
   | { kind: "question.answered"; question: string; status: string; by: "panel" | "chat" | "desk" }
+  | { kind: "lease.taken" | "lease.queued" | "lease.granted"; resource: string; seat: string; until?: number }
+  | { kind: "lease.released"; resource: string; seat: string; why: "released" | "cut" | "archived" | "expired" }
   | { kind: "note.written"; file: string; by: string; replaced: boolean }
   | { kind: "task.held"; task: string; reason: string }
   | { kind: "task.woken"; task: string; cut: string | null }

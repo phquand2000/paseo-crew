@@ -7,6 +7,7 @@ import { keptCopy } from "../seats/kept.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, ownCopyHolder } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
+import { leaseLines } from "./lease-lines.ts";
 import { type Watched, openLaneLines, seatLine, waitingLaneLines } from "./status-lanes.ts";
 import {
   type LaneHome,
@@ -79,6 +80,7 @@ export function statusText(
       : open.flatMap((lane) => openLaneLines(ledger, lane, seats, now, { aims: copy !== undefined, doing }))),
     ...waitingLaneLines(ledger, pending, copy !== undefined),
     ...(laneId ? [] : [...keptLines(ledger, seats, now), ...copyLines(ledger)]),
+    ...leaseLines(ledger),
     ...askLines(ledger, now, laneId),
     ...(laneId ? [] : [...questionLines(ledger, now), ...closedLines(lanes)]),
   ];

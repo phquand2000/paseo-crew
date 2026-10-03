@@ -1498,6 +1498,39 @@
           "text"
         ]
       }
+    },
+    {
+      "name": "lease",
+      "title": "Lease a shared resource",
+      "description": "Hold something you share with others, such as a device or a test database, by a name you choose, so no one else uses it meanwhile. Free: yours until a time. Held: you join its queue and a LEASE letter tells you when it is yours. Release it once done.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "description": "Its name, the same for everyone who shares it, like staging-db; at most 60 characters."
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 240,
+            "description": "How long you need it, from now; 30 when left out. Taking it again renews it."
+          },
+          "release": {
+            "type": "boolean",
+            "description": "True to let it go, or leave its queue."
+          }
+        },
+        "required": [
+          "resource"
+        ]
+      }
     }
   ],
   "peer": [
@@ -1574,6 +1607,39 @@
         },
         "required": [
           "question"
+        ]
+      }
+    },
+    {
+      "name": "lease",
+      "title": "Lease a shared resource",
+      "description": "Hold something you share with others, such as a device or a test database, by a name you choose, so no one else uses it meanwhile. Free: yours until a time. Held: you join its queue and a LEASE letter tells you when it is yours. Release it once done.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "description": "Its name, the same for everyone who shares it, like staging-db; at most 60 characters."
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 240,
+            "description": "How long you need it, from now; 30 when left out. Taking it again renews it."
+          },
+          "release": {
+            "type": "boolean",
+            "description": "True to let it go, or leave its queue."
+          }
+        },
+        "required": [
+          "resource"
         ]
       }
     }
@@ -1697,6 +1763,39 @@
         },
         "required": [
           "question"
+        ]
+      }
+    },
+    {
+      "name": "lease",
+      "title": "Lease a shared resource",
+      "description": "Hold something you share with others, such as a device or a test database, by a name you choose, so no one else uses it meanwhile. Free: yours until a time. Held: you join its queue and a LEASE letter tells you when it is yours. Release it once done.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "description": "Its name, the same for everyone who shares it, like staging-db; at most 60 characters."
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 240,
+            "description": "How long you need it, from now; 30 when left out. Taking it again renews it."
+          },
+          "release": {
+            "type": "boolean",
+            "description": "True to let it go, or leave its queue."
+          }
+        },
+        "required": [
+          "resource"
         ]
       }
     }

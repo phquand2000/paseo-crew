@@ -42,6 +42,8 @@ type Kind =
   | "landback"
   | "landheld"
   | "lanebeside"
+  | "lease"
+  | "leaseended"
   | "later"
   | "leadgone"
   | "limited"

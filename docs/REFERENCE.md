@@ -31,8 +31,8 @@ on its role's name.
 | Role | Tools |
 |---|---|
 | Supervisor | `open_lane` `message` `answer` `land_lane` `drop_lane` `amend_lane` `hold_lane` `resume_lane` `ask_human` `record_human_answer` `replace_lead` `release` `set_project` `status` `incidents` `mark_incident` `record` `outcomes` `consult` |
-| Lead, Backup Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `reseat` `amend_task` `take_paths` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` |
-| Peer, Backup Peer, Reviewer, Senior Reviewer | `done` `ask` |
+| Lead, Backup Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `reseat` `amend_task` `take_paths` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` `lease` |
+| Peer, Backup Peer, Reviewer, Senior Reviewer | `done` `ask` `lease` |
 <!-- end -->
 
 | Verb | Effect |
@@ -44,6 +44,7 @@ on its role's name.
 | `add_tasks` | Records tasks in the caller's lane in one call, and starts what can start. Each task gets a branch of its own and a new Peer, or, in the lane's copy, the idle Peer kept from a merged task it names in `peer`, which no other task is promised; one in a turn takes it as that turn ends, and a Peer gone by then is replaced by a new one, and the Lead told. The lane counts as not reported ready. See [laying out tasks](#laying-out-tasks) |
 | `amend_task` | Changes what a task asks until it is accepted or cut (goal, acceptance, out of scope, context, hints), keeping what it asked before, and why; the Peer reads it at its next turn. A parallel task's `holds` change too, never to none, checked as a start checks them. A changed goal sends TURNING, and widened `holds` ARCHITECTURE, to whoever supervises. A waiting task's `after` changes too, checked as `add_tasks` checks it and against a loop back to itself, and is weighed again at once. On a task its Peer works on, `after` naming tasks still to merge holds it: its quiet turns are not silence, and GO ON tells its Peer once they merge or one is cut; a hand-back or `after: []` ends the hold |
 | `take_paths` | Adds paths to the caller's open lane's write set, keeping what it was before, and why; the lane counts as not reported ready. An open lane that writes or depends on one, or may write a one-writer path it reaches, is named in the reply and in TAKEN, and its Lead gets LANE BESIDE; refused for a lane that declared no write set. Whoever supervises gets TAKEN, which waits for their next letter. The reply says when the lane now meets the Human's ask-first paths |
+| `lease` | Holds something seats share, named by them (trimmed, lower case, at most 60 characters), for `minutes` (1 to 240, 30 when left out); taking it again renews it. Held by another seat, the caller joins its queue in order; `release` lets it go or leaves the queue, and the first in line still seated gets LEASE. A stopped turn, a seat archived or the time running out lets it go too. Every reply names who holds it and who waits, and `status` lists every lease. A record seats coordinate by, never enforced |
 | `done` | A Peer hands its task back: an outcome (`complete`, `partial` or `blocked`), a summary and its checks. A Reviewer hands back its verdict. Refused once the task is in the merge queue, merged or cut. See [a hand-back](#a-hand-back) |
 | `accept` | Queues a handed-back task for merging, the only way the lane branch takes work: see [a merge](#a-merge). Its Peer stays until it is released, takes a task named for it, or the lane closes. Refused while the lane is on hold, for a review or a task not handed back, while the task's copy is off its branch or has work uncommitted, and over a red gate on the same commit without `overGate` and a `reason` |
 | `rework` | Sends a task back to its Peer with REWORK, a merged one too while that Peer is kept: it goes back onto its branch with the lane brought in, and the lane counts as not reported ready. Refused for a Peer that is gone, a parallel task whose copy is being put away, and a task in the lane's copy while another holds it (or, merged, while it has work uncommitted) |
@@ -271,6 +272,7 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 | A landing held for the Human | LAND HELD, LANDED, HELD AGAIN, CHANGED, APPROVED, SENT BACK, LAND SENT BACK |
 | The Human | HUMAN WROTE, HUMAN ANSWERED |
 | A lane stopped | HOLD, RESUMED |
+| Sharing | LEASE, LEASE ENDED |
 | The desk noticing | SILENT, FAILED, WAITING FOR PERMISSION, PERMISSION ANSWERED, LANE IDLE, LEAD GONE, LIMITED, LIMIT RESET, RETRY, INCIDENT, PAGE, the bare nudge |
 | A moment to look | ARCHITECTURE, TURNING |
 | Answering late | ANSWER to your `<tool>` call, NO ANSWER to your `<tool>` call |
@@ -294,12 +296,13 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 | ARCHITECTURE, TURNING | Whoever supervises, at the moments SLP names, as the desk sees them: a Lead widening what a parallel task holds; a Lead changing what a task is for |
 | LIMITED, LIMIT RESET | A seat's owner, once a spell: it stopped on its agent's usage limit, when the desk wakes it, and which roles on another agent can take the work meanwhile. The seat, once the reset its agent named is 5 minutes past: continue. A reset the agent's words give no clock time for wakes nothing |
 | RETRY | A seat whose turn failed on words its harness names `transient` (`timeline.transient`): continue, once until a turn goes through; refused again, its owner gets FAILED. A failure on `timeline.signedOut` pages the Human once a spell per agent, and FAILED tells the owner a fresh seat on that agent fails the same way |
+| LEASE, LEASE ENDED | A seat: a lease it waited for is its now, until when; a lease it held or waited for ended because its turn was stopped or its time ran out, so it takes it again before using it |
 | NO ANSWER | A seat: the plugin stopped before a call it was told to wait for by mail had finished |
 
 Some letters ask nothing of their reader, so they wait for the next letter that does. For the Supervisor: OPENED,
 WAITING for a lane that opened by itself, TAKEN, OVERRULED, LANDED and SENT BACK. For a Lead: WAITING for a task that started by itself,
 LAND HELD, LANE CLOSED, SETTLING, a MERGE WAITS the desk clears by itself, and a MERGED with nothing to note while other
-tasks remain, and LANE BESIDE. For whoever reads it: PERMISSION ANSWERED. For a Peer: CARRIED UP.
+tasks remain, and LANE BESIDE. For whoever reads it: PERMISSION ANSWERED, LEASE ENDED. For a Peer: CARRIED UP.
 
 ## Mail
 

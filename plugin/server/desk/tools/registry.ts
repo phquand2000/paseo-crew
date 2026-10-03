@@ -16,6 +16,7 @@ import { holdLane } from "./hold-lane.ts";
 import { message } from "./message.ts";
 import { note } from "./note.ts";
 import { landLane } from "./land-lane.ts";
+import { lease } from "./lease.ts";
 import { openLane } from "./open-lane.ts";
 import { outcomes } from "./outcomes.ts";
 import { record } from "./record.ts";
@@ -67,4 +68,5 @@ export const TOOLS: ToolDef[] = [
   record,
   outcomes,
   note,
+  lease,
 ];

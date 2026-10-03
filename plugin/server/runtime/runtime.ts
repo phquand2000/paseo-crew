@@ -212,7 +212,7 @@ export class Runtime implements HostHooks {
   async archived(agent: HookAgent): Promise<void> {
     this.turns.forget(agent.id);
     this.watches.drop(agent.id);
-    this.desk.archived(projectOf(agent.cwd), agent.id, this.watches.watched(agent.provider));
+    await this.desk.archived(projectOf(agent.cwd), agent.id, this.watches.watched(agent.provider));
     await this.outbox.archived(agent.id);
   }
 
@@ -247,6 +247,7 @@ export class Runtime implements HostHooks {
         await this.desk.archive(event.agent.id, true);
       }
       await this.desk.stopped(event.agent.id);
+      if (event.outcome.kind === "canceled") await this.desk.turnCut(projectOf(event.agent.cwd), event.agent.id);
       if (archiving) return;
       await this.turns.ended(event);
       // After the turn is weighed: started first, the task it takes would read that turn as its own silence.

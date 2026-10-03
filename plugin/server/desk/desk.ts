@@ -15,6 +15,7 @@ import type { CodeIndex, Mailer, Posted, ToolReply, ToolRequest } from "./contex
 import { OwnCopy } from "./copies/own-copy.ts";
 import { Slots } from "./copies/slots.ts";
 import { Human } from "./human/human.ts";
+import { expireLeases, leaveLeases } from "./leases/leases.ts";
 import { type Letter } from "./letters/envelope.ts";
 import { messageLetters } from "./letters/message-letters.ts";
 import type { Project } from "./project/project.ts";
@@ -144,10 +145,20 @@ export class Desk {
     return reweigh(this.services, project, seat, id);
   }
 
-  /** Paseo archived a seat: its binding is let go, and a watched seat's incidents close with it. */
-  archived(project: Project, seat: string, watched: boolean): void {
+  /** Paseo archived a seat: its binding is let go, a watched seat's incidents close with it, and its leases go on. */
+  async archived(project: Project, seat: string, watched: boolean): Promise<void> {
     markGone(this.services, project, seat);
     if (watched) closeIncidentsOf(this.services, project, seat);
+    await leaveLeases(this.services, project, seat, "archived", Date.now());
+  }
+
+  /** A seat's turn was stopped: what it held may be left mid-use, so its leases go on to whoever waits. */
+  turnCut(project: Project, seat: string): Promise<void> {
+    return leaveLeases(this.services, project, seat, "cut", Date.now());
+  }
+
+  expireLeases(project: Project, now: number): Promise<void> {
+    return expireLeases(this.services, project, now);
   }
 
   post(to: string | undefined, letter: Letter): Promise<Posted | "nobody"> {
