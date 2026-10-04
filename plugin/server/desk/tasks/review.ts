@@ -18,14 +18,15 @@ import { type Project, riskRulesOf, rulesFor } from "../project/project.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { handbackText } from "../store/records.ts";
+import { type Same, earlierReviews, roundsLine } from "./review-handback.ts";
 
 /** A start_review call as the tool takes it: one task, the whole lane when `scope` is lane, else an open question on the lane. */
 type ReviewCall = { task?: string; scope?: "lane"; focus: string; title?: string; role?: string };
 
-type Change = { where: string; spec: string };
+type Change = { where: string; spec: string; sha?: string | undefined };
 type Copy = { id?: string; path: string; workspaceId?: string };
 
-/** The latest review of the whole lane before this one: what it found, and the change since it began. */
+/** The latest review of the same change before this one: what it found, and the change since it began. */
 type Before = { id: string; file: string; range: string };
 
 /** What a review is set up with before it is recorded: where it reads, what it reads, what it is asked, and by which role. */
@@ -37,6 +38,7 @@ type Planned = {
   copy: Copy;
   role: RoleSpec;
   asked: string[];
+  history?: string | undefined;
   place: { where: string; range?: string; handedBack?: string; lane?: string; before?: Before; backlog?: string[] };
 };
 
@@ -65,7 +67,7 @@ async function plan(desk: DeskServices, caller: Caller, args: ReviewCall): Promi
   if (named && (!target || target.lane !== lane.id || target.kind !== "code"))
     return `${named} is not a code task in your lane.`;
   const { laneCopy, own } = copiesFor(ledger, lane, lane.worktree, target);
-  const change = target ? await rangeOf(project, target, lane, Boolean(own)) : undefined;
+  const change = target ? await rangeOf(project, target, lane, own) : undefined;
   if (target && !change)
     return `${target.id} worked in a copy that has been given back, and neither a merge nor a branch is left to read it from. Ask for a review of the lane instead.`;
   const copy = own ?? laneCopy;
@@ -75,15 +77,26 @@ async function plan(desk: DeskServices, caller: Caller, args: ReviewCall): Promi
   const role = roleThatCan(desk.kit, "review", lens || undefined);
   if (!role) return namedOrNot(desk.kit, "review", lens, "review, so there is nobody to ask a read-only question of");
   const asked = await askedOf(desk, project, lane, copy.path, change);
-  const place = change
-    ? {
-        where: change.where,
-        range: `git diff ${change.spec}`,
-        ...(target?.handback ? { handedBack: handbackText(target.handback.file) } : {}),
-      }
-    : { where: await laneView(ledger, lane, copy.path), ...(whole ? await wholeRange(project, lane, ledger) : {}) };
-  const tip = whole ? await headSha(project.root, lane.branch) : undefined;
-  return { lane, target, whole, tip, copy, role, asked, place };
+  const same: Same = { id: "", lane: lane.id, ...(whole ? { scope: "lane" as const } : {}), of: target?.id };
+  const tip = whole ? await headSha(project.root, lane.branch) : change?.sha;
+  const place =
+    target && change
+      ? {
+          where: change.where,
+          range: `git diff ${change.spec}`,
+          ...(target.handback ? { handedBack: handbackText(target.handback.file) } : {}),
+          ...(tip && target.status !== "merged" ? beforeOf(ledger, same, tip) : {}),
+        }
+      : { where: await laneView(ledger, lane, copy.path), ...(whole ? await wholeRange(project, lane, ledger) : {}) };
+  return { lane, target, whole, tip, copy, role, asked, history: roundsLine(ledger, same), place };
+}
+
+/** The latest earlier review of the same change that kept where it began: its findings, and what changed since, up to `to`. */
+function beforeOf(ledger: Ledger, same: Same, to: string): { before?: Before } {
+  const last = earlierReviews(ledger, same)
+    .filter((review) => review.startSha)
+    .at(-1);
+  return last ? { before: { id: last.id, file: last.handback.file, range: `git diff ${last.startSha!}..${to}` } } : {};
 }
 
 /** A review is a task of the lane that holds nothing, recorded running and claimed; the lane is read again, as it may have closed or been held meanwhile. */
@@ -155,9 +168,9 @@ async function seat(
       current.agents[reviewer] = { id: reviewer, role: role.role, lane: lane.id, task: review.id };
     });
     recordEvent(project, { kind: "review.started", task: review.id, of: target?.id ?? null, reviewer });
-    return ok(
-      `Started ${review.id}${target ? ` on ${target.id}` : planned.whole ? " on the whole lane" : ""} with reviewer ${reviewer}. The verdict arrives as mail.`,
-    );
+    const on = target ? ` on ${target.id}` : planned.whole ? " on the whole lane" : "";
+    const history = planned.history ? ` ${planned.history}` : "";
+    return ok(`Started ${review.id}${on} with reviewer ${reviewer}.${history} The verdict arrives as mail.`);
   } catch (error) {
     ledgers.moveTask(project, review.id, "cut");
     return no(`The reviewer could not start: ${errorText(error)}`);
@@ -170,18 +183,25 @@ async function seat(
  * Where the change to review is read from: the copy its branch is checked out in until it merges, up to its last hand-back,
  * and the merge after that. Read from where its branch meets the lane's, what came in with the lane is not the task's.
  */
-async function rangeOf(project: Project, target: Task, lane: Lane, inOwnCopy: boolean): Promise<Change | undefined> {
+async function rangeOf(project: Project, target: Task, lane: Lane, own: Copy | undefined): Promise<Change | undefined> {
   const tip = target.status === "running" || target.status === "rework" ? "HEAD" : (target.handback?.commit ?? "HEAD");
-  if (inOwnCopy) return { where: "Your working copy holds the change", spec: `${lane.branch}...${tip}` };
+  if (own)
+    return {
+      where: "Your working copy holds the change",
+      spec: `${lane.branch}...${tip}`,
+      sha: await headSha(own.path, tip),
+    };
   if (target.mergeSha)
     return {
       where: `The change is in ${lane.branch}, as the merge ${target.mergeSha.slice(0, 7)}`,
       spec: `${target.mergeSha}^1..${target.mergeSha}`,
+      sha: target.mergeSha,
     };
   if (target.branch && (await branchExists(project.root, target.branch)))
     return {
       where: `The change is on ${target.branch}, not in your working copy`,
       spec: `${lane.branch}...${target.branch}`,
+      sha: await headSha(project.root, target.branch),
     };
   return undefined;
 }
@@ -193,19 +213,10 @@ async function wholeRange(
   ledger: Ledger,
 ): Promise<{ lane: string; range?: string; before?: Before; backlog: string[] }> {
   const { from } = await changeOf(project, lane);
-  const last = tasksOf(ledger, lane.id)
-    .filter((task) => task.kind === "review" && task.scope === "lane" && task.handback && task.startSha)
-    .sort((a, b) => a.handback!.at - b.handback!.at)
-    .at(-1);
-  const before = last && {
-    id: last.id,
-    file: last.handback!.file,
-    range: `git diff ${last.startSha!}..${lane.branch}`,
-  };
   return {
     lane: lane.title,
     ...(from ? { range: `git diff ${from}..${lane.branch}` } : {}),
-    ...(before ? { before } : {}),
+    ...beforeOf(ledger, { id: "", lane: lane.id, scope: "lane" }, lane.branch),
     backlog: backlogOf(ledger, lane.id).map(({ review, finding }) => backlogLine(review, finding)),
   };
 }

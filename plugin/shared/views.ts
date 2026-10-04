@@ -67,6 +67,7 @@ const Attention = z.object({
   testPath: z.string(),
   repeatsAt: z.number(),
   reworksAt: z.number(),
+  reviewRoundsAt: z.number(),
   suppressed: z.string(),
   incidentsPerLane: z.number(),
   questionsPerDay: z.number(),

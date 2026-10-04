@@ -1,0 +1,6 @@
+{
+  "rules": "Answer in English.",
+  "attention": {
+    "reviewRoundsAt": 1
+  }
+}

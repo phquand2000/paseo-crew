@@ -25,7 +25,8 @@ function dropAttention(file: string): void {
 // State 1 is the format 3.0.0 locked. State 2 lets a lane cite the Human for its lines, state 3 a task name the kept
 // Peer it starts on, state 4 a task ask for its Peer's plan first, state 5 drops tuning no fact reads, state 6
 // keeps a review's findings on its hand-back, state 7 lets the Human set where seats' temp directories go, state 8
-// keeps the leases seats hold on what they share, and state 9 lets the project set its disk's floors.
+// keeps the leases seats hold on what they share, state 9 lets the project set its disk's floors, and state 10 how many
+// review rounds ending in changes stop them.
 const STEPS: StateStep[] = [
   { to: 2 },
   { to: 3 },
@@ -39,6 +40,7 @@ const STEPS: StateStep[] = [
   { to: 7 },
   { to: 8 },
   { to: 9 },
+  { to: 10 },
 ];
 
 const MACHINE_FILES = ["state.json", "settings.json", "outbox.json", "content.json", "intents.json", "keys.json"];

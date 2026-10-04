@@ -14,10 +14,10 @@ import type { Lane } from "../../domain/lane.ts";
 import { type Ledger, taskOfPeer } from "../../domain/ledger.ts";
 import type { ReviewFinding, Task } from "../../domain/task.ts";
 import { loadLedger } from "../store/ledger.ts";
-import { workLetters } from "../letters/work-letters.ts";
+import { type Rounds, workLetters } from "../letters/work-letters.ts";
 import { type Project, gitTimeout, serialIn } from "../project/project.ts";
 import { changeFrom } from "./change-from.ts";
-import { type Verdict, reviewBody, roundsOf, verdictRefusal } from "./review-handback.ts";
+import { type Verdict, reviewBody, roundsLine, roundsOf, verdictRefusal } from "./review-handback.ts";
 import { reachNotes } from "./reach.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
@@ -83,10 +83,16 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
         : `${task.id} is already ${already}; there is nothing to hand back.`,
     );
   }
-  const rounds = roundsOf(ledger, task, written.outcome);
+  const rounds = task.kind === "review" ? roundsAt(desk, project, ledger, task, written.outcome) : undefined;
   await tell(desk, caller, task, lane, { ...written, summary, commit: work.commit, lines: work.lines, rounds });
   const reminder = task.kind === "review" ? "" : await reminderOf(task, work.uncommitted);
   return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
+}
+
+/** A review's place in the rounds on its change, against the count the project's settings stop them at. */
+function roundsAt(desk: DeskServices, project: Project, ledger: Ledger, task: Task, outcome: string): Rounds {
+  const { reviewRoundsAt } = desk.teamFor(project).attention;
+  return { count: roundsOf(ledger, task, outcome), at: reviewRoundsAt, history: roundsLine(ledger, task) };
 }
 
 /** Why this hand-back is refused before anything is read: a settled task, or a review's verdict the desk cannot carry. */
@@ -221,7 +227,7 @@ async function tell(
   caller: Caller,
   task: Task,
   lane: Lane | undefined,
-  handed: Written & { summary: string; commit?: string; lines?: Lines | undefined; rounds: number },
+  handed: Written & { summary: string; commit?: string; lines?: Lines | undefined; rounds: Rounds | undefined },
 ): Promise<void> {
   const { kit, mail, roster } = desk;
   const heading =

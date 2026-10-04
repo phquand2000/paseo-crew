@@ -34,15 +34,35 @@ export function verdictRefusal(task: Task, args: Verdict): string | undefined {
 
 const named = (found: ReviewFinding): string => `${found.severity} ${found.where ?? found.failure}`;
 
+type Reviewed = Task & { handback: NonNullable<Task["handback"]> };
+
+/** What a review is of: the whole lane, a task, or neither for an open question; `id` is left out of what came before. */
+export type Same = Pick<Task, "id" | "lane" | "scope" | "of">;
+
+/** The reviews of the same change handed back before, oldest first: of the whole lane for a lane review, else of the same task. */
+export function earlierReviews(ledger: Ledger, review: Same): Reviewed[] {
+  if (review.scope !== "lane" && !review.of) return [];
+  const same = (entry: Task) => (review.scope === "lane" ? entry.scope === "lane" : entry.of === review.of);
+  return tasksOf(ledger, review.lane)
+    .filter(
+      (entry): entry is Reviewed =>
+        entry.id !== review.id && entry.kind === "review" && same(entry) && entry.handback !== undefined,
+    )
+    .sort((a, b) => a.handback.at - b.handback.at);
+}
+
 /** Reviews of the same change that ended in changes, this one included: by lane for the whole lane, by target for a task, so a new fix task does not reset it. */
 export function roundsOf(ledger: Ledger, task: Task, outcome: string): number {
   if (task.kind !== "review" || outcome !== "changes") return 0;
-  if (task.scope !== "lane" && !task.of) return 0;
-  const same = (entry: Task) => (task.scope === "lane" ? entry.scope === "lane" : entry.of === task.of);
-  const earlier = tasksOf(ledger, task.lane).filter(
-    (entry) => entry.id !== task.id && entry.kind === "review" && same(entry) && entry.handback?.outcome === "changes",
-  );
-  return earlier.length + 1;
+  return earlierReviews(ledger, task).filter((entry) => entry.handback.outcome === "changes").length + 1;
+}
+
+/** The earlier reviews of the same change and how each ended, so a round is seen as one; none before the first. */
+export function roundsLine(ledger: Ledger, review: Same): string | undefined {
+  const earlier = earlierReviews(ledger, review);
+  if (earlier.length === 0) return undefined;
+  const what = review.scope === "lane" ? "the whole lane" : review.of;
+  return `Reviews of ${what} before this one: ${earlier.map((entry) => `${entry.id} ${entry.handback.outcome}`).join(", ")}.`;
 }
 
 export function reviewBody(task: Task, args: Verdict): { outcome: string; body: string } {

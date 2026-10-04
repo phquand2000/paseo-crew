@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { harness } from "./harness.ts";
 
@@ -13,7 +15,7 @@ const traced = {
 const edge = { severity: "P2", where: "a.txt:2", failure: "negative totals round away", fix: "clamp" };
 const minor = { severity: "P3", failure: "the name says cents", fix: "rename" };
 
-test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and P3 as the lane's backlog, and stops its rounds at the second", async () => {
+test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and P3 as the lane's backlog, and stops its rounds where the project says", async () => {
   const h = harness();
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", ...scope });
@@ -25,7 +27,8 @@ test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and
   await h.call(peer, "peer", "done", { outcome: "complete", summary: "rounded" });
   await h.idle(peer);
   const review = async (on: Record<string, unknown>) => {
-    assert.equal((await h.call(lead, "lead", "start_review", { focus: "Is it right?", ...on })).ok, true);
+    const reply = await h.call(lead, "lead", "start_review", { focus: "Is it right?", ...on });
+    assert.equal(reply.ok, true);
     const started = Object.values(h.ledger().tasks)
       .filter((task) => task.kind === "review")
       .at(-1)!;
@@ -34,7 +37,7 @@ test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and
       await h.idle(started.peer!);
       return reply;
     };
-    return { id: started.id, done, brief: () => h.agents.get(started.peer!)!.prompt ?? "" };
+    return { id: started.id, done, started: reply.text, brief: () => h.agents.get(started.peer!)!.prompt ?? "" };
   };
   const next = () => /\nNext: (.*)$/.exec(h.heard(lead).at(-1)!)![1]!;
 
@@ -54,11 +57,22 @@ test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and
 
   const question = await review({});
   assert.equal((await question.done("changes", [])).ok, true, "a question is answered as its reviewer sees fit");
+  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ attention: { reviewRoundsAt: 1 } }));
   const second = await review({ task: "L1-T1" });
+  assert.match(second.started, / Reviews of L1-T1 before this one: L1-R1 accept\. The verdict/);
   assert.equal((await second.done("changes", [traced])).ok, true);
-  assert.match(next(), /^Weigh its findings, then cut it/);
+  assert.match(next(), /^Reviews of L1-T1 ended in changes once: stop the rounds\./, "the project stops at one");
   const third = await review({ task: "L1-T1" });
+  const tip = h.ledger().tasks[second.id]!.startSha!;
+  assert.match(
+    third.brief(),
+    new RegExp(
+      `L1-T1 was reviewed before, last by L1-R3, [^]*the change since L1-R3 began: git diff ${tip}\\.\\.${tip}\\.`,
+    ),
+    "a repeat review of a task reads only what changed since",
+  );
   assert.equal((await third.done("changes", [traced])).ok, true);
+  assert.match(h.heard(lead).at(-1)!, /\nReviews of L1-T1 before this one: L1-R1 accept, L1-R3 changes\.\n/);
   assert.match(next(), /^Reviews of L1-T1 ended in changes 2 times: stop the rounds\./);
 
   assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);

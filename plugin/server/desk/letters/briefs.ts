@@ -123,6 +123,15 @@ export function reseatBrief(task: Task, lane: Lane, beside: Task[], why: string,
 
 type Before = { id: string; file: string; range: string };
 
+/** A repeat review reads only the earlier one's findings and the change since; `what` was reviewed, `whole` is the change in full. */
+const beforeLines = (what: string, whole: string, before: Before | undefined): string[] =>
+  before
+    ? [
+        "",
+        `${what} was reviewed before, last by ${before.id}, whose findings are in ${before.file}. Review only two things: whether each of those findings is settled, and the change since ${before.id} began: ${before.range}. ${whole} is context for those, and the open question below is answered within them. A new finding outside the change since is P2 unless it is P0.`,
+      ]
+    : [];
+
 /** One backlog finding as a line: the review it came from, its severity, and where or what. */
 export const backlogLine = (review: string, finding: ReviewFinding): string =>
   `${review} ${finding.severity} ${finding.where ? `${finding.where}: ` : ""}${finding.failure}`;
@@ -137,12 +146,7 @@ function laneLines(
     `REVIEW ${review.id} of lane ${review.lane}: ${place.lane ?? review.title}`,
     "",
     `${place.where}${place.range ? ` See the lane's change with ${place.range}.` : ""}`,
-    ...(before
-      ? [
-          "",
-          `The whole lane was reviewed before, last by ${before.id}, whose findings are in ${before.file}. Review only two things: whether each of those findings is settled, and the change since ${before.id} began: ${before.range}. The lane's whole change is context for those, and the open question below is answered within them. A new finding outside the change since is P2 unless it is P0.`,
-        ]
-      : []),
+    ...beforeLines("The whole lane", "The lane's whole change", before),
     ...(backlog.length > 0
       ? ["", "Already in the lane's backlog from its reviews, so not to report again:", list(backlog)]
       : []),
@@ -171,6 +175,7 @@ export function reviewBrief(
         `REVIEW ${review.id} of ${target.id}: ${target.title}`,
         "",
         `${place.where}; see it with ${place.range ?? ""}.`,
+        ...beforeLines(target.id, "Its whole change", place.before),
         ...(place.handedBack ? ["", "What was handed back for it, to hold against the change:", place.handedBack] : []),
         ...(target.handback
           ? [`What was handed back for it, to hold against the change: ${target.handback.file}`]

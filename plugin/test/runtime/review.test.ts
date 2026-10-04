@@ -257,10 +257,15 @@ test("only the lane's own review is the review of the whole lane, read against i
   const found = `L1-R2, whose findings are in \\S*L1-R2-\\d+\\.md\\. Review only two things: whether each`;
   assert.match(again.brief, new RegExp(`${found}[^]*${since("L1-R2", atOwn)}`), "a repeat reads only what changed");
   assert.match(again.next, /^Weigh its findings, then cut it/, "one round of changes is ordinary");
+  assert.match(again.started, / Reviews of the whole lane before this one: L1-R2 accept\. /);
   await merge("three", "three.js");
   const third = await review({ scope: "lane" }, "changes");
   assert.match(third.brief, new RegExp(since("L1-R3", atAgain)));
-  assert.match(third.next, /^Whole-lane reviews ended in changes 2 times: stop\./, "a fix task does not reset it");
+  assert.match(
+    third.next,
+    /^Whole-lane reviews ended in changes 2 times: stop the rounds\. [^]*read the delta after the fixes yourself, then report; another whole-lane review waits for the Human\./,
+    "a fix task does not reset it",
+  );
 });
 
 test("a review's changes stand until a hand-back after them or a review accepting the task answers them, and only then does the report stop asking", async () => {

@@ -7,6 +7,7 @@ export const ATTENTION: Omit<Attention, "irreversible" | "testPath" | "suppresse
   watch: false,
   repeatsAt: 3,
   reworksAt: 3,
+  reviewRoundsAt: 2,
   incidentsPerLane: 2,
   questionsPerDay: 3,
   judge: "off",
