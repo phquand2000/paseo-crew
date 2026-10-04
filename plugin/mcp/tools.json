@@ -1160,7 +1160,7 @@
     {
       "name": "amend_task",
       "title": "Amend a task",
-      "description": "Change what a task asks while its Peer works on it. Give only the fields that change; the old values are kept with why, and the Peer reads the change at its next turn. A waiting task can change what it waits for. A task whose contract changed is better cut and started again.",
+      "description": "Change what a task asks while its Peer works on it. Give only the fields that change; old values are kept with why, and the Peer reads the change at its next turn. A waiting task can also change what it waits for, where it runs and its role. A task whose contract changed is better cut and started again.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1220,6 +1220,14 @@
               "type": "string"
             },
             "description": "Every task it waits for now: one waiting starts once they merge; one at work waits unnudged, told when they land. [] ends the wait."
+          },
+          "parallel": {
+            "type": "boolean",
+            "description": "Only before it starts: true runs it beside others in its own copy, holding its holds; false moves it into the lane's copy."
+          },
+          "role": {
+            "type": "string",
+            "description": "Only before it starts: the writing role that takes it now; it lets go of a kept Peer it named."
           }
         },
         "required": [

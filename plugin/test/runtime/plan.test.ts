@@ -258,3 +258,42 @@ test("a call is carried out only for the role that holds its tool, in the shape 
   const unguessed = await h.call(peer, "peer", "ask", { question: "Which one?" });
   assert.equal(unguessed.ok, true, `a best guess is asked for, never required: ${unguessed.text}`);
 });
+
+test("a Lead moves a task not yet started beside others or into the lane's copy, and changes who takes it, without cutting it", async () => {
+  const { h, lane: opened } = await laneWithPeer();
+  const lead = opened.lead!;
+  const amend = (task: string, extra: Record<string, unknown>) =>
+    h.call(lead, "lead", "amend_task", { task, why: "the layout changed", ...extra });
+  await h.call(lead, "lead", "add_tasks", {
+    tasks: [task("tax", ["c.txt"]), task("sum", ["b.txt"]), task("w", ["w.txt"], { parallel: true, after: ["L1-T1"] })],
+  });
+  assert.equal(h.ledger().tasks["L1-T2"]!.status, "waiting", "L1-T1 writes in the lane's copy");
+
+  assert.match((await amend("L1-T2", { parallel: true })).text, /give L1-T2 its holds with parallel/);
+  assert.equal((await amend("L1-T2", { parallel: true, holds: ["c.txt"] })).ok, true);
+  const beside = h.ledger().tasks["L1-T2"]!;
+  assert.deepEqual(
+    [beside.status, beside.mode, beside.holds, beside.amended?.at(-1)?.was],
+    ["running", "parallel", ["c.txt"], { mode: "lane", holds: [] }],
+    "beside the task in the lane's copy, it starts at once",
+  );
+  assert.notEqual(beside.worktree, opened.worktree);
+  assert.match(
+    (await amend("L1-T2", { parallel: false })).text,
+    /L1-T2 is running: parallel and role change only a task not yet started; cut it and add it again\./,
+  );
+
+  assert.equal((await amend("L1-T4", { parallel: false })).ok, true);
+  const into = h.ledger().tasks["L1-T4"]!;
+  assert.deepEqual(
+    [into.mode, into.holds, into.hints, into.worktree],
+    ["lane", [], ["w.txt"], opened.worktree],
+    "what it held becomes a hint for the copy's one writer",
+  );
+
+  assert.equal((await amend("L1-T3", { role: "backup-peer" })).ok, true);
+  const other = h.ledger().tasks["L1-T3"]!;
+  assert.deepEqual([other.opening?.role, other.amended?.at(-1)?.was], ["backup-peer", { role: "peer" }]);
+  assert.match((await amend("L1-T3", { role: "reviewer" })).text, /reviewer/);
+  assert.equal(h.ledger().tasks["L1-T3"]!.opening?.role, "backup-peer", "a role that cannot write is refused");
+});

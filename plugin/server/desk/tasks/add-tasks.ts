@@ -64,7 +64,7 @@ function rolesFor(kit: Kit, team: Team, asked: AskedTask[]): Map<string, string>
 }
 
 /** The role that takes a task, or why none can: a skill it lacks is refused here, since the Lead's context does not list them. */
-function workRoleFor(kit: Kit, team: Team, args: Args): RoleSpec | string {
+export function workRoleFor(kit: Kit, team: Team, args: Args): RoleSpec | string {
   // Writing, not `work`: a reviewing role holds `work` too, and would be offered as a Peer that cannot write.
   const asked = str(args.role);
   const workRole = roleThatCan(kit, "write", asked || undefined);

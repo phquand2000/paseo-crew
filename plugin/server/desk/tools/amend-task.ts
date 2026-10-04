@@ -15,6 +15,8 @@ export const amendTask = defineTool({
     hints: z.array(z.string()).optional(),
     holds: z.array(z.string()).optional(),
     after: z.array(z.string()).optional(),
+    parallel: z.boolean().optional(),
+    role: z.string().optional(),
   }),
   handle: (desk, caller, args) => amend(desk, caller, args),
 });

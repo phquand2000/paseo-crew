@@ -42,6 +42,8 @@ test("a kept Peer given a task mid-turn takes it when that turn ends, and the wa
   const held = h.ledger().tasks["L1-T2"]!;
   assert.deepEqual([held.status, held.peer, held.held?.tried], ["waiting", undefined, undefined]);
   assert.match(held.held!.why, /The Peer kept from L1-T1 is in a turn; L1-T2 starts on it once that turn ends\./);
+  const moved = await h.call(lead, "lead", "amend_task", { task: "L1-T2", why: "x", parallel: true, holds: ["b.txt"] });
+  assert.match(moved.text, /L1-T2 starts on the Peer kept from L1-T1, which works in the lane's copy; name a role/);
 
   h.agents.get(peer)!.status = "idle";
   await h.endTurn(peer, "noted");
