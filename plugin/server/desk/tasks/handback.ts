@@ -165,7 +165,7 @@ async function write(
 
 function taskBody(
   args: HandingBack,
-  { commit, uncommitted, synced, changed, notes }: Work,
+  { commit, uncommitted, synced, changed, lines: counted, notes }: Work,
 ): { outcome: string; body: string } {
   const outcome = args.outcome?.trim() ?? "";
   const lines = [
@@ -179,6 +179,7 @@ function taskBody(
     `Left undone: ${args.leftUndone?.trim() || "nothing"}`,
     `Discovered: ${args.discovered?.trim() || "nothing"}`,
     ...(changed ? [`Changed: ${changed.length > 0 ? capped(changed, SHOWN_CHANGED) : "no files"}`] : []),
+    ...(counted ? [`Lines changed: source ${counted.src}, tests ${counted.test}.`] : []),
     ...notes.map((note) => `Note: ${note}.`),
   ];
   return { outcome, body: lines.join("\n") };

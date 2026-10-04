@@ -149,7 +149,8 @@ test("a Peer writing past where it was pointed is noted, not stopped: at hand-ba
   await h.idle(lead);
   assert.match(
     h.agents.get(lead)!.sent.join("\n"),
-    /Discovered: nothing\nChanged: a\.txt, src\/caller\.test\.ts, src\/caller\.ts\n/,
+    /Discovered: nothing\nChanged: a\.txt, src\/caller\.test\.ts, src\/caller\.ts\nLines changed: source 1, tests 1\.\n/,
+    "its Lead weighs how much of the change is tests as it judges it",
   );
   assert.deepEqual(
     h.events("task.done").map((event) => [event.task, event.lines]),
