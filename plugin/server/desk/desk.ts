@@ -216,8 +216,9 @@ export class Desk {
     }
   }
 
-  /** The first round after a start: the merges held when the plugin stopped go through, and held tasks are tried once more. */
+  /** The first round after a start: copies moved behind a link go on record where they are, held merges go through, and held tasks are tried once more. */
   async resumeWork(project: Project): Promise<void> {
+    await this.services.slots.rehome(project);
     await this.services.merges.resume(project);
     await startWaiting(this.services, project, true);
   }

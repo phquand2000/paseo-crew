@@ -63,9 +63,12 @@ async function sweepWorkspaces(
       if (lane.status === "open" && lane.workspaceId) held.add(lane.workspaceId);
     return held;
   };
+  // Archiving a workspace archives every agent in it: one left at a copy's path from before a move still seats a Lead.
+  const copies = (ledger: Ledger) => new Set(Object.values(ledger.slots).map((slot) => slot.path));
   for (const workspace of await workspaces.owned(project.slug)) {
     if (busy && workspace.name === project.slug) continue;
-    if (heldIds(ledgers.read(project)).has(workspace.id)) continue;
+    const ledger = ledgers.read(project);
+    if (heldIds(ledger).has(workspace.id) || copies(ledger).has(realPath(workspace.directory))) continue;
     try {
       await workspaces.archive(workspace.id);
       recordEvent(project, { kind: "workspace.swept", workspace: workspace.id, name: workspace.name });

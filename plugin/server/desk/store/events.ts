@@ -102,6 +102,7 @@ export type DeskEvent =
   | { kind: "slot.taken"; slot: string; branch: string; lane?: string; task?: string }
   | { kind: "slot.heldOpen"; slot: string; writers: string[] }
   | { kind: "slot.released"; slot: string; removed: boolean; kept: string | undefined }
+  | { kind: "slot.rehomed"; slot: string; path: string; workspace: string | undefined }
   | { kind: "workspace.swept"; workspace: string; name: string }
   | { kind: "worktree.swept"; path: string }
   | { kind: "cache.removed"; lane: string }

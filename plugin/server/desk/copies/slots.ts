@@ -17,6 +17,7 @@ import { realPath, worktreeRoot } from "../../core/paths.ts";
 import type { DeskBase } from "../base.ts";
 import { closeIndexes, openIndexes } from "./indexes.ts";
 import { placeLinks } from "./links.ts";
+import { rehomeCopies } from "./rehome.ts";
 import { sweepCopies } from "./sweep.ts";
 import { unsavedIn } from "./unsaved.ts";
 import { type Slot, nextSlotId } from "../../domain/ledger.ts";
@@ -183,6 +184,10 @@ export class Slots {
       if (entry) entry.workspaceId = workspaceId;
     });
     return workspaceId;
+  }
+
+  rehome(project: Project): Promise<void> {
+    return rehomeCopies(this.desk, this.workspaces, project, () => this.projectWorkspace(project));
   }
 
   /** What the desk opened and nothing holds any more. */

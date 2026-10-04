@@ -132,14 +132,22 @@ export function seatsOn(bound: Bound): Seats {
 }
 
 /** Every workspace the daemon lists that is not being archived, page by page: an unpaged read is capped by the daemon. */
-async function liveWorkspaces(bound: Bound): Promise<{ id: string; name: string; project: string }[]> {
+async function liveWorkspaces(
+  bound: Bound,
+): Promise<{ id: string; name: string; project: string; directory: string }[]> {
   const paseo = reach(bound);
-  const found: { id: string; name: string; project: string }[] = [];
+  const found: { id: string; name: string; project: string; directory: string }[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < 20; page++) {
     const result = await paseo.workspaces.list({ page: cursor ? { limit: 200, cursor } : { limit: 200 } });
     for (const entry of result.entries)
-      if (!entry.archivingAt) found.push({ id: entry.id, name: entry.name ?? "", project: entry.projectId });
+      if (!entry.archivingAt)
+        found.push({
+          id: entry.id,
+          name: entry.name ?? "",
+          project: entry.projectId,
+          directory: entry.workspaceDirectory,
+        });
     if (!result.pageInfo.hasMore || !result.pageInfo.nextCursor) break;
     cursor = result.pageInfo.nextCursor;
   }
@@ -152,10 +160,10 @@ export function workspacesOn(bound: Bound): Workspaces {
       const found = (await liveWorkspaces(bound)).find((entry) => entry.name === name);
       return found && { id: found.id, project: found.project };
     },
-    async owned(prefix: string): Promise<{ id: string; name: string }[]> {
+    async owned(prefix: string): Promise<{ id: string; name: string; directory: string }[]> {
       return (await liveWorkspaces(bound))
         .filter(({ name }) => name === prefix || name.startsWith(`${prefix} `))
-        .map(({ id, name }) => ({ id, name }));
+        .map(({ id, name, directory }) => ({ id, name, directory }));
     },
     async make(title: string, path: string, project?: string): Promise<Workspace> {
       const source = project

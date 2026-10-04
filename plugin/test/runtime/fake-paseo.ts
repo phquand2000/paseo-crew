@@ -193,6 +193,7 @@ export function fakePaseo() {
             id,
             projectId: workspaceProjects.get(id)!,
             name: workspaceNames.get(id) ?? "",
+            workspaceDirectory: workspaces.get(id)!,
             archivingAt: archivedWorkspaces.has(id) ? new Date().toISOString() : null,
           })),
           pageInfo: { nextCursor: null, prevCursor: null, hasMore: false },

@@ -57,3 +57,43 @@ test("one project's copies may be moved to another volume behind a link: new cop
     "a copy behind the project's link is still held",
   );
 });
+
+test("copies taken before their folder moved behind a link are recorded at its real path once the plugin starts again, and their seats are kept", async () => {
+  const h = harness();
+  const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
+  assert.equal(
+    (await h.call(sup, "supervisor", "open_lane", { title: "B", outcome: "x", ...scope, isolate: true })).ok,
+    true,
+  );
+  const lead = h.ledger().lanes.L1!.lead!;
+  const task = { key: "t", title: "T", goal: "g", acceptance: ["a"], hints: ["a.txt"], outOfScope: ["the rest"] };
+  assert.equal((await h.call(lead, "lead", "add_tasks", { tasks: [task] })).ok, true);
+  const peer = h.ledger().tasks["L1-T1"]!.peer!;
+  const before = h.ledger().lanes.L1!.worktree!;
+  const folder = dirname(before);
+  const volume = join(tempDir("crew-volume-"), basename(folder));
+  renameSync(folder, volume);
+  symlinkSync(volume, folder);
+  const moved = realpathSync(join(volume, basename(before)));
+
+  h.restart();
+  await h.tick();
+  const ledger = h.ledger();
+  const slot = ledger.slots[ledger.lanes.L1!.slot!]!;
+  assert.deepEqual(
+    [slot.path, ledger.lanes.L1!.worktree, ledger.tasks["L1-T1"]!.worktree],
+    [moved, moved, moved],
+    "every record of the copy names its real path",
+  );
+  assert.match(h.git(h.root, "worktree", "list", "--porcelain"), new RegExp(`^worktree ${moved}$`, "m"));
+  // Archiving a workspace archives every agent in it: the seats placed through the link stay until they go.
+  assert.deepEqual(
+    [lead, peer].map((id) => h.agents.get(id)!.archivedAt),
+    [null, null],
+  );
+  const reseated = await h.call(lead, "lead", "reseat", { task: "L1-T1", why: "Codex refuses a root through a link." });
+  assert.equal(reseated.ok, true, reseated.text);
+  assert.equal(h.agents.get(h.ledger().tasks["L1-T1"]!.peer!)!.cwd, moved);
+  await h.tick();
+  assert.equal(h.agents.get(lead)!.archivedAt, null, "the Lead seated through the link is kept");
+});
