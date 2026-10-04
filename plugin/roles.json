@@ -211,8 +211,7 @@
       "description": "Carries a page to the Human: says back the lines the desk gives it, and Paseo pushes them to their phone",
       "defaults": {
         "harness": "claude",
-        "model": "claude-opus-5-5",
-        "thinking": "low"
+        "model": "claude-haiku-4-5"
       },
       "can": [
         "page"
