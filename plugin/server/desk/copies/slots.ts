@@ -129,7 +129,9 @@ export class Slots {
         return { ...free };
       }
       const id = nextSlotId(ledger);
-      const slot: Slot = { id, path: join(worktreeRoot(), project.slug, id), createdAt: Date.now(), ...holder };
+      // The project's folder may be a link to another volume, and Codex's sandbox refuses a writable root through one.
+      const path = join(realPath(join(worktreeRoot(), project.slug)), id);
+      const slot: Slot = { id, path, createdAt: Date.now(), ...holder };
       ledger.slots[id] = slot;
       return { ...slot };
     });

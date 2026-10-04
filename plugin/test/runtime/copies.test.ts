@@ -32,7 +32,7 @@ test("the copies' folder may be moved to another volume behind a link: new copie
   );
 });
 
-test("one project's copies may be moved to another volume behind a link: no held copy is swept", async () => {
+test("one project's copies may be moved to another volume behind a link: new copies and their seats sit at its real path, and no held copy is swept", async () => {
   const h = harness();
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   const open = async (title: string, lane: string) => {
@@ -47,6 +47,9 @@ test("one project's copies may be moved to another volume behind a link: no held
   symlinkSync(volume, folder);
 
   const after = await open("After", "L2");
+  // Codex's sandbox refuses a writable root with a link anywhere in its path.
+  assert.equal(realpathSync(after), after, `${after} runs through a link`);
+  assert.equal(h.agents.get(h.ledger().lanes.L2!.lead!)!.cwd, after);
   await h.tick();
   assert.deepEqual(
     [join(volume, basename(before)), after].map((path) => existsSync(join(path, ".git"))),
