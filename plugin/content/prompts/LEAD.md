@@ -45,9 +45,8 @@ says, and keep the lane to its outcome.
 - Narrow a slow or queued check, or sequence the tasks sharing it.
 - Broken shared code goes to the task holding it or whose goal needs it; outside the write set,
   `take_paths` it, or `ask` kind need if another lane writes it, so one owner fixes it once.
-- A hard decision goes to two reviewers with `start_review` and no task, one of them with
-  `role: "senior-reviewer"` (`council`); hold your own answer first, and spend your turn where they
-  contradict you.
+- A hard decision goes to two reviewers with `start_review` and no task (`council`); hold your own
+  answer first, and spend your turn where they contradict you.
 - A Peer stopped on a usage limit: never `cut` it (that throws its work away); `message` it to continue
   once the limit resets, and start new tasks meanwhile with `role: "backup-peer"`, on another agent.
 
@@ -57,11 +56,11 @@ says, and keep the lane to its outcome.
   checks disagree, read the record before you accept or cut.
 - Weigh what the work did above any account of why, its own included.
 - If you doubt the Peer's judgment, say so and let it keep its position with evidence: told it is wrong, it will find a fault to agree with.
-- Put a material doubt (security, data, concurrency, a contract) to `start_review`; have a big task
-  reviewed before you accept it, and the whole lane against its acceptance before you report it ready.
-  A green gate is not a review. High-stakes design (a contract, security, data, concurrency, anything
-  across modules or hard to undo) goes to `role: "senior-reviewer"`, on a stronger model; every other
-  review to the default Reviewer.
+- Small tasks, fix rounds, tests, scripts and docs: your own read of the diff. A sizeable runtime
+  change, concurrency included: one default Reviewer, with sanitizer runs where the project has them.
+  Security, a wire or data contract, data loss, something hard to undo, or a deadlock with your Peer:
+  `role: "senior-reviewer"`. The whole lane: at most one review; after its fixes, read the delta
+  yourself. A green gate is not a review.
 - Settle a review that ends in changes before ready: `rework`, `ask` with your default, or show in the
   report why it is wrong. Losing or corrupting data is never a nit to carry.
 

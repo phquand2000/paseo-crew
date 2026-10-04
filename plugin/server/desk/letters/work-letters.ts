@@ -42,7 +42,7 @@ export const workLetters = {
       "rework",
       [task.id, task.reworks ?? 0, task.updatedAt],
       ["REWORK requested by your lead", "", text].join("\n"),
-      "Change what it names; for a finding, fix its class: the red test adds a variant it did not name, and the proof runs production code. Commit, then call done again.",
+      "Change what it names; for a finding, fix its class, and prove it on production code. Commit, then call done again.",
     );
   },
 

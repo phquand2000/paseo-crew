@@ -194,7 +194,7 @@ a rehearsal of each risk rule the lane's change reaches. Any red is a red gate, 
 uncommitted or untracked, without a run: on a lane carried on the Human's branch, their own work in progress. The lane
 stands reported ready all the same, and landing over the gate is the Supervisor's call. An open `costly` question about
 the lane puts it on hold. The report says whether landing will wait for the Human, what the desk read of the change,
-and what the reviews leave standing: no review of the whole lane, or none since its last merge; a latest review that did not accept; a task accepted
+and what the reviews leave standing: no review of the whole lane; a latest review that did not accept; a task accepted
 over its own review's changes, or handed back again after them and accepted with no review since. Its `Next:` asks, the
 first that applies: tell the Human the lane waits on a question; land over the red gate or not; check with the Lead
 before landing, where review changes stand that nothing on record answers; land.

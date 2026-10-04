@@ -279,10 +279,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   const settledLane = mergeLetters.merged(task, changed, [], "passed", true);
   assert.deepEqual(
     [settledLane.wakes, next(settledLane)],
-    [
-      undefined,
-      "Every task of the lane is settled: if its outcome is complete, start the review of the whole lane (start_review with scope lane), then report it ready.",
-    ],
+    [undefined, "Every task of the lane is settled: if its outcome is complete, report it ready."],
   );
   const noted = mergeLetters.merged(task, changed, ["src/other.js"], "passed", false);
   assert.deepEqual([noted.wakes, next(noted)], [undefined, "Act on a note only if it matters to the lane."]);

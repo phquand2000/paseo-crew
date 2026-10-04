@@ -74,10 +74,10 @@ const KEEP: Keep[] = [
   },
   {
     id: "keep-03d",
-    title: "a test never shown to fail is a finding (Reviewer)",
+    title: "a test never shown to fail is a P2 finding, never a block (Reviewer)",
     file: "content/prompts/REVIEWER.md",
     check: "contains",
-    anchor: "Also report a new or changed test never shown to fail",
+    anchor: "A test that only mirrors the code, or was never shown to fail, is a P2.",
   },
   {
     id: "keep-04",

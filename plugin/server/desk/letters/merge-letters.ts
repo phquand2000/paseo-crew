@@ -17,14 +17,9 @@ export const mergeLetters = {
     ];
     const notes: string[] = [];
     if (counts && counts.src === 0 && counts.test + counts.docs > 0) notes.push("Note: no source lines changed.");
-    if (counts && counts.src > 0 && counts.test > counts.src * 1.5)
-      notes.push(`Note: test lines are ${(counts.test / counts.src).toFixed(1)} times source lines.`);
     for (const note of reach) notes.push(`Note: ${note}.`);
     const letter = (next: string) => mail("merge", [task.id, Date.now()], [...lines, ...notes].join("\n"), next);
-    if (last)
-      return letter(
-        "Every task of the lane is settled: if its outcome is complete, start the review of the whole lane (start_review with scope lane), then report it ready.",
-      );
+    if (last) return letter("Every task of the lane is settled: if its outcome is complete, report it ready.");
     return notes.length > 0
       ? letter("Act on a note only if it matters to the lane.")
       : fyi(letter("Nothing now: the next hand-back arrives as mail."));

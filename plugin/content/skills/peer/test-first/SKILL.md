@@ -39,7 +39,7 @@ No behavior changes without evidence you produced first, and no test pins what a
 
 For each behavior:
 
-1. Write one test through the seam's public interface. Take the expected value from a literal, a worked example or the spec, never from the code under test; if hard-coding that value would pass, add a second example with different values.
+1. Write one test through the seam's public interface. Take the expected value from a literal, a worked example or the spec, never from the code under test.
 2. Run it and see it fail on an assertion that the behavior is missing. A pass means it can't fail; an import or fixture error is not the right red.
 3. Write the least production code that implements the rule: no branch no test asked for, no special case for the test's inputs.
 4. Tidy without adding behavior and rerun. Commit as you go; the work only has to pass when the whole task is done.
@@ -50,4 +50,4 @@ When the brief changes or removes a contract (a signature, route, schema, field 
 
 ## 4. Before done
 
-Check every test you wrote against [references/test-antipatterns.md](references/test-antipatterns.md) row by row; from memory, the costly rows get skipped. Then ask: would a wrong constant, a swapped branch, a missing side effect or a hard-coded return fail some test? Add the test when the behavior is in acceptance or risky, else put the gap in `done`'s `leftUndone`, with the proof you chose in its `checks`.
+Hold the tests you wrote against [references/test-antipatterns.md](references/test-antipatterns.md). Tests prove acceptance and the risky parts; any other gap goes in `done`'s `leftUndone`, with the proof you chose in its `checks`.

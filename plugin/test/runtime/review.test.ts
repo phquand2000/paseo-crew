@@ -244,11 +244,11 @@ test("only the lane's own review is the review of the whole lane, read against i
     ),
   );
   assert.doesNotMatch(await ready(), /No review of the whole lane/);
-  const last = await merge("two", "two.js");
-  assert.match(
+  await merge("two", "two.js");
+  assert.doesNotMatch(
     await ready(),
-    new RegExp(`No review of the whole lane since its last merge, ${last}\\.`),
-    "a review of the lane before its last merge read a lane it no longer is",
+    /No review of the whole lane/,
+    "one review of the lane is enough; what merges after is the Lead's to read",
   );
 
   const atAgain = tip();

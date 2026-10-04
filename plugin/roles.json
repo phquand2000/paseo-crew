@@ -163,7 +163,6 @@
       "prompt": "prompts/REVIEWER.md",
       "skills": null,
       "extraSkills": [
-        "peer:test-proof-debt-audit",
         "peer:security-check"
       ],
       "paseoTools": {
@@ -183,7 +182,7 @@
       "defaults": {
         "harness": "codex",
         "model": "gpt-6-astra",
-        "thinking": "xhigh"
+        "thinking": "high"
       },
       "can": [
         "work",
@@ -194,7 +193,6 @@
       "prompt": "prompts/REVIEWER.md",
       "skills": null,
       "extraSkills": [
-        "peer:test-proof-debt-audit",
         "peer:security-check"
       ],
       "paseoTools": {
