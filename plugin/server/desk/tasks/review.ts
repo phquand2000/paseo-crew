@@ -1,5 +1,6 @@
 import type { RoleSpec } from "../../catalog/kit/kit.ts";
 import { namedOrNot, roleThatCan } from "../../catalog/kit/roles.ts";
+import { fileKinds } from "../../catalog/kit/patterns.ts";
 import { errorText } from "../../core/errors.ts";
 import { branchExists, currentBranch, headSha } from "../../core/git.ts";
 import { changedFiles } from "../../core/git-diff.ts";
@@ -19,6 +20,7 @@ import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { handbackText } from "../store/records.ts";
 import { type Same, earlierReviews, roundsLine } from "./review-handback.ts";
+import { skipRefusal } from "./review-skips.ts";
 
 /** A start_review call as the tool takes it: one task, the whole lane when `scope` is lane, else an open question on the lane. */
 type ReviewCall = { task?: string; scope?: "lane"; focus: string; title?: string; role?: string };
@@ -76,7 +78,11 @@ async function plan(desk: DeskServices, caller: Caller, args: ReviewCall): Promi
   const lens = str(args.role);
   const role = roleThatCan(desk.kit, "review", lens || undefined);
   if (!role) return namedOrNot(desk.kit, "review", lens, "review, so there is nobody to ask a read-only question of");
-  const asked = await askedOf(desk, project, lane, copy.path, change);
+  const files = change ? await changedFiles(copy.path, change.spec) : (await changeOf(project, lane)).files;
+  const skipped =
+    target && skipRefusal(desk.teamFor(project).roles[role.role], ledger, target, files, fileKinds(desk.kit));
+  if (skipped) return skipped;
+  const asked = askedOf(desk, project, files);
   const same: Same = { id: "", lane: lane.id, ...(whole ? { scope: "lane" as const } : {}), of: target?.id };
   const tip = whole ? await headSha(project.root, lane.branch) : change?.sha;
   const place =
@@ -231,15 +237,8 @@ async function laneView(ledger: Ledger, lane: Lane, copy: string): Promise<strin
 }
 
 /** The questions of every risk rule the reviewed change reaches; a change git cannot read is asked them all. */
-async function askedOf(
-  { kit }: Pick<DeskServices, "kit">,
-  project: Project,
-  lane: Lane,
-  copy: string,
-  change: Change | undefined,
-): Promise<string[]> {
+function askedOf({ kit }: Pick<DeskServices, "kit">, project: Project, files: string[] | undefined): string[] {
   const rules = riskRulesOf(project, kit);
-  const files = change ? await changedFiles(copy, change.spec) : (await changeOf(project, lane)).files;
   return [...new Set((files ? rulesFor(rules, files) : rules).map((rule) => rule.reviewQuestion))];
 }
 

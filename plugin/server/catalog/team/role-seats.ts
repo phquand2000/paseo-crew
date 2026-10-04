@@ -1,16 +1,17 @@
-import type { Layer } from "../../../shared/settings.ts";
+import type { Layer, RoleChoice } from "../../../shared/settings.ts";
 import { supportsRole } from "../kit/harness-files.ts";
 import type { HarnessSpec, Kit, ModelSpec, RoleSpec } from "../kit/kit.ts";
 import { type McpState, transportOf } from "./mcp-states.ts";
 import { agentDefault } from "../kit/roles.ts";
 
-/** What a role's seats run: a harness, model and thinking, the Human's rules for the role and its MCP servers. */
+/** What a role's seats run: a harness, model and thinking, the Human's rules for the role, what it skips and its MCP servers. */
 export type RoleSeat = {
   role: RoleSpec;
   harness: HarnessSpec;
   model?: ModelSpec;
   thinking?: string;
   rules: string;
+  skips: NonNullable<RoleChoice["skips"]>;
   mcp: string[];
 };
 
@@ -26,7 +27,7 @@ export function resolveRole(
   errors: string[],
   origin: Choice = role.defaults,
 ): RoleSeat | undefined {
-  const { choice, rules } = chosen(role, layers, origin);
+  const { choice, rules, skips } = chosen(role, layers, origin);
   checkTools(kit, role, errors);
   const harness = kit.harnesses[choice.harness];
   if (!harness) {
@@ -47,7 +48,7 @@ export function resolveRole(
   if (choice.thinking && options.length > 0 && !options.some((option) => option.id === choice.thinking))
     errors.push(`${model!.label} on ${harness.label} has no thinking option ${choice.thinking} for the ${role.label}`);
   const thinking = thinkingFor(harness, model, choice.thinking);
-  return { role, harness, model, thinking, rules, mcp: serversFor(role, harness, mcp, errors) };
+  return { role, harness, model, thinking, rules, skips, mcp: serversFor(role, harness, mcp, errors) };
 }
 
 /** What a role runs on a harness its seat is not on: its preset where the harness is its own, else that harness's default. */
@@ -83,9 +84,15 @@ function thinkingFor(
 }
 
 /** The harness, model and thinking the layers leave the role on, and the Human's rules for it. */
-function chosen(role: RoleSpec, layers: Layer[], origin: Choice): { choice: Choice; rules: string } {
+/** The project's list of what a role skips replaces the machine's, so a project can clear it with an empty one. */
+function chosen(
+  role: RoleSpec,
+  layers: Layer[],
+  origin: Choice,
+): Pick<RoleSeat, "rules" | "skips"> & { choice: Choice } {
   let choice: Choice = { ...origin };
   const rules: string[] = [];
+  let skips: RoleSeat["skips"] = [];
   for (const next of layers.map((layer) => layer.roles?.[role.role])) {
     if (!next) continue;
     // Back on the role's own harness restores the preset; reset to the harness alone, it lost the preset's model and thinking.
@@ -94,8 +101,9 @@ function chosen(role: RoleSpec, layers: Layer[], origin: Choice): { choice: Choi
     if (next.model) choice.model = next.model;
     if (next.thinking) choice.thinking = next.thinking;
     if (next.rules?.trim()) rules.push(next.rules.trim());
+    if (next.skips) skips = next.skips;
   }
-  return { choice, rules: rules.join("\n\n") };
+  return { choice, rules: rules.join("\n\n"), skips };
 }
 
 /** A tool set the kit lacks, or a Paseo tool it does not know, leaves the role's seats unable to answer. */

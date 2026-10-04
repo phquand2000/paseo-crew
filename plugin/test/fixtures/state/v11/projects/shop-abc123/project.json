@@ -1,0 +1,13 @@
+{
+  "gate": "true",
+  "gateTimeoutMinutes": 30,
+  "gateOn": "task",
+  "landAs": "squash",
+  "askFirst": [],
+  "links": [],
+  "writable": [],
+  "writableOutside": [],
+  "sockets": [],
+  "ssh": {},
+  "diskFloorGiB": { "soft": 40, "hard": 15 }
+}

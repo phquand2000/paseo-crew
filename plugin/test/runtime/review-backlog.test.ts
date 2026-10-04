@@ -15,7 +15,7 @@ const traced = {
 const edge = { severity: "P2", where: "a.txt:2", failure: "negative totals round away", fix: "clamp" };
 const minor = { severity: "P3", failure: "the name says cents", fix: "rename" };
 
-test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and P3 as the lane's backlog, and stops its rounds where the project says", async () => {
+test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and P3 as the lane's backlog, stops its rounds where the project says, and keeps a role off the reviews the project has it skip", async () => {
   const h = harness();
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "open_lane", { title: "Rounding", outcome: "money rounds correctly", ...scope });
@@ -33,13 +33,24 @@ test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and
       .filter((task) => task.kind === "review")
       .at(-1)!;
     const done = async (verdict: string, findings: object[]) => {
-      const reply = await h.call(started.peer!, "reviewer", "done", { verdict, answer: "Read the diff.", findings });
+      const role = h.ledger().agents[started.peer!]!.role;
+      const reply = await h.call(started.peer!, role, "done", { verdict, answer: "Read the diff.", findings });
       await h.idle(started.peer!);
       return reply;
     };
     return { id: started.id, done, started: reply.text, brief: () => h.agents.get(started.peer!)!.prompt ?? "" };
   };
   const next = () => /\nNext: (.*)$/.exec(h.heard(lead).at(-1)!)![1]!;
+  const settings = (values: object) => writeFileSync(join(h.project.state, "settings.json"), JSON.stringify(values));
+  const senior = async () =>
+    (await h.call(lead, "lead", "start_review", { focus: "Is it right?", task: "L1-T1", role: "senior-reviewer" }))
+      .text;
+
+  settings({ roles: { "senior-reviewer": { skips: ["docs"] } } });
+  assert.equal(
+    await senior(),
+    "The settings have the Senior Reviewer skip docs (roles.senior-reviewer.skips), and L1-T1 changes only docs files. Ask another role that reviews, or read it yourself.",
+  );
 
   const first = await review({ task: "L1-T1" });
   const { confirmedBy: _, ...untraced } = traced;
@@ -57,11 +68,20 @@ test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and
 
   const question = await review({});
   assert.equal((await question.done("changes", [])).ok, true, "a question is answered as its reviewer sees fit");
-  writeFileSync(join(h.project.state, "settings.json"), JSON.stringify({ attention: { reviewRoundsAt: 1 } }));
-  const second = await review({ task: "L1-T1" });
+  settings({ attention: { reviewRoundsAt: 1 }, roles: { "senior-reviewer": { skips: ["fix-round"] } } });
+  const second = await review({ task: "L1-T1", role: "senior-reviewer" });
+  assert.equal(
+    h.ledger().agents[h.ledger().tasks[second.id]!.peer!]!.role,
+    "senior-reviewer",
+    "a review after an accept is not a fix round",
+  );
   assert.match(second.started, / Reviews of L1-T1 before this one: L1-R1 accept\. The verdict/);
   assert.equal((await second.done("changes", [traced])).ok, true);
   assert.match(next(), /^Reviews of L1-T1 ended in changes once: stop the rounds\./, "the project stops at one");
+  assert.match(
+    await senior(),
+    /skip fix-round \(roles\.senior-reviewer\.skips\), and L1-T1 is a fix round: L1-R3 ended in changes\./,
+  );
   const third = await review({ task: "L1-T1" });
   const tip = h.ledger().tasks[second.id]!.startSha!;
   assert.match(

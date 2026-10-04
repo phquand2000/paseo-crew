@@ -1,0 +1,11 @@
+{
+  "rules": "Answer in English.",
+  "roles": {
+    "senior-reviewer": {
+      "skips": ["fix-round", "docs", "test"]
+    }
+  },
+  "attention": {
+    "reviewRoundsAt": 1
+  }
+}

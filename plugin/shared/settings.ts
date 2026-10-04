@@ -7,6 +7,7 @@ export const RoleChoice = z.strictObject({
   model: z.string().min(1).optional(),
   thinking: z.string().min(1).optional(),
   rules: z.string().optional(),
+  skips: z.array(z.enum(["fix-round", "docs", "test"])).optional(),
 });
 
 export const Connect = z.strictObject({
