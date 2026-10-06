@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { realpathSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { stateRoot, worktreeRoot } from "../../server/core/paths.ts";
@@ -73,4 +73,41 @@ test("under the disk's soft floor new tasks wait and the Supervisor and the Huma
     lows().at(-1) ?? "",
     new RegExp(`^DISK LOW: the disk under the project's copies \\(${copies}\\) has 15 GiB`),
   );
+});
+
+test("a reload while the disk stays under its soft floor neither tells the Supervisor nor pages the Human again", async () => {
+  const { h, sup } = await laneWithPeer();
+  await h.call(sup, "supervisor", "set_project", { diskFloorGiB: { soft: 20, hard: 10 } });
+  const pagers = () => [...h.agents.values()].filter((agent) => agent.provider.startsWith("crew-pager-"));
+  const lows = () =>
+    h
+      .heard(sup)
+      .join("\n")
+      .match(/DISK LOW:/g) ?? [];
+  h.setFreeGiB(15);
+  await h.tick();
+  assert.deepEqual([lows().length, pagers().length], [1, 1]);
+  h.restart();
+  await h.tick();
+  await h.tick();
+  assert.deepEqual([lows().length, pagers().length], [1, 1], "told before the reload, not again after it");
+  h.setFreeGiB(30);
+  await h.tick();
+  h.setFreeGiB(15);
+  await h.tick();
+  assert.deepEqual([lows().length, pagers().length], [2, 2], "a fall after the reload is told");
+});
+
+test("a seat left in a copy since removed is no project of its own, so nothing watches or pages for it", async () => {
+  const { h, peer } = await laneWithPeer();
+  const copy = h.agents.get(peer)!.cwd;
+  assert.notEqual(copy, h.root);
+  rmSync(copy, { recursive: true, force: true });
+  // Read again after a reload: what the copy resolved to while it stood is no longer remembered.
+  h.agents.get(peer)!.cwd = join(copy, "src");
+  await h.tick();
+  const recorded = readdirSync(join(stateRoot(), "projects")).filter((slug) =>
+    existsSync(join(stateRoot(), "projects", slug, "meta.json")),
+  );
+  assert.deepEqual(recorded, [h.project.slug]);
 });

@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import type { Kit, SensorSpec } from "../catalog/kit/kit.ts";
 import type { ModelCache } from "../catalog/paseo/models.ts";
 import { reloadDaemon } from "../catalog/paseo/providers.ts";
@@ -265,6 +265,8 @@ export class Runtime implements HostHooks {
   }
 
   private remember(project: Project): void {
+    // A seat left in a copy since removed names a path that is no project; recorded, it was watched and paged as one.
+    if (!existsSync(project.root)) return;
     this.desk.projects.set(project.slug, project);
     this.source.record(project);
   }

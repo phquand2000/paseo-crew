@@ -16,13 +16,14 @@ const DISK = { id: "disk", provider: "", title: "the disks the project uses" };
  */
 export async function watchDisk(desk: DeskServices, project: Project, now = Date.now()): Promise<void> {
   const reading = readDisk(desk.disk, project);
-  const was = desk.diskLevels.get(project.slug) ?? "ok";
-  if (reading.level === was) return;
+  const known = desk.diskLevels.get(project.slug);
   desk.diskLevels.set(project.slug, reading.level);
+  if (reading.level === (known ?? "ok")) return;
   recordEvent(project, { kind: "disk.level", level: reading.level, free: reading.free, where: reading.where });
   if (reading.level !== "hard") closeIncidentsOf(desk, project, DISK.id, now);
   if (reading.level === "hard") await notice(desk, project, DISK, [hardFinding(reading)], undefined, now);
-  else if (reading.level === "soft" && was === "ok") await tellLow(desk, project, reading, now);
+  // Not on the first reading since the plugin started: that was told before the reload, and the tasks it holds say why.
+  else if (reading.level === "soft" && known === "ok") await tellLow(desk, project, reading, now);
   else if (reading.level === "ok") await tell(desk, project, diskLetters.back(now));
 }
 
