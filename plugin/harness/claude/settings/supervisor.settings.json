@@ -4,7 +4,9 @@
     "deny": [
       "Bash(git commit *)",
       "Bash(git -C * commit *)",
-      "Bash(sleep *)"
+      "Bash(sleep *)",
+      "Edit(./**)",
+      "Edit(~/.local/share/paseo-crew/worktrees/**)"
     ]
   }
 }

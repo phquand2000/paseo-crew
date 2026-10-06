@@ -76,7 +76,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     const edits = !["reviewer", "lead", "pager", "advisor"].includes(kind);
     const waits = !["lead", "supervisor"].includes(kind);
     const searches = SEARCHES.includes(kind);
-    const bare = kind === "pager";
+    const [bare, sup] = [kind === "pager", kind === "supervisor"];
     const desks = (command: string) => Number(!MOVES.includes(command) || !can(role, "write"));
     assert.deepEqual(
       at(paseo, `agents.providers.${providerId(kit, role.role, harness.id)}.paseoTools`),
@@ -131,11 +131,12 @@ test("every role builds on every agent the kit ships, each in that agent's own t
           [`Read(${secret}/**)`, `Edit(${secret}/**)`].every((rule) => deny.includes(rule)),
           `${where}: neither the shell nor a file tool reaches a key or cloud login that reaches production`,
         );
-      for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit", ...(bare ? [] : ["Edit(./**)"])])
+      const copies = sup ? [`Edit(${stateRoot("~")}/worktrees/**)`] : [];
+      for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit", ...(bare ? [] : ["Edit(./**)"]), ...copies])
         assert.equal(
           deny.includes(tool),
-          !edits,
-          `${where}: ${tool} only where the role edits files, its shell in the working copy included; the Lead keeps its pages with note`,
+          !edits || (sup && tool.startsWith("Edit(")),
+          `${where}: ${tool} only where the role writes code, its shell in the working copy included; the Supervisor keeps its pages under state, the Lead with note`,
         );
       assert.equal(
         deny.includes("Bash(sleep *)"),
@@ -175,6 +176,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       );
       const profile = ["reviewer", "pager", "advisor"].includes(kind) ? "reader" : "seat";
       assert.equal(at(settings, "default_permissions"), profile, where);
+      assert.equal(at(settings, "permissions.seat.filesystem.:project_roots"), sup ? "read" : "write", where);
       for (const secret of ["~/.ssh", "~/.aws", "~/.kube"])
         assert.equal(
           (at(settings, `permissions.${profile}.filesystem`) as Record<string, unknown> | undefined)?.[secret],

@@ -194,7 +194,8 @@ The build runs the content lint: a prompt, working rule, skill or tool set showi
 it is the desk's own record, which no role may declare. On Claude Code and Codex a seat's shell writes only
 those paths under state; Claude Code's file tools, outside its sandbox, may not write the desk's records, the
 seat keys, the mail, the content seats read, the `git` launcher, any agent's configuration or the user's git
-configuration, nor read any agent's login ([seat directories](REFERENCE.md#seat-directories)).
+configuration, nor read any agent's login ([seat directories](REFERENCE.md#seat-directories)). The Supervisor
+reads the project and every lane's copy and writes in neither.
 
 ## Records
 
