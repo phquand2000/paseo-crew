@@ -13,7 +13,7 @@ No behavior changes without evidence you produced first, and no test pins what a
 
 | Change | Evidence before you change code |
 |---|---|
-| Bug or regression | a failing repro of the reported symptom; see `diagnosing-bugs` |
+| Bug or regression | a failing repro of the reported symptom |
 | New behavior at a seam | a failing test through the seam: the loop below |
 | Protocol, wire or schema | a failing round-trip test on real records or bytes |
 | Refactor, no behavior change | the existing tests; where weak, characterization tests at the seam, never one per moved helper |

@@ -310,7 +310,7 @@ test("the desk names each seat's fixed choices from the kit: who writes and with
   assert.deepEqual(choices("lead"), {
     add_tasks: { role: ["peer", "backup-peer"], skills },
     start_review: { role: ["reviewer", "senior-reviewer"] },
-    note: { kind: ["plans", "council", "ultra-review", "repo-refresh"] },
+    note: { kind: ["plans", "ultra-review", "repo-refresh"] },
   });
   assert.deepEqual(choices("supervisor"), { open_lane: { role: ["lead", "backup-lead"] } });
   assert.deepEqual(choices("peer"), {}, "a seat is named choices only for tools it has");

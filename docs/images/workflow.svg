@@ -14,7 +14,7 @@
 <rect class="group" x="708" y="96" width="228" height="700" rx="14" style="fill:var(--teal-fill);fill-opacity:0.55;stroke:var(--teal);stroke-opacity:0.18"/>
 <text class="group-label" x="724" y="120" style="fill:var(--teal-ink)">DESK</text>
 <rect class="node" x="270" y="140" width="184" height="58" rx="10" style="fill:var(--violet-fill);stroke-opacity:0.55;stroke:var(--violet)"/>
-<text class="title" x="362.0" y="156.0" text-anchor="middle" style="fill:var(--violet-ink)">grilling</text>
+<text class="title" x="362.0" y="156.0" text-anchor="middle" style="fill:var(--violet-ink)">settling</text>
 <text class="sub" x="362.0" y="175.0" text-anchor="middle">questions in rounds,</text>
 <text class="sub" x="362.0" y="192.0" text-anchor="middle">then the read-back</text>
 <circle cx="270" cy="140" r="11" style="fill:var(--violet)"/>

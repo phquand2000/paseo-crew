@@ -962,7 +962,7 @@
     {
       "name": "start_review",
       "title": "Start a review",
-      "description": "Start a read-only reviewer with clean context in the working copy of the work under review. With task: it reviews that task's commits. With scope lane: the whole lane's change against its acceptance. With neither: your open question on the lane branch, as a council seat, a scout or an audit reader asks it.",
+      "description": "Start a read-only reviewer with clean context in the working copy of the work under review. With task: it reviews that task's commits. With scope lane: the whole lane's change against its acceptance. With neither: your open question on the lane branch, as a second opinion, a scout or an audit reader asks it.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1497,7 +1497,7 @@
     {
       "name": "note",
       "title": "Keep a note",
-      "description": "Keep a page you would otherwise write to a file: a plan, a council verdict, a review brief or report. It goes into one of the folders your role keeps pages in under the project's state, never into the repository; a page of the same name is replaced. The reply names its path, which is how you point to it.",
+      "description": "Keep a page you would otherwise write to a file: a plan, a review brief or report. It goes into one of the folders your role keeps pages in under the project's state, never into the repository; a page of the same name is replaced. The reply names its path, which is how you point to it.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

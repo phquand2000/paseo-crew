@@ -189,8 +189,8 @@ contract is a liability that reads as an asset.
 **Signs.** gate seconds climbing run over run; "only run this in CI"; a suite nobody ran before
 handing back.
 **Here.** *desk* — a lane's gate run logs its seconds as an event, a task's notes them on its
-hand-back when it passes, and no code reads either back. The other half has a skill
-(`test-proof-debt-audit`) and no detection.
+hand-back when it passes, and no code reads either back. The other half has a catalog
+in `repo-refresh` and no detection.
 
 ---
 
@@ -213,7 +213,7 @@ fixing.
 **Signs.** several reviews on one task, each with its own vocabulary; findings fixed in the order
 received.
 **Here.** *desk* — the reviews of one target are in the ledger. `reviews-unconverged` counted them
-until its incidents were marked noise nearly every time. Converging is the Lead's job, and the `council` skill is where the
+until its incidents were marked noise nearly every time. Converging is the Lead's job, and its prompt is where the
 plugin says how.
 
 ### Overengineering edge case

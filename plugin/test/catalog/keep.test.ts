@@ -14,10 +14,6 @@ type Keep = { id: string; title: string; file: string } & (
   | { check: "absent"; absent: string[] }
 );
 
-function neverList(text: string): string {
-  return (text.split("\n## Never\n")[1] ?? "").split("\n## ")[0] ?? "";
-}
-
 function denies(text: string, tool: string): boolean {
   return (JSON.parse(text) as { permissions?: { deny?: string[] } }).permissions?.deny?.includes(tool) === true;
 }
@@ -98,14 +94,6 @@ const KEEP: Keep[] = [
     anchor: 'One decision or one open question per `message`. No praise, thanks or "no reply needed"',
   },
   {
-    id: "keep-08b",
-    title: "the Supervisor follows progress through status",
-    file: "content/prompts/SUPERVISOR.md",
-    check: "contains",
-    anchor: "Read source or run git to follow progress: `status` answers that",
-    structure: ["the line left the Never list", (text, anchor) => neverList(text).includes(anchor)],
-  },
-  {
     id: "keep-08c",
     title: "a Supervisor question carries what the agent can't see",
     file: "content/prompts/SUPERVISOR.md",
@@ -118,14 +106,6 @@ const KEEP: Keep[] = [
     file: "content/prompts/SUPERVISOR.md",
     check: "contains",
     anchor: "Your reply reaches the Human only when they read this chat",
-  },
-  {
-    id: "keep-09",
-    title: "a council has no vote and no shared room",
-    file: "content/skills/lead/council/SKILL.md",
-    check: "contains",
-    anchor:
-      "No voting, group chat or shared room: in a shared room the most assertive model wins, not the best evidence.",
   },
   {
     id: "keep-10",

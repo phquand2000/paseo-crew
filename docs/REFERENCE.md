@@ -68,7 +68,7 @@ on its role's name.
 | `record` | A seat's steps, one numbered line each, without output or diffs: the last 40, or up to 200 with `limit`. A Lead reads the tasks of its own lane; whoever supervises reads any lane's Lead or task. For a seat already archived it shows what the desk kept, since Paseo starts an archived agent again to read its history; for a task whose kept Peer took another, what the desk kept and which task to read instead |
 | `outcomes` | Counts from `events.log`, its rolls included, from `since` on: each review by the reviewer's role and verdict, and whether the task it read was then reworked, accepted or cut; each ask by who asked and its kind, and whether the answer kept its default, how many went up to whoever supervises, and the median wait; and how many reworks came before each accept. Events written before these fields were kept are left out |
 | `status` | For the Supervisor: lanes, tasks, working copies, open asks, open questions, the Leads kept after their lane closed, and the project's own checkout, with whether the Human must say where the next lane works, and the writes a sandbox refused often enough to ask the Human to grant. A running Peer's line gives how long its turn has run and the last call the watch saw. A Lead sees its own lane and asks, with the Peers kept from its merged tasks; a kept Lead, only that it is kept |
-| `note` | Writes a page into a folder the caller's role keeps pages in under the project's state (the Lead's: `plans`, `council`, `ultra-review`, `repo-refresh`), replacing one of the same name, and answers with its path. It never writes into the repository. The Lead has no file-editing tools, except on Codex, where only its prompt keeps it from editing |
+| `note` | Writes a page into a folder the caller's role keeps pages in under the project's state (the Lead's: `plans`, `ultra-review`, `repo-refresh`), replacing one of the same name, and answers with its path. It never writes into the repository. The Lead has no file-editing tools, except on Codex, where only its prompt keeps it from editing |
 
 `message`, `rework`, `answer`, `amend_task` and `amend_lane` are also refused when their text names an open incident
 about the seat it goes to, or quotes its words.
@@ -789,7 +789,7 @@ waiting, a closed lane's copy is not back on its base, or a working copy is out.
     <log>.<n>.log[.gz]                    older rolls of each log
     handbacks/  gates/  archive/          hand-backs whole; gate output; closed lanes filed away
     notebook.md  CONTEXT.md               the Supervisor's notebook; the concept as the Human settled it
-    plans/  council/  ultra-review/  repo-refresh/  pre-mortem/  architecture-premise-audit/
+    plans/  ultra-review/  repo-refresh/
 <profileRoot>/crew-<role>-<agent>-<slug>/  one seat directory per role, agent and project
 ```
 

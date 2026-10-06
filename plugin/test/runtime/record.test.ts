@@ -31,7 +31,7 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
   assert.equal(readFileSync(file, "utf-8"), "# Cart\n\nTax first.\n");
   assert.match(
     await note({ kind: "gates", name: "x.md", text: "t" }),
-    /gates is no folder you keep pages in: plans, council, ultra-review, repo-refresh\./,
+    /gates is no folder you keep pages in: plans, ultra-review, repo-refresh\./,
   );
   assert.match(await note({ kind: "..", name: "ledger.json", text: "{}" }), /\.\. is no folder you keep pages in/);
   assert.match(

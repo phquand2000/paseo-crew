@@ -39,7 +39,7 @@ active seat that can `supervise`.
 ### Brief
 
 The Human is there and starts the Supervisor from its registered provider; no code starts or archives one.
-With its `grilling` skill the Supervisor settles new work with them in numbered rounds of questions, each with
+The Supervisor settles new work with them in rounds of questions, each with
 a recommended answer, and writes each settled answer into `CONTEXT.md` in the project's state; no verb is
 called. After a read-back (the lanes, their outcomes and acceptance, what will bring the Human back), the
 Supervisor records the standing orders they keep with `set_project`, in `project.json`: `askFirst` paths
