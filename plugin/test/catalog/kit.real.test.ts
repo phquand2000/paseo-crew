@@ -166,32 +166,9 @@ test("a Codex seat has every desk and proxy tool it is given approved ahead, and
       id,
     );
   assert.deepEqual(
-    [...approved].filter((name) => name.startsWith("paseo.")).sort(),
-    ["archive_agent", "create_agent", "list_models", "list_providers", "send_agent_prompt"].map(
-      (tool) => `paseo.${tool}`,
-    ),
-    "the Lead is allowed only the Paseo tools that start agents to talk a problem through",
-  );
-  const own = {
-    ...kit,
-    roles: kit.roles.map((role) =>
-      role.role === "supervisor" ? { ...role, paseoTools: { allow: ["list_schedules"] } } : role,
-    ),
-  };
-  const supervisor = withHarness(resolveTeam(own), "supervisor", kit.harnesses.codex!);
-  const asked: AgentConfig = { provider: providerId(own, "supervisor", "codex"), cwd: "/work/repo" };
-  const supervising = applyRole(
-    own,
-    supervisor,
-    asked,
-    () => "PROMPT",
-    "/state/demo",
-    serversFor(own, supervisor, "supervisor", context),
-  );
-  assert.deepEqual(
-    supervising.toolPolicy?.preapproved.filter((ref) => ref.server === "paseo").map((ref) => ref.tool),
-    ["list_schedules"],
-    "a roles file of one's own may give a seat some of Paseo's tools, which Paseo adds at launch",
+    [...approved].filter((name) => name.startsWith("paseo.")),
+    [],
+    "Paseo checks the approved list before it adds its own server, and refuses a launch that names a tool there",
   );
   const claude = applyRole(
     kit,

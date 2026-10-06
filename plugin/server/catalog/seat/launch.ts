@@ -4,14 +4,7 @@ import { writeConfigAtomic } from "../../core/config-file.ts";
 import { executableIn, nodeBin, pathDirs, stateRoot } from "../../core/paths.ts";
 import type { AgentConfig, SessionOpen } from "../../core/ports.ts";
 import { type Json, layered, setPath } from "../../core/json.ts";
-import {
-  type HarnessSpec,
-  type Kit,
-  type McpServers,
-  type ModelSpec,
-  PASEO_SERVER,
-  type RoleSpec,
-} from "../kit/kit.ts";
+import { type HarnessSpec, type Kit, type McpServers, type ModelSpec, type RoleSpec } from "../kit/kit.ts";
 import { agentDefault, seatOf } from "../kit/roles.ts";
 import { agentBin } from "../paseo/agent-bin.ts";
 import type { Team } from "../team/team.ts";
@@ -53,7 +46,7 @@ export function applyRole(
     if (harness.mcp.preapprove) {
       const preapproved = preapprovedFor(kit, team, role.role);
       next.toolPolicy = {
-        preapproved: preapproved.filter((ref) => ref.server in servers || ref.server === PASEO_SERVER),
+        preapproved: preapproved.filter((ref) => ref.server in servers),
       };
     }
   }

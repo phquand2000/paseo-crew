@@ -1,17 +1,8 @@
 import { join } from "node:path";
 import type { Connect } from "../../../shared/settings.ts";
 import { skillSources } from "../kit/content.ts";
-import {
-  type Kit,
-  type McpServers,
-  PASEO_SERVER,
-  type ProxySpec,
-  type RoleSpec,
-  SEAT_KEY,
-  TEAM_SERVER,
-} from "../kit/kit.ts";
+import { type Kit, type McpServers, type ProxySpec, type RoleSpec, SEAT_KEY, TEAM_SERVER } from "../kit/kit.ts";
 import { can, toolsOf } from "../kit/roles.ts";
-import { paseoToolsPolicy } from "../kit/harness-files.ts";
 import { type Team, skillDirsFor } from "../team/team.ts";
 
 type McpState = Team["mcp"][string];
@@ -122,15 +113,7 @@ export function preapprovedFor(
   if (!seat) return [];
   const refs = (server: string, tools: string[]) => tools.map((tool) => ({ kind: "mcp" as const, server, tool }));
   const approved = seat.role.tools ? refs(TEAM_SERVER, toolsOf(kit, seat.role)) : [];
-  // Paseo adds its own server at launch, unless a seat's config already names one; only the tools this role is allowed there.
-  const paseo = paseoToolsPolicy(kit, seat.role);
-  if (paseo?.enabled !== false)
-    approved.push(
-      ...refs(
-        PASEO_SERVER,
-        kit.paseoTools.filter((tool) => !paseo?.disabledTools?.includes(tool)),
-      ),
-    );
+  // Paseo checks this list before it adds its own server, so a Paseo tool here refuses the launch.
   for (const id of seat.mcp) {
     const state = team.mcp[id]!;
     if (state.entry?.kind === "proxy") approved.push(...refs(id, (state.tools ?? state.entry.tools)?.[roleName] ?? []));
