@@ -16,9 +16,10 @@ Paseo Crew is a fork of Seatworks `v3`, taken whole at
 changes on top. It is not affiliated with or endorsed by the Seatworks author; the
 [MIT license](LICENSE) is unchanged.
 
-- Every role defaults to Claude Opus 5.5; a **Backup Peer** runs a Peer's task on Codex
-  `gpt-5.6-luna` when the Peer's agent is out of quota, and a **Senior Reviewer** reads complex or
-  high-stakes design on Codex `gpt-6-astra`. The Lead never cuts a Peer stopped on a usage limit.
+- The Supervisor defaults to Codex `gpt-6-astra` at medium thinking and every other role to Claude
+  Opus 5.5; a **Backup Peer** runs a Peer's task on Codex `gpt-5.6-luna` when the Peer's agent is
+  out of quota, and a **Senior Reviewer** reads complex or high-stakes design on Codex
+  `gpt-6-astra`. The Lead never cuts a Peer stopped on a usage limit.
 - Nobody answers the watch's questions by default.
 - `project.json` takes `links` (git-ignored files symlinked into a lane's copy) and `writable`
   (extra paths a seat may write), and `writableOutside` (absolute paths outside the project a Peer

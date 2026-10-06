@@ -12,9 +12,9 @@
       "label": "Supervisor",
       "description": "Acts for the Human: settles the goal with them, opens lanes and answers Leads; reads anything, writes no code",
       "defaults": {
-        "harness": "claude",
-        "model": "claude-opus-5-5",
-        "thinking": "high"
+        "harness": "codex",
+        "model": "gpt-6-astra",
+        "thinking": "medium"
       },
       "can": [
         "supervise"
