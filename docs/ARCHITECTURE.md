@@ -99,7 +99,7 @@ These are mostly absences, so the code will not show them to you.
   gate, overridden by `overGate` with a reason: a task's by its Lead at `accept`, a lane's by the Supervisor
   at `land_lane`. A landing held for `askFirst` is the Human's standing order, not a verdict.
 - **Capabilities, not names.** No code under `server/` compares a role to a name; what a role can do
-  (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `page`, `advise`) decides who is mailed, seated,
+  (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `page`) decides who is mailed, seated,
   watched or sent to page.
 - **One door to Paseo.** In `server/`, only `adapters/paseo/` imports Paseo's SDK: it registers the hooks,
   binds the daemon's API from each hook and panel call, and serves it behind `core/ports.ts`, so tests use

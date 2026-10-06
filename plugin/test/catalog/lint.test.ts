@@ -10,11 +10,10 @@ const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const kit = loadKit(PLUGIN);
 
 const PROMPT_BUDGET: Record<string, [number, number]> = {
-  supervisor: [460, 14],
-  lead: [500, 13],
+  supervisor: [500, 14],
+  lead: [540, 13],
   peer: [230, 8],
   reviewer: [300, 8],
-  advisor: [300, 8],
   pager: [60, 0],
 };
 const SKILL_BUDGET: Record<string, number> = {

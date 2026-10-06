@@ -166,9 +166,11 @@ test("a Codex seat has every desk and proxy tool it is given approved ahead, and
       id,
     );
   assert.deepEqual(
-    [...approved].filter((name) => name.startsWith("paseo.")),
-    [],
-    "the Lead is allowed none of Paseo's tools",
+    [...approved].filter((name) => name.startsWith("paseo.")).sort(),
+    ["archive_agent", "create_agent", "list_models", "list_providers", "send_agent_prompt"].map(
+      (tool) => `paseo.${tool}`,
+    ),
+    "the Lead is allowed only the Paseo tools that start agents to talk a problem through",
   );
   const own = {
     ...kit,

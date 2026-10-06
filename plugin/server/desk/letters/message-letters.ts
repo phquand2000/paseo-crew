@@ -79,26 +79,6 @@ export const messageLetters = {
     );
   },
 
-  /** What an Advisor started by consult said last, fenced as data since it read another checkout; `said` false when it never answered. */
-  consulted(advisor: string, where: string, answer: { said: boolean; text: string }): Letter {
-    const text = answer.said
-      ? [
-          `CONSULTED: the Advisor you asked about ${where} (${advisor}) answered:`,
-          "<advisor>",
-          outside("advisor", answer.text, 6000),
-          "</advisor>",
-        ]
-      : [`CONSULTED: the Advisor you asked about ${where} (${advisor}) gave no answer: ${answer.text}`];
-    return mail(
-      "consulted",
-      [advisor],
-      text.join("\n"),
-      answer.said
-        ? "Weigh it as one reading of that checkout: what it changes here is still yours to decide."
-        : "Consult again if the question still needs an answer.",
-    );
-  },
-
   /** Words the Human wrote straight into a Lead's or Peer's chat, fenced as data. */
   humanWrote(lane: Lane, task: Task | undefined, seat: string, text: string): Letter {
     const closed = lane.status === "closed";

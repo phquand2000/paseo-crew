@@ -24,16 +24,21 @@ Otherwise it refuses the call and says what is wrong. A field that takes one of 
 and their skills, roles that review or lead, a role's page folders) shows that set as its choices. Each verb carries a
 title and hints (reads only, may destroy, safe to repeat, reaches outside the desk), each field a description, and
 `mcp/instructions.json` says per tool set what the server is for, shown where a harness keeps tools behind a search. A
-verb acts on the caller's capabilities (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `page`, `advise`), never
+verb acts on the caller's capabilities (`supervise`, `lead`, `work`, `write`, `review`, `watched`, `page`), never
 on its role's name.
 
 <!-- drawn from the code: verbs -->
 | Role | Tools |
 |---|---|
-| Supervisor | `open_lane` `message` `answer` `land_lane` `drop_lane` `amend_lane` `hold_lane` `resume_lane` `ask_human` `record_human_answer` `replace_lead` `release` `set_project` `status` `incidents` `mark_incident` `record` `outcomes` `consult` |
+| Supervisor | `open_lane` `message` `answer` `land_lane` `drop_lane` `amend_lane` `hold_lane` `resume_lane` `ask_human` `record_human_answer` `replace_lead` `release` `set_project` `status` `incidents` `mark_incident` `record` `outcomes` |
 | Lead, Backup Lead | `add_tasks` `start_review` `message` `answer` `accept` `rework` `reseat` `amend_task` `take_paths` `cut` `release` `ask` `report` `status` `incidents` `mark_incident` `record` `note` `lease` |
 | Peer, Backup Peer, Reviewer, Senior Reviewer | `done` `ask` `lease` |
 <!-- end -->
+
+Beside the desk, the Supervisor and the Leads hold five of Paseo's own tools (`paseoTools.allow` in `roles.json`):
+`create_agent`, `send_agent_prompt`, `archive_agent`, `list_providers` and `list_models`, to start agents of their own
+that talk a hard problem through with them. Paseo ties each to the seat that started it, tells that seat when it finishes,
+and archives it with that seat.
 
 | Verb | Effect |
 |---|---|
@@ -61,7 +66,6 @@ on its role's name.
 | `hold_lane` | Stops a lane where it stands, with a reason: its Lead and each Peer and Reviewer still at work get HOLD past the outbox, which cuts a running turn short where the agent allows. Until `resume_lane`, mail to the lane's seats waits, their permission requests are refused, `add_tasks`, `accept` and `land_lane` are refused, nothing waiting starts, and a landing waiting to finish or waiting for the Human is called off; one the Human approved stands. `start_review`, `rework`, `reseat`, a ready `report` and `replace_lead` are refused too, and a task accepted before the hold waits queued until it resumes |
 | `resume_lane` | Lifts a hold: each seat of the lane gets RESUMED, with the Supervisor's `note` and the mail held for it, and what waited may start. Refused while the lane is stopped for a question the Human has not settled |
 | `ask_human` | Puts a decision only the Human can make, or work only their side can do that a lane waits on, on their question queue, with a recommendation and what goes ahead while they are silent: see [Questions for the Human](#questions-for-the-human) |
-| `consult` | The Supervisor asks an Advisor, a role that can `advise`, about its own project or another checkout named by its absolute path. The desk starts one in that checkout's project workspace with the question, labelled `crew.consulted-by`, and archives it once its turn ends; its last words reach the caller as CONSULTED. No lane or seat is told, and the Advisor holds no desk tools |
 | `record_human_answer` | Records an answer the Human gave in the Supervisor's chat: an option, `decline` or `cancel`, with their own words, which the desk must find in that chat |
 | `incidents` | Lists the 50 most recent incidents that are open or not yet marked, with what each seat was asked; a kind whose last ten marks were mostly noise goes below the rest. With `closed`, it adds the 20 most recently marked. A Lead sees only those about the other seats of its open lane |
 | `mark_incident` | Marks an incident `useful`, `noise` or `unknown`, with an optional note, and closes it. `noise` also silences the same words on that seat and kind, at attention level; a page is never silenced |
@@ -266,7 +270,7 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 |---|---|
 | A seat's first prompt | OWNER DIRECTIVE, TASK, REVIEW |
 | Starting and waiting | OPENED, NOT OPENED, WAITING, NOT STARTED, BESIDE, LANE BESIDE |
-| Between seats | CONSULTED, MESSAGE, RELEASED, RECONCILE, ASK, CARRIED UP, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED, DECISION PENDING |
+| Between seats | MESSAGE, RELEASED, RECONCILE, ASK, CARRIED UP, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED, DECISION PENDING |
 | Work coming back | HANDBACK, REWORK, AMENDED, GO ON, TAKEN, SETTLING |
 | Merging | MERGED, MERGE RED, MERGE WAITS, MERGE FAILED, MERGE CONFLICT |
 | Landing | REPORT, BASE CONFLICT, CAN LAND, CLEARED, DETOUR DROPPED, LANE CLOSED |
@@ -290,7 +294,6 @@ first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Pee
 | CARRIED UP | A Peer: its Lead put its open ask to the owner in one of its own; the answer comes back as the answer to its ask |
 | MERGE CONFLICT | A Lead: the desk began a merge no seat may run, and left its conflicts in the task's copy for its Peer to settle and commit |
 | BASE CONFLICT | A Lead: the base conflicts with the lane, and nothing was left mid-merge; a task with `takeBase` takes it in |
-| CONSULTED | Whoever consulted an Advisor: what it said last, fenced as data, or why it said nothing |
 | CAN LAND | Whoever tried to land a lane under a seat mid-turn: the turn has ended |
 | HUMAN WROTE, HUMAN ANSWERED | Whoever supervises: what the Human typed straight into a Lead's or Peer's chat; what they chose for a question on the panel |
 | HOLD | The seats of a lane: stop. The one letter sent past the outbox, cutting a running turn short where the agent allows |
@@ -345,7 +348,7 @@ under "Mail the desk held for you"; not past a pending permission or a hold, and
 | Lead | A letter to whoever supervises; with none seated, only Paseo |
 | Peer or Reviewer on a task | A letter to its Lead, or to whoever supervises once the Lead is gone; with neither, only Paseo |
 | Supervisor | `attention.log`, and `status.md` under "Waiting on the Human". The Human answers it in Paseo |
-| Peer or Reviewer with no task, the Pager, an Advisor | Only Paseo |
+| Peer or Reviewer with no task, the Pager | Only Paseo |
 
 While a seat's lane is on hold, its requests are refused with the hold's reason. A question that would stop a turn (such
 as AskUserQuestion or `request_user_input`) from a seat with desk tools is refused, with where to ask instead by the
@@ -595,7 +598,6 @@ and says that duty.
 | Peer | `<task> · <role> · <task title>`, as `L1-T3 · Peer · Cart total` |
 | Reviewer | `<review> · Review <task or lane>`, as `L1-R1 · Review L1-T3` |
 | Pager | `Page: <the start of the page>` |
-| Advisor a consult started | `Consult: <the start of the question>` |
 
 A name is cut at 200 characters, the most Paseo takes. Labels carry `crew.project`, `crew.role`, `crew.concern` for a role that
 names one, and `crew.lane` and `crew.task` for the work a seat does. Letters name a seat by its work (the Lead

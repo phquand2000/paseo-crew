@@ -37,7 +37,8 @@ const refusesReading = (rules: string[]) =>
       new RegExp(`^${rule.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replaceAll("*", ".*")}$`).test(command),
     ),
   );
-const SEARCHES = ["supervisor", "lead", "peer", "advisor"];
+const SEARCHES = ["supervisor", "lead", "peer"];
+const STARTS = ["create_agent", "send_agent_prompt", "archive_agent", "list_providers", "list_models"];
 
 /** A role that does another's work on another model is held to that role's terms. */
 const TWIN: Record<string, string> = { "backup-peer": "peer", "backup-lead": "lead", "senior-reviewer": "reviewer" };
@@ -73,15 +74,15 @@ test("every role builds on every agent the kit ships, each in that agent's own t
   for (const { role, harness } of seatPairs(kit)) {
     const where = `${role.role} on ${harness.id}`;
     const kind = TWIN[role.role] ?? role.role;
-    const edits = !["reviewer", "lead", "pager", "advisor"].includes(kind);
+    const edits = !["reviewer", "lead", "pager"].includes(kind);
     const waits = !["lead", "supervisor"].includes(kind);
     const searches = SEARCHES.includes(kind);
     const [bare, sup] = [kind === "pager", kind === "supervisor"];
     const desks = (command: string) => Number(!MOVES.includes(command) || !can(role, "write"));
     assert.deepEqual(
       at(paseo, `agents.providers.${providerId(kit, role.role, harness.id)}.paseoTools`),
-      { enabled: false },
-      `${where}: no shipped seat acts on another behind the desk or wakes on a clock through Paseo's own tools`,
+      waits ? { enabled: false } : { disabledTools: kit.paseoTools.filter((t) => !STARTS.includes(t)) },
+      `${where}: only the Supervisor and a Lead reach Paseo's own tools, and only to start agents that talk a problem through with them`,
     );
     const reasons = Object.values(harnessFileSources(kit, harness, role))
       .flat()
@@ -174,7 +175,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         false,
         `${where}: only the role's skills, as on every other agent`,
       );
-      const profile = ["reviewer", "pager", "advisor"].includes(kind) ? "reader" : "seat";
+      const profile = ["reviewer", "pager"].includes(kind) ? "reader" : "seat";
       assert.equal(at(settings, "default_permissions"), profile, where);
       assert.equal(at(settings, "permissions.seat.filesystem.:project_roots"), sup ? "read" : "write", where);
       for (const secret of ["~/.ssh", "~/.aws", "~/.kube"])
@@ -240,7 +241,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       );
       assert.equal(
         refused("commit") === 1,
-        ["supervisor", "lead", "reviewer", "advisor"].includes(kind),
+        ["supervisor", "lead", "reviewer"].includes(kind),
         `${where}: commits only where the role may`,
       );
       assert.equal(denied.includes("sleep *"), !waits, `${where}: sleeps only where the role may`);
@@ -341,7 +342,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.ok(!refusesReading(denied), `${where}: reads worktrees`);
       assert.equal(
         bash["git commit *"] === "deny",
-        ["supervisor", "lead", "reviewer", "advisor"].includes(kind),
+        ["supervisor", "lead", "reviewer"].includes(kind),
         `${where}: commits only where the role may`,
       );
       assert.equal(bash["sleep *"] === "deny", !waits, `${where}: sleeps only where the role may`);
@@ -374,7 +375,6 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       );
       const tools = {
         reviewer: ["read", "bash", "grep", "find", "ls"],
-        advisor: ["read", "bash", "grep", "find", "ls"],
         lead: ["read", "bash", "grep", "find", "ls"],
         pager: [],
       }[kind as "reviewer"];
