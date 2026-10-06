@@ -53,7 +53,7 @@ export const askLetters = {
         "carried",
         [ask.id, up],
         `CARRIED UP ${ask.id}: your Lead put it to the owner as ${up}. Its answer reaches you as the answer to ${ask.id}.`,
-        "Nothing until it comes: keep to your default, and end your turn.",
+        "Nothing until it comes: keep to your default, and stop here.",
       ),
     );
   },

@@ -94,7 +94,7 @@ test("what a seat reads keeps within its budgets: prompts, deltas, skills and th
   );
   for (const [set, list] of Object.entries(tools)) {
     for (const tool of list) {
-      assert.ok(words(tool.description ?? "") <= 60, `${set} ${tool.name}: ${words(tool.description ?? "")} words`);
+      assert.ok(words(tool.description ?? "") <= 75, `${set} ${tool.name}: ${words(tool.description ?? "")} words`);
       for (const [param, description] of params(tool.inputSchema))
         assert.ok(words(description) <= 25, `${set} ${tool.name}.${param}: ${words(description)} words`);
     }

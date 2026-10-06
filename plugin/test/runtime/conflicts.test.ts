@@ -70,7 +70,7 @@ test("a base that conflicts with a lane leaves nothing mid-merge in the lane's c
     assert.deepEqual([onBranch(), underWay(h, copy)], [task.branch, true]);
     assert.match(
       h.agents.get(task.peer!)!.prompt ?? "",
-      /The desk merged main into your branch and stopped on conflicts in a\.txt: settling them is this task's work, wherever they are; settle so both sides stand and commit with git commit --no-edit\./,
+      /main was merged into your branch and stopped on conflicts in a\.txt: settling them is this task's work, wherever they are; settle so both sides stand and commit with git commit --no-edit\./,
     );
     return task;
   };
@@ -196,7 +196,7 @@ test("the merge queue hands a conflict to its Peer, merges nothing as nothing, w
     await h.endTurn(crashed, words);
   }
   assert.equal(status("L1-T3"), "failed", "a failed merge waits on its Lead, however quiet its Peer is meanwhile");
-  assert.doesNotMatch(h.heard(crashed).join("\n"), /Your turn ended without calling done or ask/);
+  assert.doesNotMatch(h.heard(crashed).join("\n"), /You stopped without calling done or ask/);
 
   const side = await beside("s", "Side", "c.txt", "C\n");
   writeFileSync(join(copy, "a.txt"), "half written\n");

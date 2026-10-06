@@ -119,7 +119,7 @@ export const workLetters = {
       reader === "lead"
         ? "Carry it into the tasks it touches (amend_task a moved goal; cut and restart a task whose contract changed), then report ready once the lane meets it."
         : waits
-          ? `Wait for ${waits.join(", ")}: end your turn and leave your work as it is; the desk tells you when they land.`
+          ? `Wait for ${waits.join(", ")}: stop and leave your work as it is; you will be told when they land.`
           : "Work to it as it stands now; if what you have done no longer fits it, say so in your hand-back.";
     return mail("amended", [entry.id, entry.amended?.length ?? 0], text, next);
   },
@@ -168,7 +168,7 @@ export const workLetters = {
       "hold",
       [lane.id, task?.id ?? "lead", hash(reason)],
       what,
-      "Stop where you are and end your turn now; start nothing and send nothing until you are told it resumes.",
+      "Stop where you are now; start nothing and send nothing until you are told it resumes.",
     );
   },
 

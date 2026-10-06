@@ -18,7 +18,7 @@ export const messageLetters = {
   later(call: Waited, reply: { ok: boolean; text: string }, cut = false): Letter {
     const why = cut
       ? "which was stopped on your side before its answer reached you"
-      : "which ran longer than a tool call can wait";
+      : "which ran longer than you could wait for it";
     const text = [
       `ANSWER to your ${call.tool} call, ${why}.`,
       "",
@@ -38,7 +38,7 @@ export const messageLetters = {
     return mail(
       "unanswered",
       [hash(call.agent, call.tool, String(call.started))],
-      `NO ANSWER to your ${call.tool} call: the desk stopped before it finished, so the answer it said would come as mail will not.`,
+      `NO ANSWER to your ${call.tool} call: it was cut off before it finished, so the answer promised by mail will not come.`,
       `Call ${call.tool} again if it still needs doing.`,
     );
   },
@@ -58,13 +58,13 @@ export const messageLetters = {
       `RECONCILE ${lane.id}: the owner reached your Peer on ${task.id} directly.`,
       "",
       sending.now
-        ? "What reached them, sent now: it cuts the Peer's turn short where its agent allows it."
+        ? "What reached them, sent now: it interrupts the Peer where that can be done."
         : "What reached them:",
       clip(text, 1500),
       "",
       `Current intent: ${lane.outcome}`,
       `Ownership: ${task.id} (${task.title}) is still owned by ${peer}, on ${lane.branch}. The lane is still yours.`,
-      "Topology: unchanged. No seat was started, moved or put away.",
+      "Topology: unchanged. Nobody was started, moved or let go.",
       task.status === "merged"
         ? `Integration and acceptance: ${task.id} is merged already, and nothing here changed that.`
         : IN_QUEUE.includes(task.status)

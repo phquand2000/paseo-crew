@@ -15,14 +15,14 @@ function limitAt(at: number): string {
   return `You've hit your session limit · resets ${clock.replace(/\s/g, "").toLowerCase()} (Asia/Saigon)`;
 }
 
-test("a turn stopped on its agent's usage limit is not silence: no nudge, no stall", async () => {
+test("a turn stopped on its usage limit is not silence: no nudge, no stall", async () => {
   const { h, lane, peer } = await laneWithPeer();
   for (const _ of [1, 2]) {
     await h.beginTurn(peer);
     await h.endTurn(peer, LIMIT, { type: "assistant_message", text: "Checking the trace next." });
   }
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running");
-  assert.doesNotMatch(h.heard(peer).join("\n"), /Your turn ended without calling done/);
+  assert.doesNotMatch(h.heard(peer).join("\n"), /You stopped without calling done/);
   assert.doesNotMatch(h.heard(lane.lead!).join("\n"), /SILENT L1-T1/);
   assert.deepEqual(
     h.events("seat.limited").map(({ agent, resets }) => [agent, resets]),
@@ -39,7 +39,7 @@ test("a Peer on its usage limit is told to its Lead once, with who can take the 
   for (const _ of [1, 2]) await h.endTurn(peer, limitAt(reset));
   const told = h.heard(lane.lead!).filter((letter) => letter.includes("LIMITED"));
   assert.equal(told.length, 1);
-  assert.match(told[0]!, /stopped on its agent's usage limit, which resets \d+:\d\d[ap]m \(Asia\/Saigon\)/);
+  assert.match(told[0]!, /stopped on its usage limit, which resets \d+:\d\d[ap]m \(Asia\/Saigon\)/);
   assert.match(told[0]!, /Backup Peer \(Codex\)/);
   await h.tick(reset);
   assert.doesNotMatch(h.heard(peer).join("\n"), /LIMIT RESET/, "a few minutes' margin past the reset");
@@ -74,7 +74,7 @@ test("a Lead on its usage limit is told to whoever supervises and is not idle un
   await h.tick(Date.now() + 20 * MINUTE);
   const said = h.heard(sup).join("\n");
   assert.match(said, /Backup Lead \(Codex\)/);
-  assert.match(said, /stopped on its agent's usage limit\.\nThe desk could not read when it resets/);
+  assert.match(said, /stopped on its usage limit\.\nThe desk could not read when it resets/);
   assert.doesNotMatch(said, /LANE IDLE L1/);
   await h.tick(reset + 26 * 60 * MINUTE);
   assert.match(h.heard(waits).join("\n"), /LIMIT RESET/);

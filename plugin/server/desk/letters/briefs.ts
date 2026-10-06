@@ -58,9 +58,9 @@ function whereLines(task: Task, lane: Lane): string[] {
 /** What the desk's merge of base into the task's branch left: the conflicts are the task's own, wherever they lie. */
 function tookLine({ tookBase }: Task, lane: Lane): string[] {
   if (!tookBase) return [];
-  if (tookBase.conflicts.length === 0) return [`The desk merged ${lane.base} into your branch, and it merged cleanly.`];
+  if (tookBase.conflicts.length === 0) return [`${lane.base} was merged into your branch, and it merged cleanly.`];
   return [
-    `The desk merged ${lane.base} into your branch and stopped on conflicts in ${tookBase.conflicts.join(", ")}: settling them is this task's work, wherever they are; settle so both sides stand and commit with git commit --no-edit.`,
+    `${lane.base} was merged into your branch and stopped on conflicts in ${tookBase.conflicts.join(", ")}: settling them is this task's work, wherever they are; settle so both sides stand and commit with git commit --no-edit.`,
   ];
 }
 
@@ -92,11 +92,11 @@ export function taskBrief(task: Task, lane: Lane, beside: Task[]): string {
       ? `You are on branch ${task.branch} in your own working copy, branched from ${lane.branch}. Commit what you change, then call done; a task that changes nothing hands back with no commit.`
       : `You work on branch ${task.branch} in the lane's working copy, branched from ${lane.branch}. Commit what you change, then call done; a task that changes nothing hands back with no commit.${task.startSha ? ` Your task started from ${task.startSha}: that is BASE for anything that asks what existed before you began.` : ""}`,
     "",
-    `Keep build and test caches in $${CACHE_ENV}, which your lane shares, and scratch files in $${SCRATCH_ENV}: the desk removes both once nothing uses them, so make no cache directory elsewhere.`,
+    `Keep build and test caches in $${CACHE_ENV}, which your lane shares, and scratch files in $${SCRATCH_ENV}: both are cleared once nothing uses them, so make no cache directory elsewhere.`,
     ...(task.planFirst
       ? [
           "",
-          "Your Lead asks for your plan before you build: once you have read the code, ask with the shape you plan (where the change goes, what it replaces, how you will show it works), end your turn, and build once answered.",
+          "Your Lead asks for your plan before you build: once you have read the code, ask with the shape you plan (where the change goes, what it replaces, how you will show it works), then stop, and build once answered.",
         ]
       : []),
   ]

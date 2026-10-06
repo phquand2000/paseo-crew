@@ -104,15 +104,19 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   await fail(peer);
   assert.match(
     heard(h, lead),
-    /FAILED: L1-T1 · Peer · Clean build ended its turn with an error: the model is overloaded\n\nNext: Nothing restarts it: message it to continue, or reseat its task for a fresh Peer on its branch\./,
+    /FAILED: L1-T1 · Peer · Clean build stopped on an error: the model is overloaded\n\nNext: Nothing restarts it: message it to continue, or reseat its task for a fresh Peer on its branch\./,
   );
   await fail(lead);
   assert.match(
     heard(h, architecture),
-    /FAILED: L1 · Lead · Build ended its turn with an error: the model is overloaded\n\nNext: Nothing restarts it: read what it did, then message the lane to continue, or drop_lane it and open it again\./,
+    /FAILED: L1 · Lead · Build stopped on an error: the model is overloaded\n\nNext: Nothing restarts it: read what it did, then message the lane to continue, or drop_lane it and open it again\./,
   );
   await fail(lead, null);
-  assert.match(heard(h, architecture), new RegExp(`FAILED: Lead ${lead} ended its turn`), "untitled, by role and id");
+  assert.match(
+    heard(h, architecture),
+    new RegExp(`FAILED: Lead ${lead} stopped on an error`),
+    "untitled, by role and id",
+  );
 
   await h.idle(lead);
   Object.assign(h.agents.get(lead)!, { archivedAt: new Date().toISOString(), status: "closed" });
@@ -122,7 +126,7 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   await h.permission(peer, second);
   assert.match(
     heard(h, architecture),
-    /FAILED: L1-T1 · Peer · Clean build ended its turn with an error: the model is overloaded\n\nNext: Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or reseat its task\./,
+    /FAILED: L1-T1 · Peer · Clean build stopped on an error: the model is overloaded\n\nNext: Its Lead is gone: replace_lead puts a new Lead on the lane, which can message it to continue or reseat its task\./,
   );
   assert.match(
     heard(h, architecture),

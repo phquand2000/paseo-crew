@@ -192,7 +192,7 @@ test("a Peer's silence is counted until it hands back, nudged, then told to its 
   await answer();
   await turn("Still looking.");
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
-  assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): its turn ended twice without a hand-back\./);
+  assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): it stopped twice without a hand-back\./);
   assert.match(
     heard(h, lead),
     /SILENT L1-T1[\s\S]*Still looking[\s\S]*Next: If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh Peer on its branch\./,
@@ -206,7 +206,7 @@ test("a Peer's silence is counted until it hands back, nudged, then told to its 
   const status = () => h.ledger().tasks["L1-T1"]!.status;
   await turn("Still at it.", async () => assert.equal(status(), "running", "a stalled Peer at work again runs"));
   assert.equal(status(), "stalled", "and one more quiet turn stalls it again");
-  assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): its turn ended 3 times without a hand-back\./);
+  assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): it stopped 3 times without a hand-back\./);
   await turn("asked", ask);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "heard from, it runs again");
   await answer();

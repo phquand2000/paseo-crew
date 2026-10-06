@@ -31,7 +31,7 @@ test("a message sent now into a hand-back under way stops it being taken, and wo
   assert.match(sent.text, /^Delivered to the Peer on L1-T1, cutting its turn short/);
   assert.match(
     h.heard(lead).join("\n"),
-    /RECONCILE L1[^]*What reached them, sent now: it cuts the Peer's turn short where its agent allows it\.\nCheck the rates as well\./,
+    /RECONCILE L1[^]*What reached them, sent now: it interrupts the Peer where that can be done\.\nCheck the rates as well\./,
   );
   gate.release();
   const refused = await first;

@@ -3,7 +3,7 @@
     {
       "name": "open_lane",
       "title": "Open a lane",
-      "description": "Open a lane: one outcome, run by a new Lead whose directive is these fields. It works in the project's own copy, its own copy (isolate, or unplaced while that copy is dirty or off base), or waits (after); the reply says which, and names lanes that may write the same. Refused, with the choices, when its home cannot hold.",
+      "description": "Open a lane: one outcome, run by a new Lead whose directive is these fields. It works in the project's own copy, its own copy (isolate, or unplaced while that copy is dirty or off base), or waits (after); the reply says which, and names lanes that may write the same. Refused, with the choices, when its home cannot hold. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -129,7 +129,7 @@
     {
       "name": "message",
       "title": "Message a Lead or Peer",
-      "description": "Send one decision or one question to a Lead (lane id) or, only when its Lead cannot carry it, a Peer (task id; its Lead is told). It arrives when that seat's turn ends or with its next desk call's reply; now cuts the turn short. Refused if it quotes an open incident about that seat.",
+      "description": "Send one decision or one question to a Lead (lane id) or, only when its Lead cannot carry it, a Peer (task id; its Lead is told). It arrives when that seat's turn ends or with its next desk call's reply; now cuts the turn short. Refused if it quotes an open incident about that seat. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -161,7 +161,7 @@
     {
       "name": "answer",
       "title": "Answer an ask",
-      "description": "Answer an open ask by its id; the ask closes, and the asker gets the answer as soon as it can take it.",
+      "description": "Answer an open ask by its id; the ask closes, and the asker gets the answer as soon as it can take it. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -256,7 +256,7 @@
     {
       "name": "amend_lane",
       "title": "Amend a lane",
-      "description": "Change what an open or waiting lane is asked. Give only the fields that change; the old values are kept with why. Its Lead is told, and a READY it gave before no longer stands. A waiting lane can change what it waits for.",
+      "description": "Change what an open or waiting lane is asked. Give only the fields that change; the old values are kept with why. Its Lead is told, and a READY it gave before no longer stands. A waiting lane can change what it waits for. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -821,7 +821,7 @@
     {
       "name": "add_tasks",
       "title": "Add tasks",
-      "description": "Lay tasks out in your lane: what each achieves, what it waits for (after), and whether it runs beside others (parallel), holding named paths. Each starts once what it waits for is merged; tasks in the lane's copy run one at a time. Refused whole when held paths collide; outside the write set is noted.",
+      "description": "Lay tasks out in your lane: what each achieves, what it waits for (after), and whether it runs beside others (parallel), holding named paths. Each starts once what it waits for is merged; tasks in the lane's copy run one at a time. Refused whole when held paths collide; outside the write set is noted. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -935,7 +935,7 @@
     {
       "name": "start_review",
       "title": "Start a review",
-      "description": "Start a read-only reviewer with clean context in the working copy of the work under review. With task: it reviews that task's commits. With scope lane: the whole lane's change against its acceptance. With neither: your open question on the lane branch, as a second opinion, a scout or an audit reader asks it.",
+      "description": "Start a read-only reviewer with clean context in the working copy of the work under review. With task: it reviews that task's commits. With scope lane: the whole lane's change against its acceptance. With neither: your open question on the lane branch, as a second opinion, a scout or an audit reader asks it. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -978,7 +978,7 @@
     {
       "name": "message",
       "title": "Message a Peer",
-      "description": "Send one of your Peers (by task id) one message. It arrives when the Peer's turn ends, or with the reply to its next desk call; now cuts the turn short. Refused if it names or quotes an open incident about the seat it goes to: say what you read in the record in your own words.",
+      "description": "Send one of your Peers (by task id) one message. It arrives when the Peer's turn ends, or with the reply to its next desk call; now cuts the turn short. Refused if it names or quotes an open incident about the seat it goes to: say what you read in the record in your own words. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1010,7 +1010,7 @@
     {
       "name": "answer",
       "title": "Answer a Peer's ask",
-      "description": "Answer a Peer's open ask by its id; the ask closes, and the Peer gets the answer as soon as it can take it.",
+      "description": "Answer a Peer's open ask by its id; the ask closes, and the Peer gets the answer as soon as it can take it. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1073,7 +1073,7 @@
     {
       "name": "rework",
       "title": "Send a task back",
-      "description": "Send a task back to its Peer with what must change. A merged task goes back to the Peer kept on it, to fix within that task on its branch; the lane is then no longer ready.",
+      "description": "Send a task back to its Peer with what must change. A merged task goes back to the Peer kept on it, to fix within that task on its branch; the lane is then no longer ready. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1133,7 +1133,7 @@
     {
       "name": "amend_task",
       "title": "Amend a task",
-      "description": "Change what a task asks while its Peer works on it. Give only the fields that change; old values are kept with why, and the Peer reads the change at its next turn. A waiting task can also change what it waits for, where it runs and its role. A task whose contract changed is better cut and started again.",
+      "description": "Change what a task asks while its Peer works on it. Give only the fields that change; old values are kept with why, and the Peer reads the change at its next turn. A waiting task can also change what it waits for, where it runs and its role. A task whose contract changed is better cut and started again. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1295,7 +1295,7 @@
     {
       "name": "ask",
       "title": "Ask the owner",
-      "description": "Ask the owner, and keep working on your default unless the next step cannot be undone. need: a resource or decision from above (a missing prerequisite becomes a detour lane). blocked: something outside the project stops you. question: user-visible behavior the directive leaves open.",
+      "description": "Ask the owner, and keep working on your default unless the next step cannot be undone. need: a resource or decision from above (a missing prerequisite becomes a detour lane). blocked: something outside the project stops you. question: user-visible behavior the directive leaves open. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1340,7 +1340,7 @@
     {
       "name": "report",
       "title": "Report the lane",
-      "description": "Report the lane to the owner: when it is ready to land, when it is cut, or when a decision above you changed. At most 15 lines.",
+      "description": "Report the lane to the owner: when it is ready to land, when it is cut, or when a decision above you changed. At most 15 lines. Write it in English, the way a person would; quote the Human word for word.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1538,7 +1538,7 @@
     {
       "name": "done",
       "title": "Hand the task back",
-      "description": "Hand the task back. Call it once at the end of the task, with what you changed committed on your branch; the desk reads the commit from your branch.",
+      "description": "Hand the task back. Call it once at the end of the task, with what you changed committed on your branch; the desk reads the commit from your branch. Write it in English, the way a person would.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1583,7 +1583,7 @@
     {
       "name": "ask",
       "title": "Ask a question",
-      "description": "Ask whoever assigned the task, when you cannot continue without an answer. End your turn after asking; the answer arrives as a message.",
+      "description": "Ask whoever assigned the task, when you cannot continue without an answer. End your turn after asking; the answer arrives as a message. Write it in English, the way a person would.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1649,7 +1649,7 @@
     {
       "name": "done",
       "title": "Hand the review back",
-      "description": "Hand the review back. Call it once at the end: every defect you traced, each with its severity, and your answer to the question you were given. P2 and P3 alone go to the lane's backlog with accept. The Lead filters.",
+      "description": "Hand the review back. Call it once at the end: every defect you traced, each with its severity, and your answer to the question you were given. P2 and P3 alone go to the lane's backlog with accept. The Lead filters. Write it in English, the way a person would.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1743,7 +1743,7 @@
     {
       "name": "ask",
       "title": "Ask a question",
-      "description": "Ask whoever assigned the review, when you cannot continue without an answer.",
+      "description": "Ask whoever assigned the review, when you cannot continue without an answer. Write it in English, the way a person would.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
