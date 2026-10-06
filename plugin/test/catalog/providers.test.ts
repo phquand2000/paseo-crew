@@ -129,4 +129,11 @@ test("the plugin writes one provider and profile per seat into Paseo's config, k
     [{ id: "glm", label: "GLM", isDefault: true }],
     "a role on an agent its preset does not name starts on another role's preset there, not the first listed",
   );
+  listed.roles.find((role) => role.role === "lead")!.presets = { omp: { model: "claude-in-omp" } };
+  applyReconcile(listed, resolveTeam(listed));
+  assert.deepEqual(
+    written().agents.providers["crew-lead-omp"]!.additionalModels,
+    [{ id: "claude-in-omp", label: "Claude in omp", isDefault: true }],
+    "a role's preset for an agent other than its own is what it starts on there",
+  );
 });

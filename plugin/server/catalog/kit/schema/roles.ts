@@ -11,6 +11,7 @@ const Role = z.strictObject({
   tools: text.optional(),
   follows: text.optional(),
   defaults: z.strictObject({ harness: text, model: text.optional(), thinking: text.optional() }).optional(),
+  presets: z.record(text, z.strictObject({ model: text.optional(), thinking: text.optional() })).optional(),
   prompt: text,
   skills: text.nullable(),
   extraSkills: z.array(z.string().regex(/^[^:]+:[^:]+$/, { error: "is not written set:name" })).optional(),

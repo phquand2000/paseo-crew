@@ -168,9 +168,9 @@ function loadRoles(listed: RoleFile[], harnesses: Record<string, HarnessSpec>): 
   const roles = listed.map((role) => {
     if (role.follows === undefined) return role;
     const followed = listed.find((other) => other.role === role.follows);
-    if (role.defaults)
+    if (role.defaults || role.presets)
       throw new Error(
-        `role ${role.role} follows ${role.follows} and names defaults of its own; it takes one or the other`,
+        `role ${role.role} follows ${role.follows} and names defaults or presets of its own; it takes one or the other`,
       );
     if (!followed || followed === role)
       throw new Error(`role ${role.role} follows ${role.follows}, which is no other role in roles.json`);
@@ -178,7 +178,7 @@ function loadRoles(listed: RoleFile[], harnesses: Record<string, HarnessSpec>): 
       throw new Error(
         `role ${role.role} follows ${role.follows}, which follows ${followed.follows} in turn; a role follows one that chooses for itself`,
       );
-    return { ...role, defaults: followed.defaults };
+    return { ...role, defaults: followed.defaults, presets: followed.presets };
   });
   for (const role of roles) {
     if (!role.defaults) throw new Error(`role ${role.role} has no default harness`);
@@ -189,6 +189,11 @@ function loadRoles(listed: RoleFile[], harnesses: Record<string, HarnessSpec>): 
       throw new Error(
         `role ${role.role} defaults to harness ${role.defaults.harness}, which has no harness/${role.defaults.harness}/harness.json`,
       );
+    for (const harness of Object.keys(role.presets ?? {}))
+      if (!harnesses[harness])
+        throw new Error(
+          `role ${role.role} has a preset for harness ${harness}, which has no harness/${harness}/harness.json`,
+        );
   }
   return roles as RoleSpec[];
 }

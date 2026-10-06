@@ -108,7 +108,7 @@ const REFUSED: [string, unknown, RegExp][] = [
   [
     "roles.json",
     { roles: [peer, { ...archivist, defaults: { harness: "acme" } }] },
-    /^role archivist follows peer and names defaults of its own; it takes one or the other$/,
+    /^role archivist follows peer and names defaults or presets of its own; it takes one or the other$/,
   ],
   [
     "roles.json",

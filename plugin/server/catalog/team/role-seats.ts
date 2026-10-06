@@ -51,16 +51,21 @@ export function resolveRole(
   return { role, harness, model, thinking, rules, skips, mcp: serversFor(role, harness, mcp, errors) };
 }
 
-/** What a role runs on a harness its seat is not on: its preset where the harness is its own, else that harness's default. */
+/** What a role runs on a harness its seat is not on: its preset for that harness, else that harness's default. */
 export function presetOn(
   role: RoleSpec,
   harness: HarnessSpec,
   roles: RoleSpec[],
 ): { model?: ModelSpec; thinking?: string } {
-  const preset = harness.id === role.defaults.harness ? role.defaults : undefined;
+  const preset = presetOf(role, harness.id);
   // The kit's own model for its own harness, whether or not the catalog lists it, as resolveRole keeps it.
   const model = modelFor(harness, preset?.model, roles);
   return { model, thinking: thinkingFor(harness, model, preset?.thinking) };
+}
+
+/** The role's defaults on its own harness, else its preset for the harness if it has one. */
+function presetOf(role: RoleSpec, harness: string): Omit<Choice, "harness"> | undefined {
+  return harness === role.defaults.harness ? role.defaults : role.presets?.[harness];
 }
 
 /** The model named, listed or not, since which model a seat runs is the owner's choice; else another role's preset or Paseo's first. */
@@ -95,9 +100,10 @@ function chosen(
   let skips: RoleSeat["skips"] = [];
   for (const next of layers.map((layer) => layer.roles?.[role.role])) {
     if (!next) continue;
-    // Back on the role's own harness restores the preset; reset to the harness alone, it lost the preset's model and thinking.
+    // Back on the role's own harness restores the preset; another harness starts from the role's preset there.
     if (next.harness && next.harness !== choice.harness)
-      choice = next.harness === origin.harness ? { ...origin } : { harness: next.harness };
+      choice =
+        next.harness === origin.harness ? { ...origin } : { harness: next.harness, ...role.presets?.[next.harness] };
     if (next.model) choice.model = next.model;
     if (next.thinking) choice.thinking = next.thinking;
     if (next.rules?.trim()) rules.push(next.rules.trim());

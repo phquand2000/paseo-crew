@@ -5,8 +5,9 @@ import { executableIn, nodeBin, pathDirs, stateRoot } from "../../core/paths.ts"
 import type { AgentConfig, SessionOpen } from "../../core/ports.ts";
 import { type Json, layered, setPath } from "../../core/json.ts";
 import { type HarnessSpec, type Kit, type McpServers, type ModelSpec, type RoleSpec } from "../kit/kit.ts";
-import { agentDefault, seatOf } from "../kit/roles.ts";
+import { seatOf } from "../kit/roles.ts";
 import { agentBin } from "../paseo/agent-bin.ts";
+import { presetOn } from "../team/role-seats.ts";
 import type { Team } from "../team/team.ts";
 import { preapprovedFor } from "./servers.ts";
 
@@ -55,7 +56,7 @@ export function applyRole(
   return next;
 }
 
-/** Paseo's model where the catalog lists it, else the team's for the role on this harness, else the agent's default; and the thinking the team chose for that model. */
+/** Paseo's model where the catalog lists it, else the team's for the role on this harness, else the role's preset there; and the thinking chosen with that model. */
 function modelOf(
   kit: Kit,
   team: Team,
@@ -66,8 +67,9 @@ function modelOf(
   const chosen = team.roles[role.role];
   const own = chosen?.harness.id === harness.id ? chosen : undefined;
   const listed = (harness.models ?? []).find((entry) => entry.id === config.model);
-  const model = listed ?? own?.model ?? agentDefault(kit.roles, harness);
-  return { model, preferred: own && own.model?.id === model?.id ? own.thinking : undefined };
+  const preset = own?.model ? own : presetOn(role, harness, kit.roles);
+  const model = listed ?? preset.model;
+  return { model, preferred: preset.model?.id === model?.id ? preset.thinking : undefined };
 }
 
 /** Paseo's thinking where the model offers it, else the team's, else the model's default; with no options offered, only the team's. */
