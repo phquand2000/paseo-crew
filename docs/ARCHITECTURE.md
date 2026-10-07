@@ -60,7 +60,7 @@ The Human may be away. Each row is a verb a seat calls, or something the desk re
 | Lead | `start_review` | a review task, `L<n>-R<k>`, `running` at once | the Reviewer starts from its REVIEW brief; its verdict comes back as HANDBACK |
 | Peer, Reviewer | `ask` | an ask, `open`, to the Lead; a Peer's `bestGuess` is its default, a Reviewer's has none | ASK to the Lead, or to the Supervisor once the Lead is gone |
 | Lead | `ask`, with the `default` it works on meanwhile | an ask to the Supervisor | ASK to the Supervisor |
-| Supervisor, Lead | `answer`, `message` | the ask `answered` | ANSWER to the asker, and ANSWERED FOR YOU to the seat it was put to when another answers; MESSAGE, with RECONCILE to the Lead first when the Supervisor writes to a Peer |
+| Supervisor, Lead | `answer`, `message` | the ask `answered` | ANSWER to the asker, and ANSWERED FOR YOU to the seat it was put to when another answers; the message, opening with who wrote it, with RECONCILE to the Lead first when the Supervisor writes to a Peer |
 | Supervisor | `amend_lane` | the lane amended, its `ready` cleared | AMENDED to the Lead |
 | Supervisor | `hold_lane`, `resume_lane` | `onHold` set, or cleared | HOLD past the outbox to the Lead and each seat of a task not merged or cut; RESUMED |
 | The watch | a fact in a turn or in a lane's record | an incident in `incidents.json` | INCIDENT to the Lead or the Supervisor, once it is told |

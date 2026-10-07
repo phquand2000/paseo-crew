@@ -300,6 +300,15 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   );
 });
 
+test("a message from one person to another opens the way a person's note would, not with a desk heading", () => {
+  const sending = { by: "agent-1", to: "L1", at: 0 };
+  assert.match(
+    messageLetters.message("the owner", "Hold off on the migration.", sending, "lead").text,
+    /^The owner writes:\n\nHold off on the migration\.\n\nNext: /,
+  );
+  assert.match(messageLetters.message("your lead", "why X?", sending, "worker").text, /^Your lead writes:\n\nwhy X\?/);
+});
+
 test("an issue resolves to gh arguments, and what it says cannot close the fence it is read inside or speak on the line above it", async () => {
   assert.deepEqual(issueArgs("#12"), ["issue", "view", "12"]);
   assert.deepEqual(issueArgs("acme/shop#7"), ["issue", "view", "7", "-R", "acme/shop"]);

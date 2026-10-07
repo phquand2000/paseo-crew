@@ -264,13 +264,14 @@ First prompts come from `briefs.ts` (Peer, Reviewer) and `directive.ts` (Lead) b
 that letter, never written by hand where it is posted, and ends with one `Next:` line: what it asks of its reader,
 picked from what the desk knows (a red gate, the kind of an ask, whether the reader is the Lead or whoever supervises
 because the Lead is gone, whether the task merged was the lane's last). OWNER DIRECTIVE, TASK and REVIEW are a seat's
-first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Peer, which comes as mail.
+first prompt, not mail, and carry neither, save a TASK its Lead gives a kept Peer, which comes as mail. A message
+one seat writes to another has no heading: it opens with who wrote it, as *Your lead writes:*.
 
 | Kind | Letters |
 |---|---|
 | A seat's first prompt | OWNER DIRECTIVE, TASK, REVIEW |
 | Starting and waiting | OPENED, NOT OPENED, WAITING, NOT STARTED, BESIDE, LANE BESIDE |
-| Between seats | MESSAGE, RELEASED, RECONCILE, ASK, CARRIED UP, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED, DECISION PENDING |
+| Between seats | RELEASED, RECONCILE, ASK, CARRIED UP, ANSWER to your ask, ANSWERED FOR YOU, OVERRULED, DECISION PENDING |
 | Work coming back | HANDBACK, REWORK, AMENDED, GO ON, TAKEN, SETTLING |
 | Merging | MERGED, MERGE RED, MERGE WAITS, MERGE FAILED, MERGE CONFLICT |
 | Landing | REPORT, BASE CONFLICT, CAN LAND, CLEARED, DETOUR DROPPED, LANE CLOSED |
@@ -529,7 +530,7 @@ The watch also asks what a code fact cannot read, one condition at a time, at th
 - `catalog/checks.json` holds each question's wording, what each answer means, and its thresholds: the shipped
   yes-or-no questions hold at 0.8 or more and fail at 0.2 or less, unclear between; the choice is taken at 0.6 or more.
   A question's `mode` is `off` or `shadow`; only a `shadow` one is asked, and every shipped one is.
-- `instruction_kind` is asked only when the instruction came from a sender its `after` names: a REWORK, MESSAGE,
+- `instruction_kind` is asked only when the instruction came from a sender its `after` names: a REWORK, a message,
   AMENDED or LAND SENT BACK letter, an ANSWER to an ask, or the Human. No question reads an instruction the watch's
   window has lost.
 - Who answers is `attention.judge`, set on the panel (Team › Supervisor, *Answered by*):

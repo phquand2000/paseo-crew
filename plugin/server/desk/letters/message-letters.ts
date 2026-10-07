@@ -49,7 +49,8 @@ export const messageLetters = {
       reader === "worker"
         ? "Carry it into your work from now on, and answer what it asks in your hand-back, or with ask if a reply cannot wait."
         : "Carry it into your lane from now on, and answer what it asks with report, or with ask if you need a decision back first.";
-    return mail("message", sendingIds(sending, text), [`MESSAGE from ${from}`, "", text].join("\n"), next);
+    const writer = `${from[0]!.toUpperCase()}${from.slice(1)}`;
+    return mail("message", sendingIds(sending, text), [`${writer} writes:`, "", text].join("\n"), next);
   },
 
   /** The Supervisor may reach a Peer directly but never out of the Lead's sight: this carries what the Lead needs to put its picture right. */

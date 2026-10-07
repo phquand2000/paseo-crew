@@ -255,7 +255,7 @@ test("a Peer that is gone is found past the first page of agents, its Lead told,
     /its agent was closed or archived[\s\S]*Next: Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh Peer that carries on from its branch, or cut it\./,
   );
   const stranded = new RegExp(
-    `## Mail with nobody to read it\n\nThe seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on\\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: MESSAGE from your lead`,
+    `## Mail with nobody to read it\n\nThe seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on\\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: Your lead writes:`,
   );
   assert.match(readFileSync(join(h.project.state, "status.md"), "utf-8"), stranded, "in the page the round writes");
   assert.match((await h.rpc(contracts.status, { project: h.project.slug })).text, stranded, "and on the panel");
