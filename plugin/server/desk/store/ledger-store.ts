@@ -27,7 +27,7 @@ export class LedgerStore {
     const read = readLedgerFile(project.state);
     if ("fault" in read)
       throw new Error(
-        `${read.fault}. Nothing was written over it. Only the Human can repair it or move it aside — no seat may write the desk's own files — and what the desk has on record is in that file.`,
+        `${read.fault}. Nothing was written over it. Only the Human can repair it or move it aside — no agent may write the plugin's own files — and what is on record is in that file.`,
       );
     const result = decide(read.ledger);
     saveLedger(project.state, read.ledger);

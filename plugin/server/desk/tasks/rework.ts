@@ -26,16 +26,16 @@ export async function reworkTask(desk: DeskServices, caller: Caller, args: Rewor
   if (typeof asked === "string") return no(asked);
   const refused = repeatsIncident(caller.project.state, asked.task.peer, text);
   if (refused) return no(refused);
-  if (!asked.task.peer) return no(`${asked.task.id} has no Peer.`);
+  if (!asked.task.peer) return no(`${asked.task.id} has no engineer.`);
   const moved = ledger.agents[asked.task.peer]?.task;
   if (moved && moved !== asked.task.id)
-    return no(`The Peer kept from ${asked.task.id} took ${moved} since: add a task for what must change.`);
+    return no(`The engineer kept from ${asked.task.id} took ${moved} since: add a task for what must change.`);
   // Asked before anything moves: a task sent back to a seat that is gone would wait for nobody.
   if (!(await desk.roster.seated(asked.task.peer)))
     return no(
       asked.task.status === "merged"
-        ? `The Peer on ${asked.task.id} is gone: add a task for what must change.`
-        : `The Peer on ${asked.task.id} is gone; reseat the task for a fresh Peer on its branch and copy, or cut it.`,
+        ? `The engineer on ${asked.task.id} is gone: add a task for what must change.`
+        : `The engineer on ${asked.task.id} is gone; reseat the task for a fresh engineer on its branch and copy, or cut it.`,
     );
   // Sent back after its merge, a task in the lane's copy takes that copy onto its branch again: nothing may be left in it.
   const inLaneCopy = laneCopyToReopen(loadLedger(caller.project.state), asked.lane, asked.task);
@@ -54,7 +54,7 @@ export async function reworkTask(desk: DeskServices, caller: Caller, args: Rewor
   }
   await desk.mail.post(result.peer, workLetters.rework(result, text));
   recordEvent(caller.project, { kind: "task.reworked", task: result.id, by: caller.id, round: result.reworks ?? 0 });
-  return ok(`Rework sent to the Peer on ${result.id}; its next hand-back arrives as mail.`);
+  return ok(`Rework sent to the engineer on ${result.id}; its next hand-back arrives as mail.`);
 }
 
 /** The lane's copy a merged task goes back into, when it worked there and nobody else holds it now. */
@@ -80,7 +80,7 @@ function sendBack({ ledgers }: Pick<DeskServices, "ledgers">, caller: Caller, id
     if (problem) return problem;
     const holder = task.mode === "parallel" ? undefined : holderOf(ledger, lane, task.id);
     if (holder)
-      return `${holder.id} holds the lane's working copy; waking the Peer on ${task.id} in there would put two writers in one checkout. Accept or cut ${holder.id} first.`;
+      return `${holder.id} holds the lane's working copy; waking the engineer on ${task.id} in there would put two writers in one checkout. Accept or cut ${holder.id} first.`;
     TASK.move(task, "rework");
     if (reopened) loseReady(lane);
     task.silent = 0;
@@ -94,7 +94,7 @@ function sendBack({ ledgers }: Pick<DeskServices, "ledgers">, caller: Caller, id
 function reopenProblem(ledger: Ledger, task: Task): string | undefined {
   const bound = ledger.agents[task.peer ?? ""];
   if (!bound || bound.gone || bound.task !== task.id)
-    return `The Peer on ${task.id} is gone: add a task for what must change.`;
+    return `The engineer on ${task.id} is gone: add a task for what must change.`;
   const copy = task.slot ? ledger.slots[task.slot] : undefined;
   if (task.mode === "parallel" && (copy?.task !== task.id || copy.releasing))
     return `The copy ${task.id} worked in is being put away: add a task for what must change.`;

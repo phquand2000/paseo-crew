@@ -35,7 +35,7 @@ export async function addTasks(desk: DeskServices, caller: Caller, asked: AskedT
   const now = loadLedger(project.state).tasks;
   const lines = plan.map((task) => {
     const entry = now[ids.get(task.key)!]!;
-    const running = `${entry.status}${entry.peer ? `, Peer ${entry.peer}` : ""}`;
+    const running = `${entry.status}${entry.peer ? `, engineer ${entry.peer}` : ""}`;
     const state = entry.held
       ? `held: ${clip(entry.held.why, 200)}`
       : entry.status === "waiting"
@@ -119,15 +119,15 @@ function keptProblems(ledger: Ledger, lane: Lane, plan: Planned[], roles: Map<st
   for (const task of Object.values(ledger.tasks))
     if (task.status === "waiting" && task.opening?.peer) promised.set(task.opening.peer, task.id);
   return plan.flatMap(({ key, args, parallel }) => {
-    const named = str(args.peer).trim().toUpperCase();
+    const named = str(args.reuse).trim().toUpperCase();
     if (!named) return [];
-    if (parallel) return [`${key} runs beside others in a copy of its own, and a kept Peer works in the lane's.`];
+    if (parallel) return [`${key} runs beside others in a copy of its own, and a kept engineer works in the lane's.`];
     const source = ledger.tasks[named]?.lane === lane.id ? ledger.tasks[named] : undefined;
     const kept = keptFor(ledger, source, roles.get(key)!);
-    if (typeof kept === "string") return [`${key} names the Peer kept from ${named}, which ${kept}.`];
+    if (typeof kept === "string") return [`${key} names the engineer kept from ${named}, which ${kept}.`];
     const other = promised.get(named);
     promised.set(named, key);
-    return other ? [`${key} names the Peer kept from ${named}, which ${other} starts on already.`] : [];
+    return other ? [`${key} names the engineer kept from ${named}, which ${other} starts on already.`] : [];
   });
 }
 
@@ -138,7 +138,7 @@ function recordTask(
   { args, parallel, hints, holds }: Planned,
   waits: { after: string[]; role: string },
 ): string {
-  const peer = str(args.peer).trim().toUpperCase() || undefined;
+  const peer = str(args.reuse).trim().toUpperCase() || undefined;
   const title = str(args.title);
   const id = nextTaskId(lane, "code");
   const now = Date.now();

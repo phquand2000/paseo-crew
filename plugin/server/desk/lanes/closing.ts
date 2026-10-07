@@ -179,8 +179,8 @@ function closedReply(
   note: string,
 ): string {
   const seats = kept
-    ? `Its Peers are archived, and its Lead ${lane.lead} stays until you release it.`
-    : "Its Peers are archived, and its Lead is gone.";
+    ? `Its engineers are archived, and its Lead ${lane.lead} stays until you release it.`
+    : "Its engineers are archived, and its Lead is gone.";
   const { cut, canceled } = left;
   const cutText =
     cut.length > 0 ? ` It cut ${cut.join(", ")}, which ${plural(cut.length, "was", "were")} not finished.` : "";

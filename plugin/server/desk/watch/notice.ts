@@ -41,7 +41,7 @@ function placeOf(project: Project, seat: Noticed): Placed {
     const ledger = loadLedger(project.state);
     const task = taskOfPeer(ledger, seat.id);
     const lane = task ? ledger.lanes[task.lane] : laneOfLead(ledger, seat.id);
-    if (task) return { where: `the Peer on ${task.id} (${task.title})`, lane, task };
+    if (task) return { where: `the engineer on ${task.id} (${task.title})`, lane, task };
     if (lane) return { where: `the Lead of ${lane.id} (${lane.title})`, lane };
   } catch {
     // A ledger that cannot be read leaves the seat named by its title alone.

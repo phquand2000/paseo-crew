@@ -63,7 +63,7 @@ test("a task whose Lead asks for the plan first tells the Lead when its Peer cha
   await h.idle(lead);
   assert.match(
     h.heard(lead).join("\n"),
-    /INCIDENT I\d+ \(plan-skipped, attend\) on the Peer on L1-T1 \(Totals\)[^]*What was seen: changed [^\n]*cart\.ts before it asked with its plan/,
+    /INCIDENT I\d+ \(plan-skipped, attend\) on the engineer on L1-T1 \(Totals\)[^]*What was seen: changed [^\n]*cart\.ts before it asked with its plan/,
   );
 
   const asked = await h.call(first!, "peer", "ask", {

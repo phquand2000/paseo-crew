@@ -44,7 +44,7 @@ export function loadLedger(state: string): Ledger {
   const read = readLedgerFile(state);
   if ("fault" in read)
     throw new Error(
-      `${read.fault}. Nothing was read from it as if the project had no work on record. Only the Human can repair it or move it aside; no seat may write the desk's own files.`,
+      `${read.fault}. Nothing was read from it as if the project had no work on record. Only the Human can repair it or move it aside; no agent may write the plugin's own files.`,
     );
   return read.ledger;
 }

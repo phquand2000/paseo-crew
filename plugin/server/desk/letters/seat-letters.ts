@@ -43,7 +43,7 @@ export const seatLetters = {
       [task.id, quiet],
       lines.join("\n"),
       reader === "lead"
-        ? "If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh Peer on its branch."
+        ? "If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh engineer on its branch."
         : LEAD_GONE,
     );
   },
@@ -75,13 +75,13 @@ export const seatLetters = {
     signedOut = false,
   ): Letter {
     const next = {
-      lead: "Nothing restarts it: message it to continue, or reseat its task for a fresh Peer on its branch.",
+      lead: "Nothing restarts it: message it to continue, or reseat its task for a fresh engineer on its branch.",
       supervisor:
         "Nothing restarts it: read what it did, then message the lane to continue, or drop_lane it and open it again.",
       leadGone: LEAD_GONE,
     }[reader];
     const text = signedOut
-      ? `${failedText(who, message)}\nIts agent is signed out of its model provider, and the Human is paged: a fresh seat on that agent fails the same way until they sign it in.`
+      ? `${failedText(who, message)}\nIts agent is signed out of its model provider, and the Human is paged: a fresh one on that agent fails the same way until they sign it in.`
       : failedText(who, message);
     return mail("failed", [agent, turn], text, next);
   },
@@ -98,8 +98,8 @@ export const seatLetters = {
     const lines = [
       `LIMITED: ${who} stopped on its usage limit${limit.resets ? `, which resets ${limit.resets}` : ""}.`,
       limit.wakeAt
-        ? `The desk tells it to continue at ${new Date(limit.wakeAt).toISOString()}; anything sent before then stops on the same limit.`
-        : "The desk could not read when it resets, so nothing wakes it: message it to continue once it has reset.",
+        ? `It is told to continue at ${new Date(limit.wakeAt).toISOString()}; anything sent before then stops on the same limit.`
+        : "When it resets could not be read, so nothing wakes it: message it to continue once it has reset.",
       meanwhile.length > 0
         ? `Meanwhile ${meanwhile.join(" or ")} runs on another agent and can take the work.`
         : "Every role that could take the work runs on this agent too; the Human can move one to another agent in settings.",
@@ -107,7 +107,7 @@ export const seatLetters = {
     ];
     const moves = waiting.length > 0 && meanwhile.length > 0;
     const next = {
-      lead: "If the lane can wait, leave it: it keeps its work and carries on at the reset. If it cannot, reseat the task on a role named above: the fresh Peer carries on from its branch.",
+      lead: "If the lane can wait, leave it: it keeps its work and carries on at the reset. If it cannot, reseat the task on a role named above: the fresh engineer carries on from its branch.",
       supervisor: moves
         ? "If the lane cannot wait for the reset, replace_lead with a role named above takes it to another agent and lets this Lead go."
         : "If the lane can wait, leave it: it carries on at the reset. If it cannot, tell the Human, who may move the work to another agent meanwhile.",
@@ -141,9 +141,9 @@ export const seatLetters = {
     return mail(
       "gone",
       [task.id],
-      failedText(`the Peer on ${task.id} (${task.title})`, "its agent was closed or archived"),
+      failedText(`the engineer on ${task.id} (${task.title})`, "its agent was closed or archived"),
       reader === "lead"
-        ? "Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh Peer that carries on from its branch, or cut it."
+        ? "Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh engineer that carries on from its branch, or cut it."
         : LEAD_GONE,
     );
   },
@@ -197,7 +197,7 @@ export const seatLetters = {
     return mail(
       "notstarted",
       [task.id],
-      `NOT STARTED ${task.id} (${task.title}): the desk stopped while its Peer was being started, so it is cut.`,
+      `NOT STARTED ${task.id} (${task.title}): the plugin stopped while its engineer was being started, so it is cut.`,
       "add_tasks it again if you still want it and have not already.",
     );
   },
@@ -208,14 +208,14 @@ export const seatLetters = {
         mail(
           "halfopen",
           [lane.id],
-          `OPENED ${lane.id} (${lane.title}): the desk stopped while its Lead was being started, and that Lead, ${lane.lead}, is kept on it.`,
+          `OPENED ${lane.id} (${lane.title}): the plugin stopped while its Lead was being started, and that Lead, ${lane.lead}, is kept on it.`,
           "Nothing now; do not open it again.",
         ),
       );
     return mail(
       "halfopen",
       [lane.id],
-      `NOT OPENED ${lane.id} (${lane.title}): the desk stopped while its Lead was being started, so the lane is closed and its working copy put back.`,
+      `NOT OPENED ${lane.id} (${lane.title}): the plugin stopped while its Lead was being started, so the lane is closed and its working copy put back.`,
       "open_lane it again if you still want it and have not already.",
     );
   },

@@ -20,7 +20,7 @@ export function taskPlacement(
   if (holder.status === "done" || holder.status === "failed") {
     const waits = holder.status === "done" ? "has handed back" : "failed to merge";
     return {
-      why: `${holder.id} ${waits} and is waiting on you, and it still holds the lane's working copy — rework would wake its Peer in there.`,
+      why: `${holder.id} ${waits} and is waiting on you, and it still holds the lane's working copy — rework would wake its engineer in there.`,
       next: `Accept or cut it first, ${beside}`,
     };
   }

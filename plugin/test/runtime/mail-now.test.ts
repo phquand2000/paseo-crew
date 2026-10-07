@@ -28,7 +28,7 @@ test("a message sent now into a hand-back under way stops it being taken, and wo
   const first = done("rounded");
   await gate.reached;
   const sent = await h.call(sup, "supervisor", "message", { to: "L1-T1", text: "Check the rates as well.", now: true });
-  assert.match(sent.text, /^Delivered to the Peer on L1-T1, cutting its turn short/);
+  assert.match(sent.text, /^Delivered to the engineer on L1-T1, cutting its work short/);
   assert.match(
     h.heard(lead).join("\n"),
     /I've written to the engineer on L1-T\d directly, and cut in where they were:\n\n> Check the rates as well\./,
@@ -67,7 +67,7 @@ test("a message sent now into a hand-back under way stops it being taken, and wo
   assert.equal(taken.ok, true, taken.text);
   assert.match(
     taken.text,
-    /Mail the desk held for you:[^]*BESIDE L1-T2/,
+    /Mail held for you:[^]*BESIDE L1-T2/,
     "word it reads with the reply, not a reason to hand back again",
   );
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "done");

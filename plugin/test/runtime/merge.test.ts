@@ -86,7 +86,7 @@ test("a task beside others hands back what its lane would become: the lane broug
   assert.match(
     heard(h, lead),
     new RegExp(
-      `SETTLING L1-T3 \\(Quotes\\): bringing ${lane.branch} into its branch conflicts in c\\.txt, changed there by L1-T2\\. Its Peer settles it in its own copy before it hands back\\.`,
+      `SETTLING L1-T3 \\(Quotes\\): bringing ${lane.branch} into its branch conflicts in c\\.txt, changed there by L1-T2\\. Its engineer settles it in its own copy before it hands back\\.`,
     ),
   );
   writeFileSync(join(quotes!.worktree!, "c.txt"), "prices and quotes\n");
@@ -99,7 +99,7 @@ test("a task beside others hands back what its lane would become: the lane broug
   assert.equal((await h.call(lead, "lead", "rework", { task: "L1-T3", text: "Shorter, please." })).ok, true);
   assert.throws(
     () => h.git(quotes!.worktree!, "rev-parse", "-q", "--verify", "MERGE_HEAD"),
-    "sent back before its merge, it is left as its Peer had it",
+    "sent back before its merge, it is left as its engineer had it",
   );
 
   await h.call(lead, "lead", "add_tasks", beside("l", "Loose", ["f.txt"]));
@@ -265,7 +265,7 @@ test("each lane merges in its own queue, and a merge under way is neither cut no
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "merging");
   assert.equal(
     (await h.call(one!, "lead", "release", { task: "L1-T1" })).text,
-    "L1-T1 is in the merge queue: release its Peer once MERGED arrives.",
+    "L1-T1 is in the merge queue: release its engineer once MERGED arrives.",
   );
 
   writeFileSync(join(lanes[1]!.worktree!, "a.txt"), "being written\n");

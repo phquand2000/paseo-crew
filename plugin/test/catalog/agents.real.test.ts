@@ -219,7 +219,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
       assert.equal(/pattern = \["sleep"\]/.test(rules), !waits, `${where}: sleeps only where the role may`);
       const forbidden =
         rules.match(
-          /prefix_rule\(pattern = \[\[([^\]]*)\]\], decision = "forbidden", justification = "Agents are started by the desk/,
+          /prefix_rule\(pattern = \[\[([^\]]*)\]\], decision = "forbidden", justification = "Agents are started/,
         )?.[1] ?? "";
       for (const agent of agents)
         assert.ok(
@@ -386,7 +386,7 @@ test("every role builds on every agent the kit ships, each in that agent's own t
         assert.equal(
           at(desk, "lifecycle"),
           "keep-alive",
-          `${where}: the adapter lists an unconnected server with no tools, so a fresh Peer could not find done`,
+          `${where}: the adapter lists an unconnected server with no tools, so a fresh engineer could not find done`,
         );
         assert.equal(at(desk, "directTools"), true, `${where}: and its verbs are tools of their own`);
         assert.ok(

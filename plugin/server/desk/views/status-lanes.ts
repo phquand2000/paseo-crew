@@ -92,7 +92,7 @@ export function seatLine(seats: Seats, id: string | undefined, now: number): str
 function taskDetail(ledger: Ledger, task: Task, seats: Seats, now: number, doing?: Watched): string {
   if (AT_WORK.includes(task.status)) {
     const waits = task.held ? `, held until ${task.after?.join(", ")} land` : "";
-    return `, Peer ${seatLine(seats, task.peer, now)}${turnLine(seats, task.peer, now, doing)}${waits}`;
+    return `, engineer ${seatLine(seats, task.peer, now)}${turnLine(seats, task.peer, now, doing)}${waits}`;
   }
   if (task.status === "waiting") {
     const after = task.after?.length ? `, after ${task.after.join(", ")}` : "";
@@ -100,7 +100,7 @@ function taskDetail(ledger: Ledger, task: Task, seats: Seats, now: number, doing
   }
   const kept = keptPeers(ledger, task.lane).find((peer) => peer.task === task.id);
   const keeps =
-    kept && seats.has(kept.id) ? `; its Peer ${seatLine(seats, kept.id, now)} is kept until you release it` : "";
+    kept && seats.has(kept.id) ? `; its engineer ${seatLine(seats, kept.id, now)} is kept until you release it` : "";
   return `${task.handback ? `, hand-back ${minutesSince(now, task.handback.at)} min ago` : ""}${keeps}`;
 }
 
@@ -109,5 +109,5 @@ function turnLine(seats: Seats, id: string | undefined, now: number, doing?: Wat
   const seen = id && seats.get(id)?.status === "running" ? doing?.(id) : undefined;
   if (!seen) return "";
   const last = seen.last ? `, last: ${seen.last}; heard from ${minutesSince(now, seen.heard)} min ago` : "";
-  return ` ${minutesSince(now, seen.since)} min into its turn${last}`;
+  return ` ${minutesSince(now, seen.since)} min into its work${last}`;
 }

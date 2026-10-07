@@ -39,7 +39,7 @@ export async function reseatTask(desk: DeskServices, caller: Caller, args: Resea
     if (task.peer) recordEvent(project, { kind: "seat.released", seat: task.peer, of: task.id });
     const started = await start(desk, caller, claimed, str(args.why));
     if (typeof started === "string")
-      return no(`The Peer on ${task.id} was let go, but ${started} Reseat it again, or cut it.`);
+      return no(`The engineer on ${task.id} was let go, but ${started} Reseat it again, or cut it.`);
     bind(desk, project, claimed, started.peer);
     recordEvent(project, {
       kind: "task.started",
@@ -49,7 +49,7 @@ export async function reseatTask(desk: DeskServices, caller: Caller, args: Resea
       slot: copy.id ?? "in place",
     });
     return ok(
-      `${task.id} has a fresh Peer ${started.peer} on ${task.branch}, told to carry on from what was left there.`,
+      `${task.id} has a fresh engineer ${started.peer} on ${task.branch}, told to carry on from what was left there.`,
     );
   } finally {
     desk.seating.release(workKey(project, task.id));
@@ -71,14 +71,14 @@ function claim(
     const held = holdRefusal(lane);
     if (held) return held;
     if (!IN_HAND.includes(task.status))
-      return `${task.id} is ${task.status}; only a task in hand has a Peer to replace.`;
+      return `${task.id} is ${task.status}; only a task in hand has an engineer to replace.`;
     const copy = copyOf(ledger, lane, task);
     if (typeof copy === "string") return copy;
     const named = asked || ledger.agents[task.peer ?? ""]?.role;
     const role = roleThatCan(kit, "write", named);
     if (!role) return namedOrNot(kit, "write", named ?? "", "take a task");
     if (!seating.take(workKey(caller.project, task.id)))
-      return `${task.id} is already having a Peer started; read status in a moment.`;
+      return `${task.id} is already having an engineer started; read status in a moment.`;
     return { lane, task: { ...task }, role: role.role, copy };
   });
 }
@@ -93,7 +93,7 @@ function copyOf(ledger: Ledger, lane: Lane, task: Task): Copy | string {
   }
   const holder = holderOf(ledger, lane, task.id);
   if (holder)
-    return `${holder.id} holds the lane's working copy now; a fresh Peer on ${task.id} in there would put two writers in one checkout. Accept or cut ${holder.id} first.`;
+    return `${holder.id} holds the lane's working copy now; a fresh engineer on ${task.id} in there would put two writers in one checkout. Accept or cut ${holder.id} first.`;
   return lane.slot ? ledger.slots[lane.slot]! : { path: lane.worktree!, workspaceId: lane.workspaceId };
 }
 
@@ -117,7 +117,7 @@ async function start(
     });
     return { peer };
   } catch (error) {
-    return `the fresh Peer could not start: ${errorText(error)}.`;
+    return `the fresh engineer could not start: ${errorText(error)}.`;
   }
 }
 

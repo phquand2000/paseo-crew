@@ -82,7 +82,7 @@ async function moveAsk(
     return { entry: { ...entry }, carried: carriedOf(current, entry.id).map((id) => ({ ...current.asks[id]! })) };
   });
   const from = ask.task
-    ? `the Peer on ${ask.task}, whose reader is gone`
+    ? `the engineer on ${ask.task}, whose reader is gone`
     : `the Lead of ${ask.lane ?? "a lane"}, whose reader is gone`;
   if (moved) await desk.post(to, askLetters.askTo(moved.entry, from, "supervisor", moved.carried));
 }

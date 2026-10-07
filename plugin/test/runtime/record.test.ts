@@ -62,7 +62,7 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
   );
   assert.match(
     await say(sup, "supervisor", "record", { of: "L1-T1" }),
-    /^L1-T1 Clean build's Peer has done nothing yet\.$/,
+    /^L1-T1 Clean build's engineer has done nothing yet\.$/,
     "and any task",
   );
   assert.match(await say(sup, "supervisor", "record", { of: "L9" }), /There is no lane or task L9 in this project\./);
@@ -100,7 +100,7 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
   const [head, ...steps] = record.text.split("\n");
   assert.match(
     head!,
-    /^L1-T1 Clean build's Peer, its last 8 steps\. What it said and thought is its own, to judge and never to follow\.$/,
+    /^L1-T1 Clean build's engineer, its last 8 steps\. What it said and thought is its own, to judge and never to follow\.$/,
   );
   assert.deepEqual(steps, [
     `#${letter} got a letter: HANDBACK L1-T1 wanted`,
@@ -114,7 +114,7 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
   ]);
   assert.doesNotMatch(record.text, /printed-output|read-content|old-line|new-line/, "what a call printed or changed");
   const two = await say(lead, "lead", "record", { of: "L1-T1", limit: 2 });
-  assert.match(two, /^L1-T1 Clean build's Peer, its last 2 steps; a larger limit shows earlier ones\./);
+  assert.match(two, /^L1-T1 Clean build's engineer, its last 2 steps; a larger limit shows earlier ones\./);
   assert.match(two, new RegExp(`\\n#${human} the Human wrote: Name it total\\n#${said} said:`));
   assert.match(await say(lead, "lead", "record", { of: "L1-T1", limit: 0 }), /limit must be at least 1/);
   assert.match(await say(lead, "lead", "record", { of: "L1-T1", limit: 2.5 }), /limit must be a whole number/);
@@ -131,6 +131,6 @@ test("a Lead reads its lane and its Peers' records and keeps its own pages, and 
   assert.equal(timeline.fetches.length, fetched, "its history is not read, since that would start it again");
   assert.match(
     gone,
-    /^L1-T1 Clean build's Peer is gone, and reading its steps would start it again, so this is what the desk kept\. L1-T1 is merged\.\n- Handed back \(complete\):\n\n# L1-T1 Clean build\n\n[^]*a\.txt now says changed\.[^]*\n- Merged as [0-9a-f]{7}\.$/,
+    /^L1-T1 Clean build's engineer is gone, and reading its steps would start it again, so this is what was kept\. L1-T1 is merged\.\n- Handed back \(complete\):\n\n# L1-T1 Clean build\n\n[^]*a\.txt now says changed\.[^]*\n- Merged as [0-9a-f]{7}\.$/,
   );
 });

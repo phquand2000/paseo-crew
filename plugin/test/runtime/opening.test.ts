@@ -156,7 +156,7 @@ test("a lane takes the project's own copy while it is free; one that finds it ta
   );
   assert.match(
     (await h.call(sup, "supervisor", "status", {})).text,
-    /Lane L1 is closed, and its Lead is ending a turn in it; it goes back to main after\./,
+    /Lane L1 is closed, and its Lead is still finishing its work in it; it goes back to main after\./,
   );
   assert.equal((await open("Second", { isolate: true })).ok, true);
   const third = h.ledger().lanes.L3!;

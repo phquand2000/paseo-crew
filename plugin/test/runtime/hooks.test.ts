@@ -62,7 +62,7 @@ test("a seat as Paseo creates, opens and archives it: prompt, key, seat director
   );
   const prompt = (provider: string) => create(provider).config.systemPrompt ?? "";
   const onClaude = prompt("crew-peer-claude");
-  assert.match(onClaude, /^# Peer\n/, "created with its role's prompt");
+  assert.match(onClaude, /^# Engineer\n/, "created with its role's prompt");
   const delta = (agent: string) =>
     readFileSync(join(import.meta.dirname, "..", "..", "harness", agent, "delta", "peer.md"), "utf-8");
   const role = onClaude.slice(0, onClaude.lastIndexOf(`\n\n${delta("claude")}`));

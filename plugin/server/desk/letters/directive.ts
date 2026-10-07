@@ -146,7 +146,7 @@ function besides(lane: Lane, concept: string | undefined, issue: Issue | undefin
   if (concept) {
     parts.push(
       "",
-      `What this project does and how it behaves, as the Human settled it, is in ${concept}. Read it before you start. It is the Human's word, and Peers never see the file: quote into each task's context, word for word, the lines that task touches, so the quote is all its Peer needs. Where it is silent on a behavior this lane needs, ask with kind question, and leave the file as it is.`,
+      `What this project does and how it behaves, as the Human settled it, is in ${concept}. Read it before you start. It is the Human's word, and your engineers never see the file: quote into each task's context, word for word, the lines that task touches, so the quote is all its engineer needs. Where it is silent on a behavior this lane needs, ask with kind question, and leave the file as it is.`,
     );
   }
   if (lane.detourOf) {

@@ -27,7 +27,7 @@ export const mergeLetters = {
 
   /** The Lead's accept stands while something keeps the merge from its lane: the task stays queued and merges once that clears. `clears`, when that asks for the Lead. */
   waits(task: Task, why: string, clears: boolean): Letter {
-    const text = `MERGE WAITS ${task.id} (${task.title}): ${why}. It merges by itself once that clears, tried again as each turn ends.`;
+    const text = `MERGE WAITS ${task.id} (${task.title}): ${why}. It merges by itself once that clears, tried again each time an agent stops.`;
     return clears
       ? mail(
           "merge",
@@ -56,7 +56,7 @@ export const mergeLetters = {
       "merge",
       [task.id, Date.now()],
       lines.join("\n"),
-      "Send rework to its Peer with what must change, or accept it again with overGate and a reason to merge it over the gate.",
+      "Send rework to its engineer with what must change, or accept it again with overGate and a reason to merge it over the gate.",
     );
   },
 
@@ -77,17 +77,14 @@ export const mergeLetters = {
     const [done, next] =
       settling === "left"
         ? [
-            `The desk began merging ${laneBranch} into the task's branch in its own copy and left the conflicts there.`,
-            "Send rework asking its Peer to settle them and commit the merge with git commit --no-edit, since an editor would wait forever in its session, then accept it again; or cut the task.",
+            `Merging ${laneBranch} into the task's branch in its own copy stopped on conflicts, which are left there.`,
+            "Send rework asking its engineer to settle them and commit the merge with git commit --no-edit, since an editor would wait forever in its session, then accept it again; or cut the task.",
           ]
         : settling === "clean"
-          ? [
-              `The desk merged ${laneBranch} into the task's branch in its own copy without conflicts.`,
-              "Accept it again.",
-            ]
+          ? [`${laneBranch} merged into the task's branch in its own copy without conflicts.`, "Accept it again."]
           : [
-              `The desk could not begin merging ${laneBranch} into the task's branch in its own copy, because ${settling.not}.`,
-              "Send rework asking its Peer to commit what is left there, then accept it again; or cut the task.",
+              `Merging ${laneBranch} into the task's branch in its own copy could not begin, because ${settling.not}.`,
+              "Send rework asking its engineer to commit what is left there, then accept it again; or cut the task.",
             ];
     const text = [
       `MERGE CONFLICT ${task.id} (${task.title}) with ${laneBranch}.`,

@@ -56,7 +56,7 @@ export async function deniedLines(
   if (!shown.length) return [];
   return [
     "",
-    "Writes the sandbox refused in the last day. Only the Human can grant one, in writableOutside of this project's project.json, and a seat started after it may write there; ask only if the work needs it:",
+    "Writes the sandbox refused in the last day. Only the Human can grant one, in writableOutside of this project's project.json, and an agent started after it may write there; ask only if the work needs it:",
     ...shown.map(([path, times]) => `- ${path}: refused ${times} times`),
   ];
 }

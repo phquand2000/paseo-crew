@@ -174,7 +174,7 @@ test("the Report tells the last day from the record: what needs the Human, what 
   );
   assert.deepEqual(
     report.beyond.map((item) => [item.title, item.detail]),
-    [["I1 · git push --force origin main", "the Peer on L1-T1 (Clean build) · not marked"]],
+    [["I1 · git push --force origin main", "the engineer on L1-T1 (Clean build) · not marked"]],
   );
   assert.deepEqual(
     report.numbers.map((row) => [row.title, row.value]),

@@ -49,7 +49,7 @@ export class ToolCalls {
     const started = Date.now();
     // A throw is answered too: only a resolved reply posts the letter the seat was promised.
     const reply = this.handle(request)
-      .catch((error: unknown) => no(`The desk failed: ${errorText(error)}`))
+      .catch((error: unknown) => no(`The call failed: ${errorText(error)}`))
       .finally(() => {
         if (this.running.get(key)?.started === started) this.running.delete(key);
       });

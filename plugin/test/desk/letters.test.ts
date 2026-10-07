@@ -105,7 +105,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   const incident = {
     id: "I1",
     seat: "agent-3",
-    where: "the Peer on L1-T1",
+    where: "the engineer on L1-T1",
     kind: "irreversible",
     level: "attend" as const,
     quote: "psql -c 'drop table users'",
@@ -136,8 +136,8 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     mergeLetters.mergeFailed(task, "git merge failed", "CONFLICT"),
     seatLetters.stalled(task, "bye", 2, { what: "Bash: npm test", refused: true }, "lead"),
     seatLetters.gone(task, "lead"),
-    seatLetters.failed("agent-3", 1, "Peer agent-3", "overloaded", "lead"),
-    seatLetters.permission("agent-3", "Peer agent-3", { id: "p1", name: "Bash", title: "npm install" }, "lead"),
+    seatLetters.failed("agent-3", 1, "engineer agent-3", "overloaded", "lead"),
+    seatLetters.permission("agent-3", "engineer agent-3", { id: "p1", name: "Bash", title: "npm install" }, "lead"),
     watchLetters.incident(incident, { lane, task }, "lead"),
     workLetters.amended(lane, amendment, "lead"),
     seatLetters.notStarted(task),
@@ -147,7 +147,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     messageLetters.message("hi", sending),
     askLetters.answered({ ...ask, fromRole: "lead" }),
     askLetters.answeredFor(ask, "the owner"),
-    askLetters.askTo({ ...ask, status: "open" }, "the Peer on L1-T1", "lead"),
+    askLetters.askTo({ ...ask, status: "open" }, "the engineer on L1-T1", "lead"),
     landLetters.landHeld(lane, "It changes src/auth.", "abc"),
     landLetters.landSentBack(lane, "put it behind a flag", "abc"),
     landLetters.baseConflict(lane, ["a.js"]),
@@ -213,11 +213,11 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     /^If CONTEXT\.md settles it, answer A1; else ask the Human/,
   );
   assert.match(
-    next(askLetters.askTo({ ...question, task: "L1-T1" }, "the Peer on L1-T1", "supervisor")),
+    next(askLetters.askTo({ ...question, task: "L1-T1" }, "the engineer on L1-T1", "supervisor")),
     /^Its Lead is gone: answer A1 if you can/,
   );
   assert.match(
-    next(askLetters.askTo({ ...question, task: "L1-T1" }, "the Peer on L1-T1", "lead")),
+    next(askLetters.askTo({ ...question, task: "L1-T1" }, "the engineer on L1-T1", "lead")),
     /^Answer A1 from the brief and the code/,
   );
 
@@ -264,7 +264,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   assert.deepEqual([noted.wakes, next(noted)], [undefined, "Act on a note only if it matters to the lane."]);
   const started = workLetters.started(
     { ...task, after: ["L1-T0"] },
-    "Started L1-T1 in the lane's working copy with Peer agent-4.",
+    "Started L1-T1 in the lane's working copy with engineer agent-4.",
   );
   assert.deepEqual(
     [started.wakes, next(started)],

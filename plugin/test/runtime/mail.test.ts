@@ -25,7 +25,7 @@ const heard = (h: Harness, id: string) => h.heard(id).join("\n");
 const archive = (h: Harness, id: string) =>
   Object.assign(h.agents.get(id)!, { archivedAt: new Date().toISOString(), status: "closed" });
 
-/** A lane opened by a supervising seat, with its Lead and, given a title, one task and its Peer. */
+/** A lane opened by a supervising seat, with its Lead and, given a title, one task and its engineer. */
 async function lane(h: Harness, sup: string, title: string, work?: string) {
   await h.call(sup, "supervisor", "open_lane", {
     title,
@@ -195,7 +195,7 @@ test("a Peer's silence is counted until it hands back, nudged, then told to its 
   assert.match(heard(h, lead), /SILENT L1-T1 \(Work\): it stopped twice without a hand-back\./);
   assert.match(
     heard(h, lead),
-    /SILENT L1-T1[\s\S]*Still looking[\s\S]*Next: If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh Peer on its branch\./,
+    /SILENT L1-T1[\s\S]*Still looking[\s\S]*Next: If its last words hand the work back without calling done, message it to call done; else message it, or reseat it for a fresh engineer on its branch\./,
     "accept needs a hand-back on record, so it is not offered",
   );
 
@@ -246,16 +246,16 @@ test("a Peer that is gone is found past the first page of agents, its Lead told,
   assert.doesNotMatch(heard(h, lead), /was closed or archived/);
 
   const queued = await h.call(lead, "lead", "message", { to: "L1-T1", text: "Stop: the premise is wrong." });
-  assert.match(queued.text, /Queued for the Peer on L1-T1/);
+  assert.match(queued.text, /Queued for the engineer on L1-T1/);
   archive(h, peer);
   await h.tick(Date.now());
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "stalled");
   assert.match(
     heard(h, lead),
-    /its agent was closed or archived[\s\S]*Next: Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh Peer that carries on from its branch, or cut it\./,
+    /its agent was closed or archived[\s\S]*Next: Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh engineer that carries on from its branch, or cut it\./,
   );
   const stranded = new RegExp(
-    `## Mail with nobody to read it\n\nThe seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on\\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: Stop: the premise is wrong\\.`,
+    `## Mail with nobody to read it\n\nThe agent each of these was addressed to is gone, and no other is sent them: pass on what still matters before each is given up on\\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: Stop: the premise is wrong\\.`,
   );
   assert.match(readFileSync(join(h.project.state, "status.md"), "utf-8"), stranded, "in the page the round writes");
   assert.match((await h.rpc(contracts.status, { project: h.project.slug })).text, stranded, "and on the panel");
@@ -263,7 +263,7 @@ test("a Peer that is gone is found past the first page of agents, its Lead told,
   const more = await h.call(lead, "lead", "add_tasks", { tasks: [task("More", "b.txt")] });
   assert.match(
     more.text,
-    /- T is L1-T2 More: running, Peer/,
+    /- T is L1-T2 More: running, engineer/,
     "nobody writes in the copy any more, so nothing waits for it",
   );
 });
@@ -286,7 +286,7 @@ test("a call that runs longer than a seat can wait is answered once by mail, and
     call("r1", lead, "lead", "report", report),
     call("r2", lead, "lead", "report", report),
   ]);
-  assert.match(first.text, /still working on report/);
+  assert.match(first.text, /report is still running/);
   assert.match(again.text, /already running/);
   writeFileSync(go, "");
   assert.ok(await within(5000, () => /ANSWER to your report call/.test(heard(h, lead))), "answered as mail");
@@ -298,7 +298,7 @@ test("a call that runs longer than a seat can wait is answered once by mail, and
   rmSync(go);
   const said = reported(t);
   const post = t.mock.method(h.runtime.outbox, "post", () => Promise.reject(new Error("the disk is full")));
-  assert.match((await call("r3", lead, "lead", "report", report)).text, /still working on report/);
+  assert.match((await call("r3", lead, "lead", "report", report)).text, /report is still running/);
   writeFileSync(go, "");
   assert.ok(await within(5000, () => /could not be mailed[^]*the disk is full/.test(said())));
   const kept = JSON.parse(readFileSync(intentsPath(), "utf-8")) as { promised: { agent: string; tool: string }[] };
@@ -314,7 +314,7 @@ test("a call that runs longer than a seat can wait is answered once by mail, and
   await h.beginTurn(peer);
   assert.match(
     (await call("d1", peer, "peer", "done", { outcome: "complete", summary: "done" })).text,
-    /still working on done/,
+    /done is still running/,
   );
   h.agents.get(peer)!.status = "idle";
   await h.endTurn(peer, "handed back, ending my turn as told");
@@ -361,7 +361,7 @@ test("word held for a seat rides the reply to its own call inside a turn, and wa
   const stopped = new AbortController();
   stopped.abort();
   assert.doesNotMatch((await status(stopped)).text, /LANDED L1/, "a reply nobody will read carries nothing");
-  assert.match((await status()).text, /\n\n---\n\nMail the desk held for you:\n\n[^]*LANDED L1 \(Cart\)/);
+  assert.match((await status()).text, /\n\n---\n\nMail held for you:\n\n[^]*LANDED L1 \(Cart\)/);
   assert.deepEqual(h.runtime.outbox.pending(sup), []);
   h.agents.get(sup)!.status = "idle";
   await h.endTurn(sup, "L1 has landed.");
@@ -382,7 +382,7 @@ test("a Peer reads the mail held for it before its ask or hand-back is taken, so
   await h.call(lead, "lead", "answer", { ask: "A1", text: "Half up." });
   const again = await call("ask", { question: "Half up or even, then?" });
   assert.equal(again.ok, false);
-  assert.match(again.text, /mail that changes your work came for you[^]*Mail the desk held for you:[^]*Half up\./);
+  assert.match(again.text, /mail that changes your work came for you[^]*Mail held for you:[^]*Half up\./);
   assert.equal(h.ledger().asks.A2, undefined, "the answer it waited for, not a second ask");
 
   await h.call(lead, "lead", "amend_task", { task: "L1-T1", why: "rates too", acceptance: ["a", "b"] });

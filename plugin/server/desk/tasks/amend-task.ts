@@ -49,10 +49,10 @@ export async function amendTask(desk: DeskServices, caller: Caller, args: Args):
   const posted = await desk.mail.post(done.task.peer, letter);
   const told =
     posted === "nobody"
-      ? ", and it has no Peer to tell"
+      ? ", and it has no engineer to tell"
       : waits
-        ? `; its Peer waits for ${waits.join(", ")} unnudged, and is told when they land`
-        : "; its Peer has it at its next turn";
+        ? `; its engineer waits for ${waits.join(", ")} unnudged, and is told when they land`
+        : "; its engineer has it when it next stops";
   return ok(`${done.task.id} is amended${told}.${note}`);
 }
 
@@ -99,7 +99,7 @@ function moveProblem(task: Task, moves: Moves, holds: string[] | undefined): str
   if (task.status !== "waiting")
     return `${task.id} is ${task.status}: parallel and role change only a task not yet started; cut it and add it again.`;
   if (moves.parallel && task.opening?.peer && moves.role === undefined)
-    return `${task.id} starts on the Peer kept from ${task.opening.peer}, which works in the lane's copy; name a role to let it go.`;
+    return `${task.id} starts on the engineer kept from ${task.opening.peer}, which works in the lane's copy; name a role to let it go.`;
   if (moves.parallel && (holds ?? task.holds).length === 0)
     return `A task beside others holds at least one path; give ${task.id} its holds with parallel.`;
   return undefined;

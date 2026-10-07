@@ -32,7 +32,7 @@ type TurnDeps = {
 function askInstead(tools: string[]): string {
   if (tools.includes("ask_human"))
     return "put it to the Human with ask_human, or ask them in your reply and end your turn";
-  return "ask it with ask, then end your turn; the answer arrives as a message";
+  return "ask it with ask, then stop; the answer arrives as a message";
 }
 
 export class TurnRules {
@@ -85,7 +85,7 @@ export class TurnRules {
     if (request.kind === "question" && request.id) {
       await this.deps.seats.respond(agent.id, request.id, {
         behavior: "deny",
-        message: `A question that stops your turn is not taken here: ${askInstead(toolsOf(this.deps.kit, role))}.`,
+        message: `A question that stops your work is not taken here: ${askInstead(toolsOf(this.deps.kit, role))}.`,
       });
       return;
     }

@@ -42,7 +42,7 @@ test("a lease queues seats in order and goes on when released, when a turn is st
 
   const turnId = "t-cut";
   await h.runtime.turnEnded({ agent: hookAgent(h, second), turnId, outcome: { kind: "canceled" }, timeline: [] });
-  assert.match(h.heard(second).join("\n"), /LEASE ENDED board: your turn was stopped\. It is no longer yours\./);
+  assert.match(h.heard(second).join("\n"), /LEASE ENDED board: your work was stopped\. It is no longer yours\./);
   assert.match(h.heard(lead).join("\n"), /LEASE board: it is yours now/);
 
   await lease(first, "peer", { resource: "board" });

@@ -92,9 +92,12 @@ test("a lane works in the project's own copy from open to landing, and hands it 
   assert.equal(branch(), lane.branch);
   assert.match(
     closed.text,
-    new RegExp(`The project's own copy goes back to main once ${lead} finish the turn they are in\\.`),
+    new RegExp(`The project's own copy goes back to main once ${lead} finish what they are doing\\.`),
   );
-  assert.match(closed.text, new RegExp(`Its Peers are archived, and its Lead ${lead} stays until you release it\\.`));
+  assert.match(
+    closed.text,
+    new RegExp(`Its engineers are archived, and its Lead ${lead} stays until you release it\\.`),
+  );
   assert.ok(h.agents.get(first.peer!)!.archivedAt);
   h.agents.get(lead)!.status = "idle";
   await h.endTurn(lead, "closing up");

@@ -56,13 +56,13 @@ function copyNote(lane: Lane, { kept, writers }: Stowing, held: boolean, stuck?:
   if (lane.slot && kept)
     return `Its working copy ${lane.slot} stays with its Lead${stuck ? `, still on ${stuck}` : ""}.`;
   if (lane.slot && unsaved)
-    return `Its working copy ${lane.slot} holds work nobody committed, so it stays at ${lane.worktree}, on ${lane.branch}, for the Human: the desk never deletes work.`;
+    return `Its working copy ${lane.slot} holds work nobody committed, so it stays at ${lane.worktree}, on ${lane.branch}, for the Human: work is never deleted.`;
   const to = lane.onBranch ? lane.branch : lane.base;
   if (stuck)
     return `The project's own copy is still on ${stuck}: git would not take it to ${to} as it stands, and each round tries again.`;
   const where = lane.slot ? "Its working copy is put away" : `The project's own copy goes back to ${to}`;
   return writers.length > 0
-    ? `${where} once ${writers.join(" and ")} finish the turn they are in.`
+    ? `${where} once ${writers.join(" and ")} finish what they are doing.`
     : lane.slot
       ? "Its working copy is put away."
       : `The project's own copy is back on ${to}.`;

@@ -117,7 +117,7 @@ test("a seat's harness is shown its tools with the desk's choices, and its calls
   const stranger = await served(t, h, "lead", "k-nope");
   const recorded = h.events("tool").length;
   for (const tool of ["status", "add_tasks"])
-    assert.match((await stranger.call(tool)).content[0]!.text, /^The desk does not know this agent's key/, tool);
+    assert.match((await stranger.call(tool)).content[0]!.text, /^This agent's key is not known/, tool);
   assert.equal(h.events("tool").length, recorded, "nothing is carried out from a key the desk does not hold");
 
   const seat = await served(t, h, "lead", "k-lead");
@@ -165,7 +165,7 @@ test("a call its harness stops, or whose line drops, is answered by mail, and th
   gate.release();
   await long;
   assert.ok(
-    notes.every((note) => note === "The desk is still working on report."),
+    notes.every((note) => note === "report is still running."),
     notes.join(" | "),
   );
 

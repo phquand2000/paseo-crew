@@ -27,7 +27,7 @@ async function merged(h: Harness, lead: string, peer: string, id: string) {
 }
 
 const second = (h: Harness, lead: string) =>
-  h.call(lead, "lead", "add_tasks", { tasks: [task("u", "Second", { peer: "L1-T1" })] });
+  h.call(lead, "lead", "add_tasks", { tasks: [task("u", "Second", { reuse: "L1-T1" })] });
 
 test("a kept Peer given a task mid-turn takes it when that turn ends, and the watch, its letters and its record follow it there", async () => {
   const { h, lane, peer } = await laneWithPeer({ attention: { watch: true } });
@@ -41,9 +41,9 @@ test("a kept Peer given a task mid-turn takes it when that turn ends, and the wa
   await second(h, lead);
   const held = h.ledger().tasks["L1-T2"]!;
   assert.deepEqual([held.status, held.peer, held.held?.tried], ["waiting", undefined, undefined]);
-  assert.match(held.held!.why, /The Peer kept from L1-T1 is in a turn; L1-T2 starts on it once that turn ends\./);
+  assert.match(held.held!.why, /The engineer kept from L1-T1 is at work; L1-T2 starts on it once it stops\./);
   const moved = await h.call(lead, "lead", "amend_task", { task: "L1-T2", why: "x", parallel: true, holds: ["b.txt"] });
-  assert.match(moved.text, /L1-T2 starts on the Peer kept from L1-T1, which works in the lane's copy; name a role/);
+  assert.match(moved.text, /L1-T2 starts on the engineer kept from L1-T1, which works in the lane's copy; name a role/);
 
   h.agents.get(peer)!.status = "idle";
   await h.endTurn(peer, "noted");
@@ -62,10 +62,10 @@ test("a kept Peer given a task mid-turn takes it when that turn ends, and the wa
     outcome: { kind: "failed", error: { message: "the model is overloaded" } },
     timeline: [],
   });
-  assert.match(h.heard(lead).join("\n"), /L1-T2 · [^\n]* · Second[^\n]*\n?[^]*the model is overloaded/);
+  assert.match(h.heard(lead).join("\n"), /the engineer on L1-T2 \(Second\)[^]*the model is overloaded/);
 
   const record = await h.call(lead, "lead", "record", { of: "L1-T1" });
-  assert.match(record.text, /^L1-T1 Clean build's Peer works L1-T2 now: record L1-T2 for its steps\./);
+  assert.match(record.text, /^L1-T1 Clean build's engineer works L1-T2 now: record L1-T2 for its steps\./);
   assert.match(record.text, /L1-T1 is merged\./);
 });
 
@@ -104,18 +104,18 @@ test("a kept Peer let go while its next task starts leaves that task to a new Pe
   const moved = h.ledger().tasks["L1-T2"]!;
   assert.equal(moved.status, "running");
   assert.notEqual(moved.peer, peer, "never bound to the Peer let go");
-  assert.match(h.heard(lead).join("\n"), /The Peer kept from L1-T1 could not take it, so a new one did\./);
+  assert.match(h.heard(lead).join("\n"), /The engineer kept from L1-T1 could not take it, so a new one did\./);
 
   await merged(h, lead, moved.peer!, "L1-T2");
   const looked = heldLook(h, moved.peer!);
   const releasing = h.call(sup, "supervisor", "release", { task: "L1-T2" });
   await looked.reached;
-  await h.call(lead, "lead", "add_tasks", { tasks: [task("v", "Third", { peer: "L1-T2" })] });
+  await h.call(lead, "lead", "add_tasks", { tasks: [task("v", "Third", { reuse: "L1-T2" })] });
   assert.equal(h.ledger().tasks["L1-T3"]!.peer, moved.peer);
   looked.release();
   const released = await releasing;
   assert.equal(released.ok, false);
-  assert.match(released.text, /The Peer kept from L1-T2 took L1-T3 since/);
+  assert.match(released.text, /The engineer kept from L1-T2 took L1-T3 since/);
   assert.equal(h.agents.get(moved.peer!)!.archivedAt, null);
   assert.equal(h.ledger().agents[moved.peer!]!.gone, undefined);
 });

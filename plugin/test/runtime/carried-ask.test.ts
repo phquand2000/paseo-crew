@@ -71,7 +71,7 @@ test("a Peer parked on an ask its Lead carries up waits unnudged and unwatched u
   assert.match(heard(lead), /On your ask A2:[\s\S]*amend_task/, "a Lead is told to carry an answer into its tasks");
   await h.idle(lead);
   const again = await h.call(lead, "lead", "ask", { kind: "need", text: "x", default: "y", carries: ["A2"] });
-  assert.match(again.text, /A2 is not a Peer's open ask put to you on L1\./);
+  assert.match(again.text, /A2 is not an engineer's open ask put to you on L1\./);
   assert.equal(Object.keys(h.ledger().asks).length, 2);
   await h.call(lead, "lead", "answer", { ask: "A1", text: "Wait for tomorrow.", keepsDefault: true });
   assert.doesNotMatch(heard(peer), /amend_task/, "a Peer amends no task");

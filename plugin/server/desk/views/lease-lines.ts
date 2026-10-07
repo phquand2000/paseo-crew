@@ -7,7 +7,7 @@ export const clock = (at: number): string => new Date(at).toTimeString().slice(0
 export function seatWho(ledger: Ledger, id: string): string {
   const bound = ledger.agents[id];
   const work = bound?.task ?? bound?.lane;
-  return `${bound?.role ?? "seat"} ${id}${work ? ` (${work})` : ""}`;
+  return `${bound?.role ?? "agent"} ${id}${work ? ` (${work})` : ""}`;
 }
 
 /** One lease: who holds it until when, and who waits for it in order. */

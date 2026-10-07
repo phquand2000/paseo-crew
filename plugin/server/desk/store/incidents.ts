@@ -163,6 +163,6 @@ export function repeatsIncident(state: string, seat: string | undefined, ...text
   );
   return (
     hit &&
-    `That repeats incident ${hit.id} about the seat it goes to. Say what you read in its record, in your own words: a seat told of the watch works to the watch.`
+    `That repeats incident ${hit.id} about the agent it goes to. Say what you read in its record, in your own words: an agent told of the watch works to the watch.`
   );
 }

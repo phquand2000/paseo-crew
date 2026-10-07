@@ -115,7 +115,7 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
   await notice(h, peer, "suppressed");
   assert.match(
     h.heard(sup).join("\n"),
-    /INCIDENT I8 \(suppressed, attend\) on the Peer/,
+    /INCIDENT I8 \(suppressed, attend\) on the engineer/,
     "with its Lead gone, it goes above",
   );
 
@@ -163,7 +163,7 @@ test("an incident's life: seen, routed, listed, marked, closed", async () => {
   await assert.rejects(notice(h, peer, "irreversible", "page", "drop database prod"), /could not be read/);
   assert.match(
     h.heard(sup).join("\n"),
-    /PAGE \(irreversible\) on the Peer on L1-T1[\s\S]*drop database prod[\s\S]*The incident book could not be read, so this is on no list/,
+    /PAGE \(irreversible\) on the engineer on L1-T1[\s\S]*drop database prod[\s\S]*The incident book could not be read, so this is on no list/,
     "a page the book cannot keep reaches whoever supervises all the same",
   );
   const pager = [...h.agents.values()].findLast((agent) => agent.provider.startsWith("crew-pager-"));

@@ -20,8 +20,8 @@ type Moved = {
 };
 
 const WHY: Record<Ended, string> = {
-  cut: "your turn was stopped",
-  archived: "the seat is gone",
+  cut: "your work was stopped",
+  archived: "its holder is gone",
   expired: "its time ran out",
 };
 
@@ -89,7 +89,7 @@ function take(ledger: Ledger, resource: string, seat: string, minutes: number, n
   else held.queue.push({ seat, minutes });
   const number = place >= 0 ? place + 1 : held.queue.length;
   const holder = `${seatWho(ledger, held.holder)} holds ${resource} until ${clock(held.until)}`;
-  const text = `${holder}; you are number ${number} in its queue. A LEASE letter tells you when it is yours: meanwhile do what does not need it, or end your turn.`;
+  const text = `${holder}; you are number ${number} in its queue. A LEASE letter tells you when it is yours: meanwhile do what does not need it, or stop.`;
   return { kind: "lease.queued", text };
 }
 

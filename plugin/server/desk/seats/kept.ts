@@ -31,10 +31,10 @@ function keptFrom(ledger: Ledger, task: Task): AgentRef | undefined {
 /** The Peer kept from `source` that a task of `role` may start on: one that worked in the lane's copy, as the task will. */
 export function keptFor(ledger: Ledger, source: Task | undefined, role: string): AgentRef | string {
   if (!source) return "is no task of this lane";
-  if (source.mode === "parallel") return `ran in a copy of its own, and its Peer cannot move into the lane's`;
+  if (source.mode === "parallel") return `ran in a copy of its own, and its engineer cannot move into the lane's`;
   const agent = keptFrom(ledger, source);
-  if (!agent) return "has no Peer kept: it is not merged, or its Peer is gone or took another task";
-  return agent.role === role ? agent : `was a ${agent.role}'s, not a ${role}'s`;
+  if (!agent) return "has no engineer kept: it is not merged, or its engineer is gone or took another task";
+  return agent.role === role ? agent : "has its engineer kept under another role";
 }
 
 /** The copy of its own a closed lane's Lead still holds: kept at close for that Lead, and not yet on its way out. */
@@ -75,7 +75,7 @@ async function releaseClosedLead(desk: DeskServices, project: Project, lane: Lan
   const writing = stillWriting(desk, ledger, lane);
   if (copy) await teardowns.putAway(stowOf(project, lane), writing);
   const put = copy
-    ? `its working copy ${copy} is put away${writing.length > 0 ? ` once ${writing.join(" and ")} finish the turn they are in` : ""}`
+    ? `its working copy ${copy} is put away${writing.length > 0 ? ` once ${writing.join(" and ")} finish what they are doing` : ""}`
     : "";
   return lead
     ? `Lane ${lane.id}'s Lead ${lead} is released${put ? `, and ${put}` : ""}.`
@@ -122,15 +122,16 @@ export async function releaseKeptPeer(desk: DeskServices, caller: Caller, args: 
 /** Why the Peer kept from `task` cannot go now, or that Peer. */
 async function keptToRelease(desk: DeskServices, ledger: Ledger, task: Task): Promise<string | { peer: string }> {
   if (task.kind === "review") return `${task.id} is a review: its reviewer goes when you cut it.`;
-  if (task.status === "cut") return `${task.id} was cut, and its Peer stopped with it.`;
-  if (IN_QUEUE.includes(task.status)) return `${task.id} is in the merge queue: release its Peer once MERGED arrives.`;
+  if (task.status === "cut") return `${task.id} was cut, and its engineer stopped with it.`;
+  if (IN_QUEUE.includes(task.status))
+    return `${task.id} is in the merge queue: release its engineer once MERGED arrives.`;
   if (task.status !== "merged")
-    return `${task.id} is ${task.status}: accept it first, or cut it, which stops its Peer.`;
+    return `${task.id} is ${task.status}: accept it first, or cut it, which stops its engineer.`;
   const peer = task.peer!;
   const moved = ledger.agents[peer]?.task;
   if (moved && moved !== task.id)
-    return `The Peer kept from ${task.id} took ${moved} since: it is that task's Peer now.`;
-  if (!(await desk.roster.seated(peer))) return `The Peer kept from ${task.id} is gone already.`;
+    return `The engineer kept from ${task.id} took ${moved} since: it is that task's engineer now.`;
+  if (!(await desk.roster.seated(peer))) return `The engineer kept from ${task.id} is gone already.`;
   const reading = Object.values(ledger.tasks).find(
     (other) =>
       other.kind === "review" && other.of === task.id && other.slot === task.slot && other.status === "running",
@@ -153,14 +154,14 @@ async function releaseTaskPeer(
   // Checked where it is written: a task started on this Peer since the read above keeps it.
   if (!parallel && !claimGone(desk, project, kept.peer, task.id)) {
     const took = loadLedger(project.state).agents[kept.peer]?.task;
-    return no(`The Peer kept from ${task.id} took ${took} since: it is that task's Peer now.`);
+    return no(`The engineer kept from ${task.id} took ${took} since: it is that task's engineer now.`);
   }
   if (by) await desk.mail.post(lane.lead, keptLetters.released(task, kept.peer));
   if (parallel) await desk.agents.retire(project, task, lane.branch);
   else await desk.roster.archive(kept.peer);
   recordEvent(project, { kind: "seat.released", seat: kept.peer, of: task.id });
   return ok(
-    `The Peer kept from ${task.id} is released${parallel ? `, and its copy ${task.slot} is put away with it` : ""}.`,
+    `The engineer kept from ${task.id} is released${parallel ? `, and its copy ${task.slot} is put away with it` : ""}.`,
   );
 }
 
@@ -183,7 +184,7 @@ async function releaseOpenLead(desk: DeskServices, project: Project, lane: Lane)
 export async function releaseKept(desk: DeskServices, caller: Caller, args: Args): Promise<ToolReply> {
   const ledger = loadLedger(caller.project.state);
   if (!args.lane === !args.task)
-    return no("Name a lane to release its Lead, or a task to release the Peer kept from it.");
+    return no("Name a lane to release its Lead, or a task to release the engineer kept from it.");
   if (args.task) {
     const task = findTask(ledger, str(args.task));
     const lane = task && ledger.lanes[task.lane];

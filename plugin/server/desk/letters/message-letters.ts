@@ -70,7 +70,7 @@ export const messageLetters = {
   humanWrote(lane: Lane, task: Task | undefined, seat: string, text: string): Letter {
     const closed = lane.status === "closed";
     const who = task
-      ? `the Peer on ${task.id} (${task.title})`
+      ? `the engineer on ${task.id} (${task.title})`
       : `the Lead ${closed ? "kept from" : "of"} ${lane.id} (${lane.title})`;
     const then = closed
       ? `Lane ${lane.id} is closed: if it asks for more work, open a lane for it; if it settles the concept, write it into CONTEXT.md.`

@@ -44,7 +44,7 @@ export async function askOwner(
   const result = ledgers.transact(project, (ledger) => {
     if (laneOfLead(ledger, caller.id)?.id !== lane.id) return "You have no open lane.";
     const stray = ids.find((id) => !carriable(ledger.asks[id], caller.id, lane.id));
-    if (stray) return `${stray} is not a Peer's open ask put to you on ${lane.id}.`;
+    if (stray) return `${stray} is not an engineer's open ask put to you on ${lane.id}.`;
     const from = { from: caller.id, fromRole: caller.role.role, to, lane: lane.id };
     const created = newAsk(ledger, { ...from, kind: asked.kind, text: asked.text, default: asked.default });
     ledger.asks[created.id] = created;
@@ -59,7 +59,7 @@ export async function askOwner(
   recordEvent(project, opened(entry));
   const names = carried.map((ask) => ask.id).join(", ");
   const carrying = names
-    ? ` Leave ${names} open: its Peer waits on it without being nudged, and you answer it from ${entry.id}'s answer.`
+    ? ` Leave ${names} open: its engineer waits on it without being nudged, and you answer it from ${entry.id}'s answer.`
     : "";
   if (!reader)
     return ok(
@@ -84,7 +84,7 @@ export async function askUp(
   const ledger = loadLedger(project.state);
   const task = taskOfPeer(ledger, caller.id);
   const lane = task ? ledger.lanes[task.lane] : undefined;
-  if (!task || !lane?.lead) return no("Nobody is assigned to answer you; end your turn with the question.");
+  if (!task || !lane?.lead) return no("Nobody is assigned to answer you; stop with the question.");
   // A gone Lead would never answer; it goes up a level instead, and the Peer is told so.
   const reader = (await roster.seated(lane.lead)) ? lane.lead : await roster.supervisorFor(project, lane.opener);
   // With nobody above seated it waits on the gone Lead, and the round hands it to whoever supervises once one sits down.
@@ -99,16 +99,16 @@ export async function askUp(
     current.asks[created.id] = created;
     return { ...created };
   });
-  if (!entry) return no(`${task.id} was cut while you asked, so there is nothing to ask about; end your turn.`);
+  if (!entry) return no(`${task.id} was cut while you asked, so there is nothing to ask about; stop here.`);
   recordEvent(project, opened(entry));
   if (!reader)
     return ok(
-      `Asked as ${entry.id}, but your lead is not there and nobody above it is either, so nobody can answer now; it goes to whoever supervises once one sits down. Carry on with your default where you can, and end your turn.`,
+      `Asked as ${entry.id}, but your lead is not there and nobody above it is either, so nobody can answer now; it goes to whoever supervises once one sits down. Carry on with your default where you can, then stop.`,
     );
   const as = reader === lane.lead ? "lead" : "supervisor";
-  await mail.post(reader, askLetters.askTo(entry, `the Peer on ${task.id} (${task.title})`, as));
+  await mail.post(reader, askLetters.askTo(entry, `the engineer on ${task.id} (${task.title})`, as));
   const owner = reader === lane.lead ? "" : ", of the owner, because your lead is not there";
-  return ok(`Asked as ${entry.id}${owner}. End your turn; the answer arrives as a message.`);
+  return ok(`Asked as ${entry.id}${owner}. Stop now; the answer arrives as a message.`);
 }
 
 /** Answers an open ask; one put to someone else may be answered by whoever supervises, and that seat is told first, as is the Lead of a Peer answered past it. */
@@ -153,7 +153,7 @@ export async function answerAsk(
     told: waiting ?? lead ?? null,
     kept: ask.kept ?? null,
   });
-  const has = posted === "sent" ? "has it" : "reads it when its turn ends, or with the reply to its next desk call";
+  const has = posted === "sent" ? "has it" : "reads it when it stops, or with the reply to its next tool call";
   const told = waiting ? " Whoever it was waiting on has been told what it was answered with." : "";
   const led = lead ? " Its lane's Lead has been told what it was answered with." : "";
   return ok(`Answered ${ask.id}; the asker ${has}.${told}${led}`);

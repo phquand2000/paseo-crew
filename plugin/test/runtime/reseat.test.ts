@@ -30,7 +30,7 @@ test("a Lead reseats a task: a fresh Peer carries on in the same copy and branch
   );
   assert.match(
     seated.prompt ?? "",
-    /You take over L1-T1 from the Peer that worked it before you: It stopped halfway; finish the second half\.\nIts branch and copy hold what that Peer committed and left: read git log, git status and git diff [0-9a-f]+ before you change anything/,
+    /You take over L1-T1 from the engineer who worked it before you: It stopped halfway; finish the second half\.\nIts branch and copy hold what that engineer committed and left: read git log, git status and git diff [0-9a-f]+ before you change anything/,
   );
   assert.match(
     seated.prompt ?? "",

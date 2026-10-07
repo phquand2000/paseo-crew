@@ -32,7 +32,7 @@ test("a READY is what the lane's copy holds with nobody writing there, and whate
   };
 
   const writing = new RegExp(
-    `^${peer} is mid-turn in the lane's working copy, so what ready claims could still change under the gate\\. Report ready once that turn ends\\.$`,
+    `^${peer} is still at work in the lane's working copy, so what ready claims could still change under the gate\\. Report ready once it stops\\.$`,
   );
   const refused = await report();
   assert.equal(refused.ok, false);
@@ -50,7 +50,7 @@ test("a READY is what the lane's copy holds with nobody writing there, and whate
       refresh: () => Promise.reject(new Error("the daemon did not answer")),
     });
   };
-  assert.match((await report()).text, new RegExp(`^${peer} is mid-turn in the lane's working copy`));
+  assert.match((await report()).text, new RegExp(`^${peer} is still at work in the lane's working copy`));
   const branch = h.ledger().tasks["L1-T1"]!.branch!;
   assert.match(
     (await report()).text,

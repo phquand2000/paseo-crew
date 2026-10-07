@@ -177,7 +177,7 @@ export const workLetters = {
 
   /** A task beside others whose lane stopped on conflicts as it was brought in at hand-back: its Peer settles them, and nothing waits on its Lead. */
   settling(task: Task, lane: string, conflicts: string[], by: string[]): Letter {
-    const text = `SETTLING ${task.id} (${task.title}): bringing ${lane} into its branch conflicts in ${conflicts.join(", ")}${by.length > 0 ? `, changed there by ${by.join(", ")}` : ""}. Its Peer settles it in its own copy before it hands back.`;
+    const text = `SETTLING ${task.id} (${task.title}): bringing ${lane} into its branch conflicts in ${conflicts.join(", ")}${by.length > 0 ? `, changed there by ${by.join(", ")}` : ""}. Its engineer settles it in its own copy before it hands back.`;
     return fyi(mail("settling", [task.id, Date.now()], text, "Nothing now: its hand-back arrives as mail."));
   },
 

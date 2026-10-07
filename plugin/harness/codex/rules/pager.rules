@@ -1,2 +1,2 @@
 prefix_rule(pattern = ["git"], decision = "forbidden", justification = "The Pager only says back the page it is given.")
-prefix_rule(pattern = ["git", ["merge", "reset", "rebase", "cherry-pick"]], decision = "forbidden", justification = "Only a Peer moves a branch, and only its own task branch.")
+prefix_rule(pattern = ["git", ["merge", "reset", "rebase", "cherry-pick"]], decision = "forbidden", justification = "Only an engineer moves a branch, and only its own task branch.")

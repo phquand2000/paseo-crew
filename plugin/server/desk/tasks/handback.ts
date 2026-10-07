@@ -79,14 +79,14 @@ export async function handBack(desk: DeskServices, caller: Caller, args: Handing
     const queued = already !== "gone" && IN_QUEUE.includes(already);
     return no(
       queued
-        ? `${task.id} is already accepted and waiting to be merged; handing it back again would take it out of the queue. End your turn.`
+        ? `${task.id} is already accepted and waiting to be merged; handing it back again would take it out of the queue. Stop here.`
         : `${task.id} is already ${already}; there is nothing to hand back.`,
     );
   }
   const rounds = task.kind === "review" ? roundsAt(desk, project, ledger, task, written.outcome) : undefined;
   await tell(desk, caller, task, lane, { ...written, summary, commit: work.commit, lines: work.lines, rounds });
   const reminder = task.kind === "review" ? "" : await reminderOf(task, work.uncommitted);
-  return ok(`Handed back.${reminder} End your turn now; if anything changes you will get a message.`);
+  return ok(`Handed back.${reminder} Stop now; if anything changes you will get a message.`);
 }
 
 /** A review's place in the rounds on its change, against the count the project's settings stop them at. */
@@ -249,7 +249,7 @@ async function tell(
 async function reminderOf(task: Task, uncommitted: boolean): Promise<string> {
   const meant = task.branch;
   const adrift = meant && task.worktree ? (await currentBranch(task.worktree)) !== meant : false;
-  if (uncommitted) return " Your working copy still has uncommitted changes: commit them before ending your turn.";
+  if (uncommitted) return " Your working copy still has uncommitted changes: commit them before you stop.";
   if (!adrift) return "";
-  return ` Your working copy is not on ${meant} any more, so anything you committed is on no branch and will be collected. After a bisect, git bisect reset takes it back to ${meant}: commit there before your turn ends. If you left it some other way, say so with ask: moving a copy between branches is the desk's.`;
+  return ` Your working copy is not on ${meant} any more, so anything you committed is on no branch and will be collected. After a bisect, git bisect reset takes it back to ${meant}: commit there before you stop. If you left it some other way, say so with ask: moving a copy between branches is not yours to do.`;
 }

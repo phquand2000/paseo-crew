@@ -60,7 +60,7 @@ test("a lane touching a path the Human asked to be asked about first waits for t
 
   assert.match(
     await decide(h, true, "fine, it only renames"),
-    /Approved: Lane L1 closed; squashed lane\/l1-cart into one commit on main, its own commits kept at refs\/crew\/lanes\/L1\. Its Peers are archived, and its Lead agent-\d+ stays until you release it\.[^]*The Human approved it\./,
+    /Approved: Lane L1 closed; squashed lane\/l1-cart into one commit on main, its own commits kept at refs\/crew\/lanes\/L1\. Its engineers are archived, and its Lead agent-\d+ stays until you release it\.[^]*The Human approved it\./,
   );
   assert.ok(onMain("src/auth/login.ts"));
   assert.deepEqual(

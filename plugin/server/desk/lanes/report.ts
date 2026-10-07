@@ -69,8 +69,8 @@ async function readyBlocked(desk: DeskServices, project: Project, lane: Lane): P
     inCopy.map((task) => task.peer),
   );
   if (busy.length > 0) {
-    const ends = plural(busy.length, "that turn ends", "those turns end");
-    return `${busy.join(" and ")} ${plural(busy.length, "is", "are")} mid-turn in the lane's working copy, so what ready claims could still change under the gate. Report ready once ${ends}.`;
+    const ends = plural(busy.length, "it stops", "they stop");
+    return `${busy.join(" and ")} ${plural(busy.length, "is", "are")} still at work in the lane's working copy, so what ready claims could still change under the gate. Report ready once ${ends}.`;
   }
   const on = await currentBranch(lane.worktree!);
   const holding = inCopy.find((task) => task.branch === on);

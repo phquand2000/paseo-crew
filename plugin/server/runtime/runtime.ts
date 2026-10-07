@@ -161,7 +161,7 @@ export class Runtime implements HostHooks {
       agentOf: (key) => this.keys.agentOf(key),
       choices: (role, cwd) => choicesFor(this.kit, this.source.teamFor(projectOf(cwd)), role),
       answer: (request, cancelled) =>
-        this.answer(request, cancelled).catch((error) => ({ ok: false, text: `The desk failed: ${errorText(error)}` })),
+        this.answer(request, cancelled).catch((error) => ({ ok: false, text: `The call failed: ${errorText(error)}` })),
       mailLost: (request, reply) => this.desk.mailLost(request, reply),
     });
   }
@@ -173,7 +173,7 @@ export class Runtime implements HostHooks {
     const reply = await this.desk.answer(request, { cancelled });
     // A stopped call's reply is read by nobody: its seat's mail stays held for the next.
     const held = request.agent ? await this.outbox.take(request.agent, () => !cancelled.aborted) : undefined;
-    return held ? { ...reply, text: `${reply.text}\n\n---\n\nMail the desk held for you:\n\n${held}` } : reply;
+    return held ? { ...reply, text: `${reply.text}\n\n---\n\nMail held for you:\n\n${held}` } : reply;
   }
 
   /** The team or its skills changed: seats are built again, and shown the choices their fields take now. */

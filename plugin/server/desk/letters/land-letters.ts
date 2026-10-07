@@ -7,7 +7,7 @@ export const landLetters = {
     return mail(
       "canland",
       [lane.id, Date.now()],
-      `CAN LAND ${lane.id} (${lane.title}): the turn that was in the way has ended.`,
+      `CAN LAND ${lane.id} (${lane.title}): the agent that was in the way has stopped.`,
       "land_lane it again.",
     );
   },
@@ -49,7 +49,7 @@ export const landLetters = {
       "baseconflict",
       [lane.id, conflicts.join(",")],
       text,
-      `add_tasks a task with takeBase true in the lane's copy: the desk merges ${lane.base} into its branch as it starts and its Peer settles what conflicts. Once it is merged, report the lane ready again.`,
+      `add_tasks a task with takeBase true in the lane's copy: ${lane.base} is merged into its branch as it starts, and its engineer settles what conflicts. Once it is merged, report the lane ready again.`,
     );
   },
 

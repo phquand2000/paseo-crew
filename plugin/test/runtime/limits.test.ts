@@ -74,7 +74,7 @@ test("a Lead on its usage limit is told to whoever supervises and is not idle un
   await h.tick(Date.now() + 20 * MINUTE);
   const said = h.heard(sup).join("\n");
   assert.match(said, /Backup Lead \(Codex\)/);
-  assert.match(said, /stopped on its usage limit\.\nThe desk could not read when it resets/);
+  assert.match(said, /stopped on its usage limit\.\nWhen it resets could not be read/);
   assert.doesNotMatch(said, /LANE IDLE L1/);
   await h.tick(reset + 26 * 60 * MINUTE);
   assert.match(h.heard(waits).join("\n"), /LIMIT RESET/);
@@ -159,7 +159,7 @@ test("an agent signed out of its provider pages the Human once a spell, and each
   for (const owner of [lane.lead!, sup])
     assert.match(
       h.heard(owner).join("\n"),
-      /FAILED: [^]*a fresh seat on that agent fails the same way until they sign it in/,
+      /FAILED: [^]*a fresh one on that agent fails the same way until they sign it in/,
     );
   await h.endTurn(peer, "Signed in again; back on the build.");
   await failTurn(h, peer, SIGNED_OUT);

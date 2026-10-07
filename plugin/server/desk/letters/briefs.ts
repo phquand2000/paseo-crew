@@ -109,8 +109,8 @@ export function reseatBrief(task: Task, lane: Lane, beside: Task[], why: string,
   return [
     taskBrief(task, lane, beside),
     "",
-    `You take over ${task.id} from the Peer that worked it before you: ${why}`,
-    `Its branch and copy hold what that Peer committed and left: read git log, git status and git diff ${task.startSha ?? lane.branch} before you change anything, and carry on from there rather than over it.`,
+    `You take over ${task.id} from the engineer who worked it before you: ${why}`,
+    `Its branch and copy hold what that engineer committed and left: read git log, git status and git diff ${task.startSha ?? lane.branch} before you change anything, and carry on from there rather than over it.`,
     ...(record.length > 0
       ? [
           "",

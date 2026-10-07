@@ -30,7 +30,7 @@ test("a Lead holds a Peer at work until another task lands: its quiet turns are 
   const asked = await h.call(user, "peer", "ask", { question: "Build on the API first?", tried: "read both" });
   assert.equal(asked.ok, true, asked.text);
   const held = await reorder("L1-T2", ["l1-t1"]);
-  assert.match(held.text, /L1-T2 is amended; its Peer waits for L1-T1 unnudged, and is told when they land/);
+  assert.match(held.text, /L1-T2 is amended; its engineer waits for L1-T1 unnudged, and is told when they land/);
   await h.call(lead, "lead", "answer", { ask: "A1", text: "Yes: wait for L1-T1." });
   assert.match(
     (await reorder("L1-T1", ["L1-T2"])).text,
@@ -62,6 +62,6 @@ test("a Lead holds a Peer at work until another task lands: its quiet turns are 
   assert.equal((await h.call(user, "peer", "done", { outcome: "complete", summary: "user" })).ok, true);
   assert.match(
     (await reorder("L1-T2", ["L1-T1"])).text,
-    /L1-T2 is done; after orders a task still waiting to start, or one its Peer is at work on/,
+    /L1-T2 is done; after orders a task still waiting to start, or one its engineer is at work on/,
   );
 });

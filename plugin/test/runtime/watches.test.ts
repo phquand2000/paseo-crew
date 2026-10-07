@@ -81,7 +81,7 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   await noticed();
   await h.idle(sup);
   const told = h.agents.get(sup)!.sent.join("\n");
-  assert.match(told, /INCIDENT I1 \(irreversible, page\) on the Peer on L1-T1 \(Clean build\)/);
+  assert.match(told, /INCIDENT I1 \(irreversible, page\) on the engineer on L1-T1 \(Clean build\)/);
   assert.match(told, /What was seen: git push --force origin main/);
   assert.match(told, /not a verdict/);
   assert.ok(!timeline.rows.some((row) => row.item.status === "completed"), "the call it warns about is still running");
@@ -102,7 +102,7 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   assert.equal(pagers().length, 1, "a page reaches the Human's phone through a pager of its own");
   assert.match(
     pager!.prompt ?? "",
-    /^[^:\n]+: the Peer on L1-T1 \(Clean build\) ran git push --force origin main\.\nIts Supervisor is told; nothing is held yet\.$/,
+    /^[^:\n]+: the engineer on L1-T1 \(Clean build\) ran git push --force origin main\.\nIts Supervisor is told; nothing is held yet\.$/,
   );
   assert.ok((pager!.prompt ?? "").length <= 220, "Paseo shows 220 characters of a push");
   assert.equal(pager!.labels["paseo.parent-agent-id"], undefined, "an agent with a parent is never pushed");
@@ -126,7 +126,7 @@ test("a Peer's turn as the watch reads it, and who hears of it", async (t) => {
   assert.match(
     (await h.call(sup, "supervisor", "status", {})).text,
     new RegExp(
-      `- L1-T1 Clean build: running, Peer ${peer} running 0 min into its turn, last: Bash: npm test; heard from 0 min ago$`,
+      `- L1-T1 Clean build: running, engineer ${peer} running 0 min into its work, last: Bash: npm test; heard from 0 min ago$`,
       "m",
     ),
     "status shows how long a Peer's turn has run and the last step it took",

@@ -191,7 +191,7 @@ test("nothing reaches a seat that names or quotes an open incident about it, whi
     open: true,
   });
   saveIncidents(h.project.state, { next: 3, items: { I1: about("I1", peer), I2: about("I2", lane.lead!) } });
-  const refusal = /That repeats incident I1 about the seat it goes to/;
+  const refusal = /That repeats incident I1 about the agent it goes to/;
 
   assert.match(
     (await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "About i1: why did that happen?" })).text,

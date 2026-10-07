@@ -19,11 +19,11 @@ async function handTo(
   const letter = messageLetters.message(text, sending);
   const posted = await mail.post(to.target, letter, sending.now ? "interrupt" : undefined);
   if (posted === "sent")
-    return `Delivered to ${to.who}${sending.now ? ", cutting its turn short where its agent allows it" : ""}.`;
+    return `Delivered to ${to.who}${sending.now ? ", cutting its work short where its agent allows it" : ""}.`;
   const seat = await roster.look(to.target).catch(() => undefined);
   if ((seat?.pendingPermissions?.length ?? 0) > 0)
     return `Queued for ${to.who}, which is stopped on a permission only the Human can give; it reads this once that is decided.`;
-  return `Queued for ${to.who}; it reads this when its turn ends, or with the reply to its next desk call.`;
+  return `Queued for ${to.who}; it reads this when it stops, or with the reply to its next tool call.`;
 }
 
 const unread = (who: string) => `${who} is not seated any more, so a message would wait for nobody.`;
@@ -31,9 +31,9 @@ const unread = (who: string) => `${who} is not seated any more, so a message wou
 /** Why a settled task takes no message: a merged one's Peer in the lane's copy is kept for rework or a task started on it, since a message would wake it in a copy it no longer holds. */
 const settled = (task: Task) =>
   task.status === "merged" && task.mode !== "parallel"
-    ? `${task.id} is merged, and its Peer is kept for rework or a task you start on it: send rework if its work must change.`
+    ? `${task.id} is merged, and its engineer is kept for rework or a task you start on it: send rework if its work must change.`
     : task.status === "cut"
-      ? `${task.id} is ${task.status}, and its Peer went with it.`
+      ? `${task.id} is ${task.status}, and its engineer went with it.`
       : undefined;
 
 /** Whoever supervises reaches a lane's Lead, or a task's Peer with its Lead told first. */
@@ -81,21 +81,21 @@ async function toPeer(
   // Checked before anything is sent, so a settled task never gets a RECONCILE.
   const done = settled(task);
   if (done) return no(done);
-  if (!(await roster.seated(peer))) return no(unread(`The Peer on ${task.id}`));
+  if (!(await roster.seated(peer))) return no(unread(`The engineer on ${task.id}`));
   const lane = ledger.lanes[task.lane];
   const onLane = lane?.status === "open" ? lane.lead : undefined;
   // The ledger says who the Lead is; only Paseo says whether it is still there to be told.
   const lead = onLane && (await roster.seated(onLane)) ? onLane : undefined;
   if (!lane || !lead)
     return no(
-      `${task.id} has no running Lead to tell. Reaching its Peer without one would leave nobody holding the room's state, which is the one thing this must not do. Reopen the lane's Lead, or say it to the lane.`,
+      `${task.id} has no running Lead to tell. Reaching its engineer without one would leave nobody holding the room's state, which is the one thing this must not do. Reopen the lane's Lead, or say it to the lane.`,
     );
   // What reaches the Peer reaches its Lead in the reconcile letter, so neither may be told of the watch.
   const refused =
     repeatsIncident(caller.project.state, peer, text) ?? repeatsIncident(caller.project.state, lead, text);
   if (refused) return no(refused);
   await mail.post(lead, messageLetters.reconciled(lane, task, peer, text, sending));
-  const handed = await handTo(desk, { target: peer, who: `the Peer on ${task.id}` }, sending, text);
+  const handed = await handTo(desk, { target: peer, who: `the engineer on ${task.id}` }, sending, text);
   return ok(`${handed} Its Lead has been told what reached it and what is still its own.`);
 }
 
@@ -114,9 +114,9 @@ export async function sendMessage(
   if (!lane || !task || task.lane !== lane.id || !task.peer) return no(`${to} is not a task in your lane.`);
   const done = settled(task);
   if (done) return no(done);
-  if (!(await desk.roster.seated(task.peer))) return no(unread(`The Peer on ${task.id}`));
+  if (!(await desk.roster.seated(task.peer))) return no(unread(`The engineer on ${task.id}`));
   const refused = repeatsIncident(caller.project.state, task.peer, text);
   if (refused) return no(refused);
-  const peer = { target: task.peer, who: `the Peer on ${task.id}` };
+  const peer = { target: task.peer, who: `the engineer on ${task.id}` };
   return ok(await handTo(desk, peer, sending, text));
 }

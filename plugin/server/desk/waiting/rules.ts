@@ -84,7 +84,7 @@ export function laneAfterProblem(ledger: Ledger, lane: Lane, after: string[]): s
 export function taskAfterProblem(ledger: Ledger, task: Task, after: string[]): string | undefined {
   const atWork = OWES_HANDBACK.includes(task.status);
   if (task.status !== "waiting" && !atWork)
-    return `${task.id} is ${task.status}; after orders a task still waiting to start, or one its Peer is at work on.`;
+    return `${task.id} is ${task.status}; after orders a task still waiting to start, or one its engineer is at work on.`;
   const pending = taskWaitsFor(ledger, task.lane, after);
   if (typeof pending === "string") return `${pending} Take it out of after.`;
   if (atWork && after.length > 0 && pending.length === 0)

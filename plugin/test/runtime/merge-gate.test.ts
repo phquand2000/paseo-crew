@@ -47,7 +47,7 @@ test("a task that goes red with its lane brought in stays out until its Lead acc
   });
   assert.equal(
     (await accept(h, lead, "L1-T4")).text,
-    "L1-T4 is not handed back: accept it once its Peer hands it back, or cut it.",
+    "L1-T4 is not handed back: accept it once its engineer hands it back, or cut it.",
     "what it merges is what was gated",
   );
   assert.equal(h.ledger().tasks["L1-T4"]!.status, "running");
@@ -59,7 +59,7 @@ test("a task that goes red with its lane brought in stays out until its Lead acc
   assert.match(
     heard(h, lead),
     new RegExp(
-      `MERGE RED L1-T3 \\(Why\\): the gate failed on its branch with ${lane.branch} brought in, the tree the lane would become\\. The lane branch is unchanged\\.\\n[^]*Next: Send rework to its Peer with what must change, or accept it again with overGate and a reason to merge it over the gate\\.`,
+      `MERGE RED L1-T3 \\(Why\\): the gate failed on its branch with ${lane.branch} brought in, the tree the lane would become\\. The lane branch is unchanged\\.\\n[^]*Next: Send rework to its engineer with what must change, or accept it again with overGate and a reason to merge it over the gate\\.`,
     ),
   );
 

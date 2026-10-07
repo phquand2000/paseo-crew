@@ -116,11 +116,11 @@ test("a message sent now cuts the running turn short with everything held, and o
   seat.status = "running";
   const told = seat.sent.length;
   const plain = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "Keep the old names." });
-  assert.match(plain.text, /^Queued for the Peer on L1-T1; it reads this when its turn ends/);
+  assert.match(plain.text, /^Queued for the engineer on L1-T1; it reads this when it stops/);
   assert.equal(seat.sent.length, told);
 
   const now = await h.call(lane.lead!, "lead", "message", { to: "L1-T1", text: "Stop: drop the rename.", now: true });
-  assert.match(now.text, /^Delivered to the Peer on L1-T1, cutting its turn short where its agent allows it\.$/);
+  assert.match(now.text, /^Delivered to the engineer on L1-T1, cutting its work short where its agent allows it\.$/);
   assert.match(seat.interrupted.join("\n"), /Keep the old names\.[^]*Stop: drop the rename\./);
   assert.deepEqual(h.heard(peer).slice(told), seat.interrupted, "nothing is left held to arrive twice");
 

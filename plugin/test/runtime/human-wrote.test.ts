@@ -22,7 +22,7 @@ test("the Human's own words in a seat's chat reach whoever supervises, a kept Le
   );
   assert.match(
     told,
-    /The Human wrote to the Peer on L1-T1 \(Clean build\) directly, past you:\n<human>\nName the button Pay now\.\n<\/human>\n\nIts Lead was not told\./,
+    /The Human wrote to the engineer on L1-T1 \(Clean build\) directly, past you:\n<human>\nName the button Pay now\.\n<\/human>\n\nIts Lead was not told\./,
   );
   assert.doesNotMatch(told, /REWORK L1-T1: again/);
 

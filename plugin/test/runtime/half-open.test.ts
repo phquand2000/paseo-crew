@@ -27,7 +27,7 @@ test("a stop while seats were being started takes on what Paseo seated and gives
   assert.deepEqual([lanes.L3!.status, lanes.L3!.worktree, lanes.L3!.workspaceId], ["closed", undefined, undefined]);
   assert.equal(h.git(h.root, "branch", "--show-current").trim(), "main");
   assert.equal(h.git(h.root, "branch", "--list", branch).trim(), "");
-  assert.match(h.heard(sup).join("\n"), /NOT OPENED L3 \(Aside\): the desk stopped while its Lead was being started/);
+  assert.match(h.heard(sup).join("\n"), /NOT OPENED L3 \(Aside\): the plugin stopped while its Lead was being started/);
 
   const lead = lanes.L2!.lead;
   const task = (key: string, extra: Record<string, unknown>) => ({
@@ -55,7 +55,7 @@ test("a stop while seats were being started takes on what Paseo seated and gives
   await h.idle(lead);
   assert.match(
     h.agents.get(lead)!.sent.join("\n"),
-    /NOT STARTED L2-R1 \([^)]*\): the desk stopped while its Peer was being started, so it is cut\.\n\nNext: add_tasks it again if you still want it/,
+    /NOT STARTED L2-R1 \([^)]*\): the plugin stopped while its engineer was being started, so it is cut\.\n\nNext: add_tasks it again if you still want it/,
   );
 });
 

@@ -28,7 +28,7 @@ type Call = { request: ToolRequest; stop: AbortController; reply?: ToolReply };
 type Line = { socket: Socket; agent?: string; role: string; cwd: string; shown?: string; calls: Map<string, Call> };
 
 const UNKNOWN =
-  "The desk does not know this agent's key, so it carries out nothing from it: the agent was started before the desk knew its agents by key. Say so, and ask for it to be archived and started again.";
+  "This agent's key is not known, so nothing it calls is carried out: it was started before agents were known by key. Say so, and ask for it to be archived and started again.";
 
 /** Where seats' team servers reach the desk: one line each, a call answered on the line it came by. */
 export class TeamSocket {

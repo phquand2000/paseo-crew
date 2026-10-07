@@ -90,7 +90,7 @@ class Desk {
     signal.addEventListener("abort", stop, { once: true });
     let beat = 0;
     const token = meta?.progressToken;
-    const progress = token === undefined ? undefined : setInterval(() => void notify({ method: "notifications/progress", params: { progressToken: token, progress: ++beat, message: `The desk is still working on ${tool}.` } }).catch(() => {}), PROGRESS_MS);
+    const progress = token === undefined ? undefined : setInterval(() => void notify({ method: "notifications/progress", params: { progressToken: token, progress: ++beat, message: `${tool} is still running.` } }).catch(() => {}), PROGRESS_MS);
     const reply = await answered;
     clearInterval(progress);
     signal.removeEventListener("abort", stop);

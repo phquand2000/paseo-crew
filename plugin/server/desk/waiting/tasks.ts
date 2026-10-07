@@ -110,13 +110,13 @@ async function tryStart(
   });
   if (typeof started === "string") return failedStart(project, task, kept, started);
   const named = task.opening?.peer;
-  const instead = named && !kept ? ` The Peer kept from ${named} could not take it, so a new one did.` : "";
+  const instead = named && !kept ? ` The engineer kept from ${named} could not take it, so a new one did.` : "";
   await announce(
     desk,
     project,
     lane,
     claimed,
-    told ? `Started ${task.id} ${started.where} with Peer ${started.peer}.${instead}` : undefined,
+    told ? `Started ${task.id} ${started.where} with engineer ${started.peer}.${instead}` : undefined,
   );
   return undefined;
 }
@@ -136,8 +136,8 @@ async function namedPeer(
   if (!look || look.archivedAt) return undefined;
   if (!midTurn(look.status)) return { peer: kept.id, from };
   return {
-    why: `The Peer kept from ${from} is in a turn; ${task.id} starts on it once that turn ends.`,
-    next: `Or release ${from}'s Peer, and a new one takes ${task.id}.`,
+    why: `The engineer kept from ${from} is at work; ${task.id} starts on it once it stops.`,
+    next: `Or release ${from}'s engineer, and a new one takes ${task.id}.`,
   };
 }
 
@@ -146,7 +146,7 @@ async function namedPeer(
 function failedStart(project: Project, task: Task, kept: { from: string } | undefined, why: string): Holding {
   const ledger = loadLedger(project.state);
   if (kept && typeof keptFor(ledger, ledger.tasks[kept.from], task.opening!.role) === "string")
-    return { why, next: "A new Peer takes it at the desk's next round; cut it to drop it." };
+    return { why, next: "A new engineer takes it at the next round; cut it to drop it." };
   return {
     why,
     next: "It is tried again when a task is added, merged or cut, or the plugin reloads; cut it to drop it.",

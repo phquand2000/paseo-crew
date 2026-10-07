@@ -33,7 +33,7 @@ function whose(ledger: Ledger, caller: Caller, of: string): Whose | string {
   const now = ledger.agents[task.peer]?.task;
   return {
     seat: task.peer,
-    name: `${task.id} ${task.title}'s ${task.kind === "review" ? "reviewer" : "Peer"}`,
+    name: `${task.id} ${task.title}'s ${task.kind === "review" ? "reviewer" : "engineer"}`,
     lane: ledger.lanes[task.lane]!,
     task,
     moved: now && now !== task.id ? now : undefined,
@@ -116,8 +116,8 @@ async function historyOf(
 /** What the desk kept of a seat that is gone, or of a task whose Peer has moved on to another. */
 function kept({ name, lane, task, moved }: Whose): string {
   const gone = moved
-    ? `${name} works ${moved} now: record ${moved} for its steps. This is what the desk kept.`
-    : `${name} is gone, and reading its steps would start it again, so this is what the desk kept.`;
+    ? `${name} works ${moved} now: record ${moved} for its steps. This is what was kept.`
+    : `${name} is gone, and reading its steps would start it again, so this is what was kept.`;
   if (!task) return `${gone} Lane ${lane.id} is ${lane.status}${lane.landed ? " and landed" : ""}.`;
   const back = task.handback;
   return [

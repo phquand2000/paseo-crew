@@ -42,11 +42,11 @@ export function inTime(
     };
     const long = how.again
       ? `That ${request.tool} call is already running from before. Its answer arrives as mail; there is nothing to call again.`
-      : `The desk is still working on ${request.tool} — a gate can take as long as the project allows it. The answer arrives as mail. End your turn now; do not call ${request.tool} again.`;
+      : `${request.tool} is still running — a gate can take as long as the project allows it. The answer arrives as mail. Stop now; do not call ${request.tool} again.`;
     const timer = setTimeout(() => mailed(long, false), how.within);
     timer.unref?.();
     // A call stopped while it waited to be carried out was stopped before this listens, and the listener would never hear it.
-    const stopped = () => mailed(`${request.tool} was stopped on the seat's side.`, true);
+    const stopped = () => mailed(`${request.tool} was stopped on your side.`, true);
     if (how.cancelled?.aborted) stopped();
     else how.cancelled?.addEventListener("abort", stopped, { once: true });
     void reply.then((done) => {

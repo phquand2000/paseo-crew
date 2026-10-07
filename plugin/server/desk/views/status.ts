@@ -115,7 +115,7 @@ function ownCopyLines(project: Project, ledger: Ledger, config: ProjectConfig, c
     holder?.status === "open"
       ? `Lane ${holder.id} is working in it.`
       : holder
-        ? `Lane ${holder.id} is closed, and its Lead is ending a turn in it; it goes back to ${holder.base} after.`
+        ? `Lane ${holder.id} is closed, and its Lead is still finishing its work in it; it goes back to ${holder.base} after.`
         : "No lane is working in it.";
   const lines = ["## The project's own copy", "", `${project.root} is ${at}, ${state}.`, held];
   if (config.laneHome)
@@ -140,7 +140,7 @@ function mailLines(project: Project, ledger: Ledger, seats: Seats, now: number, 
   const lines: string[] = [];
   if (stranded.length > 0) {
     const intro =
-      "The seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on.";
+      "The agent each of these was addressed to is gone, and no other is sent them: pass on what still matters before each is given up on.";
     lines.push("## Mail with nobody to read it", "", intro, "");
     for (const letter of stranded) {
       const age = `waiting ${minutesSince(now, letter.at)} min, given up on in ${left(letter.until - now)}`;
@@ -150,7 +150,7 @@ function mailLines(project: Project, ledger: Ledger, seats: Seats, now: number, 
   }
   // Held for a seat that is there but has not taken it: this is where a letter going nowhere shows.
   if (queued.length > 0) {
-    lines.push("## Mail waiting to be taken", "", "The seat is there and has not read these yet.", "");
+    lines.push("## Mail waiting to be taken", "", "The agent is there and has not read these yet.", "");
     for (const letter of queued)
       lines.push(
         `- to ${letter.to}, waiting ${minutesSince(now, letter.at)} min (${seats.get(letter.to)?.status ?? "unknown"})`,

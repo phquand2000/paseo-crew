@@ -59,11 +59,11 @@ export async function startPeer(
     const where =
       task.mode === "parallel"
         ? `in its own working copy ${copy.id} on ${task.branch}`
-        : `in the lane's working copy on ${task.branch}${how.kept ? `, on the Peer kept from ${how.kept.from}` : ""}`;
+        : `in the lane's working copy on ${task.branch}${how.kept ? `, on the engineer kept from ${how.kept.from}` : ""}`;
     return { peer, where };
   } catch (error) {
     await putBack(desk, project, lane, task);
-    return `The Peer could not start: ${errorText(error)}`;
+    return `The engineer could not start: ${errorText(error)}`;
   } finally {
     desk.seating.release(workKey(project, task.id));
   }
@@ -79,9 +79,9 @@ function bind(
 ): void {
   const { peer, kept } = how;
   ledgers.transact(project, (ledger) => {
-    if (kept && ledger.agents[peer]?.gone) throw new Error(`the Peer kept from ${kept.from} was let go meanwhile`);
+    if (kept && ledger.agents[peer]?.gone) throw new Error(`the engineer kept from ${kept.from} was let go meanwhile`);
     if (kept && ledger.agents[peer]?.task !== kept.from)
-      throw new Error(`the Peer kept from ${kept.from} took other work meanwhile`);
+      throw new Error(`the engineer kept from ${kept.from} took other work meanwhile`);
     const entry = ledger.tasks[task.id];
     if (entry) Object.assign(entry, { peer, updatedAt: Date.now() });
     ledger.agents[peer] = { ...ledger.agents[peer], id: peer, role: how.role, lane: lane.id, task: task.id };

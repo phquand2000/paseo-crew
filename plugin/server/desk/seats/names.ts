@@ -11,9 +11,9 @@ export const seatTitle = {
   review: (review: string, of: string) => `${review} · Review ${of}`,
 };
 
-/** What a letter calls a seat: a Peer by the task it works now, which its chat's name may no longer say. */
+/** What a letter calls a seat: a Peer by the task it works now, which its chat's name may no longer say, and an engineer to whoever reads it. */
 export function seatName(ledger: Ledger, agent: { id: string; title?: string | null }, role: RoleSpec): string {
   const task = taskOfPeer(ledger, agent.id);
-  if (task && task.kind !== "review") return seatTitle.of(task, role);
-  return agent.title ?? `${role.label} ${agent.id}`;
+  if (task && task.kind !== "review") return `the engineer on ${task.id} (${task.title})`;
+  return (agent.title ?? `${role.label} ${agent.id}`).replace(/\bPeer\b/g, "engineer");
 }

@@ -49,7 +49,7 @@ test("two projects on one daemon keep their own settings, task ids and letters",
   await h.tick(Date.now());
   await h.idle(here.lead!);
   await h.idle(there.lead!);
-  for (const lane of [here, there]) assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /the Peer on L1-T1/);
+  for (const lane of [here, there]) assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /the engineer on L1-T1/);
   assert.equal(h.ledger(other).tasks["L1-T1"]!.status, "stalled");
 });
 

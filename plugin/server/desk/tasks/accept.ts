@@ -31,18 +31,18 @@ async function queueTask(
   const { ledgers, merges } = desk;
   const { project } = caller;
   if (AT_WORK.includes(task.status) || !task.handback)
-    return no(`${task.id} is not handed back: accept it once its Peer hands it back, or cut it.`);
+    return no(`${task.id} is not handed back: accept it once its engineer hands it back, or cut it.`);
   // A copy off its branch (mid-bisect) has commits on no branch; clean and detached is not work the merge would take.
   if (task.worktree && task.branch && (await currentBranch(task.worktree)) !== task.branch) {
     return no(
-      `${task.id}'s working copy is not on ${task.branch}, so nothing committed in it is on its branch. If its Peer bisected, send rework asking it to run git bisect reset, which takes the copy back to ${task.branch}, and to commit its work there; then accept it again. A copy that left some other way is not the Peer's to put back: raise it with ask.`,
+      `${task.id}'s working copy is not on ${task.branch}, so nothing committed in it is on its branch. If its engineer bisected, send rework asking it to run git bisect reset, which takes the copy back to ${task.branch}, and to commit its work there; then accept it again. A copy that left some other way is not the engineer's to put back: raise it with ask.`,
     );
   }
   // Only what is committed merges: work left beside it would be lost to the lane, and a copy that goes back to it carries it on.
   const copy = task.worktree ? await pristineState(task.worktree) : "clean";
   if (copy !== "clean")
     return no(
-      `${task.id}'s working copy ${copy === "dirty" ? `has work uncommitted (${await uncommittedIn(task.worktree!)})` : "could not be read by git"}: send rework asking its Peer to commit what belongs to it, then accept it again.`,
+      `${task.id}'s working copy ${copy === "dirty" ? `has work uncommitted (${await uncommittedIn(task.worktree!)})` : "could not be read by git"}: send rework asking its engineer to commit what belongs to it, then accept it again.`,
     );
   const over = args.overGate === true;
   if (over && !str(args.reason)) return no("Say why in reason: merging over a red gate is yours to explain.");

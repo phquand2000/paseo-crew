@@ -87,7 +87,7 @@ test("a base that conflicts with a lane leaves nothing mid-merge in the lane's c
   h.git(copy, "commit", "-q", "--no-edit");
   assert.equal((await h.call(take.peer!, "peer", "done", { outcome: "complete", summary: "settled" })).ok, true);
   const handback = h.heard(lead).join("\n").split("Here is L1-T2")[1] ?? "";
-  assert.match(handback, /\nChanged: a\.txt\n/, "what its Peer changed, not what main brought in");
+  assert.match(handback, /\nChanged: a\.txt\n/, "what its engineer changed, not what main brought in");
   assert.match(handback, /\nNote: settled from merging main: a\.txt\./);
   assert.doesNotMatch(handback, /outside/);
   h.agents.get(take.peer!)!.status = "idle";
@@ -146,7 +146,7 @@ test("the merge queue hands a conflict to its Peer, merges nothing as nothing, w
   await h.idle(lead);
   assert.match(
     h.agents.get(lead)!.sent.join("\n"),
-    /MERGE CONFLICT L1-T1 \(B\) with lane\/l1-two\.\nFiles: b\.txt\nThe lane branch is unchanged\. The desk began merging lane\/l1-two into the task's branch in its own copy and left the conflicts there\.\n\nNext: Send rework asking its Peer to settle them and commit the merge with git commit --no-edit, since an editor would wait forever in its session/,
+    /MERGE CONFLICT L1-T1 \(B\) with lane\/l1-two\.\nFiles: b\.txt\nThe lane branch is unchanged\. Merging lane\/l1-two into the task's branch in its own copy stopped on conflicts, which are left there\.\n\nNext: Send rework asking its engineer to settle them and commit the merge with git commit --no-edit, since an editor would wait forever in its session/,
   );
   writeFileSync(join(first.worktree!, "b.txt"), "both sides\n");
   h.git(first.worktree!, "commit", "-qam", "Settle the lane into the task");
@@ -195,7 +195,7 @@ test("the merge queue hands a conflict to its Peer, merges nothing as nothing, w
     await h.beginTurn(crashed);
     await h.endTurn(crashed, words);
   }
-  assert.equal(status("L1-T3"), "failed", "a failed merge waits on its Lead, however quiet its Peer is meanwhile");
+  assert.equal(status("L1-T3"), "failed", "a failed merge waits on its Lead, however quiet its engineer is meanwhile");
   assert.doesNotMatch(h.heard(crashed).join("\n"), /You stopped without calling done or ask/);
 
   const side = await beside("s", "Side", "c.txt", "C\n");
@@ -209,7 +209,7 @@ test("the merge queue hands a conflict to its Peer, merges nothing as nothing, w
       .match(/MERGE WAITS L1-T4/g)?.length;
   assert.match(
     h.heard(lead).join("\n"),
-    /MERGE WAITS L1-T4 \(Side\): the lane's working copy has uncommitted changes \(M a\.txt\)\. It merges by itself once that clears, tried again as each turn ends\.\n\nNext: Have what is left there committed or cleared, or cut the task to withdraw it\./,
+    /MERGE WAITS L1-T4 \(Side\): the lane's working copy has uncommitted changes \(M a\.txt\)\. It merges by itself once that clears, tried again each time an agent stops\.\n\nNext: Have what is left there committed or cleared, or cut the task to withdraw it\./,
   );
   await h.endTurn(lead, "nothing yet");
   await h.runtime.desk.settled(h.project);

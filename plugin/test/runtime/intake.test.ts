@@ -370,7 +370,7 @@ test("a Lead amends a task: its Peer hears at its next turn, and only a task bes
     h.call(build.lead!, "lead", "amend_task", { task: "L1-T1", why: "the lane now wants an upsert", ...extra });
   assert.match(
     (await amend({ goal: "upsert into the cart" })).text,
-    /L1-T1 is amended; its Peer has it at its next turn/,
+    /L1-T1 is amended; its engineer has it when it next stops/,
   );
   const task = h.ledger().tasks["L1-T1"]!;
   assert.deepEqual([task.goal, task.amended?.[0]?.was], ["upsert into the cart", { goal: "g" }]);

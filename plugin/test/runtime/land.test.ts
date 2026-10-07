@@ -276,7 +276,7 @@ test("what the record holds of a lane goes to whoever lands it, and never to the
   await h.idle(lead);
   assert.match(
     h.agents.get(lead)!.sent.join("\n"),
-    /INCIDENT I\d+ \(claim-contradicted, attend\) on the Peer on L1-T1[^]*handed back as complete, but `npm test` failed the last time it ran, after the last edit/,
+    /INCIDENT I\d+ \(claim-contradicted, attend\) on the engineer on L1-T1[^]*handed back as complete, but `npm test` failed the last time it ran, after the last edit/,
   );
 
   const beside = [{ key: "s", title: "Side", goal: "g", ...scope, holds: ["c.txt"], parallel: true }];

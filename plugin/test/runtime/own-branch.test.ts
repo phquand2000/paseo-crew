@@ -69,7 +69,7 @@ test("a task in the lane's copy works on a branch of its own, and the lane branc
   writeFileSync(join(copy, "a.txt"), "left behind\n");
   assert.equal(
     (await h.call(lead, "lead", "accept", { task: "L1-T1" })).text,
-    "L1-T1's working copy has work uncommitted (M a.txt): send rework asking its Peer to commit what belongs to it, then accept it again.",
+    "L1-T1's working copy has work uncommitted (M a.txt): send rework asking its engineer to commit what belongs to it, then accept it again.",
   );
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "done");
   h.git(copy, "checkout", "--", "a.txt");
@@ -113,7 +113,7 @@ test("a task in the lane's copy that waits on its Lead, fails to merge, is cut o
   };
   const ref = paseo.workspaces.ref;
   paseo.workspaces.ref = (id) => ({ ...ref(id), agents: { create: () => Promise.reject(new Error("no seat today")) } });
-  assert.match((await add("x", "Unstarted", { hints: ["a.txt"] })).text, /The Peer could not start: no seat today/);
+  assert.match((await add("x", "Unstarted", { hints: ["a.txt"] })).text, /The engineer could not start: no seat today/);
   paseo.workspaces.ref = ref;
   assert.equal(onBranch(h, copy), lane.branch);
   assert.equal(h.git(h.root, "branch", "--list", h.ledger().tasks["L1-T1"]!.branch!).trim(), "");

@@ -49,7 +49,7 @@ test("a Lead lays its lane out: tasks in the lane's copy run in turn, tasks besi
   });
   assert.equal(planned.ok, true, planned.text);
   assert.match(planned.text, /- TOTALS is L1-T2 Task totals: waits for L1-T1/);
-  assert.match(planned.text, /- RECEIPT is L1-T3 Task receipt: running, Peer/);
+  assert.match(planned.text, /- RECEIPT is L1-T3 Task receipt: running, engineer/);
   assert.match(
     planned.text,
     /- TAX is L1-T4 Task tax: held: L1-T1 is still writing in the lane's working copy/,

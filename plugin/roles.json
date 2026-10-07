@@ -69,7 +69,13 @@
         ]
       },
       "hidesWords": [
-        "supervisor"
+        "supervisor",
+        "peer",
+        "peers",
+        "turn",
+        "desk",
+        "seat",
+        "seats"
       ],
       "writes": [
         "plans/",
@@ -101,7 +107,11 @@
         "paseo",
         "supervisor",
         "seat",
-        "seats"
+        "seats",
+        "peer",
+        "peers",
+        "turn",
+        "desk"
       ]
     },
     {
@@ -128,7 +138,11 @@
         "paseo",
         "supervisor",
         "seat",
-        "seats"
+        "seats",
+        "peer",
+        "peers",
+        "turn",
+        "desk"
       ]
     },
     {
@@ -157,7 +171,13 @@
         ]
       },
       "hidesWords": [
-        "supervisor"
+        "supervisor",
+        "peer",
+        "peers",
+        "turn",
+        "desk",
+        "seat",
+        "seats"
       ],
       "writes": [
         "plans/",
@@ -192,7 +212,11 @@
         "paseo",
         "supervisor",
         "seat",
-        "seats"
+        "seats",
+        "peer",
+        "peers",
+        "turn",
+        "desk"
       ]
     },
     {
@@ -222,7 +246,11 @@
         "paseo",
         "supervisor",
         "seat",
-        "seats"
+        "seats",
+        "peer",
+        "peers",
+        "turn",
+        "desk"
       ]
     },
     {

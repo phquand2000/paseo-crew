@@ -140,7 +140,7 @@ test("a Peer writing past where it was pointed is noted, not stopped: at hand-ba
     assert.match(
       told,
       new RegExp(
-        `INCIDENT I\\d+ \\(outside-scope, attend\\) on the Peer on ${id} \\(${title}\\)[^]*What was seen: [^\\n]*${file}`,
+        `INCIDENT I\\d+ \\(outside-scope, attend\\) on the engineer on ${id} \\(${title}\\)[^]*What was seen: [^\\n]*${file}`,
       ),
       "its Lead hears of it while the work runs, not only at hand-back",
     );
