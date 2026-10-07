@@ -40,7 +40,13 @@ test("a review blocks only on a P0 or P1 it shows how it confirmed, keeps P2 and
     };
     return { id: started.id, done, started: reply.text, brief: () => h.agents.get(started.peer!)!.prompt ?? "" };
   };
-  const next = () => /\nNext: (.*)$/.exec(h.heard(lead).at(-1)!)![1]!;
+  const next = () =>
+    h
+      .heard(lead)
+      .at(-1)!
+      .split("\n\n")
+      .at(-1)!
+      .replace(/^Next: /, "");
   const settings = (values: object) => writeFileSync(join(h.project.state, "settings.json"), JSON.stringify(values));
   const senior = async () =>
     (await h.call(lead, "lead", "start_review", { focus: "Is it right?", task: "L1-T1", role: "senior-reviewer" }))

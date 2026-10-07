@@ -58,7 +58,7 @@ test("a task sent back again and again, gone quiet until it stalls, or stopped o
     h
       .heard(peer)
       .join("\n")
-      .match(/REWORK requested by your lead\n\nunblocked, round 2/g)?.length,
+      .match(/unblocked, round 2/g)?.length,
     1,
     "each answer to a blocked hand-back reaches its Peer",
   );

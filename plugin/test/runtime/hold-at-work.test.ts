@@ -38,7 +38,7 @@ test("a Lead holds a Peer at work until another task lands: its quiet turns are 
   );
 
   await turn("Waiting for L1-T1.");
-  assert.match(heard(user), /AMENDED L1-T2[^]*Next: Wait for L1-T1: stop and leave your work as it is/);
+  assert.match(heard(user), /I've changed L1-T2[^]*\n\nWait for L1-T1: stop and leave your work as it is/);
   await turn("Still waiting.");
   assert.deepEqual([task("L1-T2").status, task("L1-T2").silent], ["running", 0], "held, its quiet turns are waiting");
   assert.doesNotMatch(heard(user), /without calling done or ask/);

@@ -21,7 +21,7 @@ test("a lane touching a path the Human asked to be asked about first waits for t
   await h.idle(sup);
   assert.match(
     h.heard(sup).join("\n"),
-    /REPORT L1 \(Cart\): ready to land[^]*Landing it waits for the Human\. It changes src\/auth\/login\.ts, under src\/auth[^]*What the desk read of it:\n- 1 commit; 1 file, 1 line changed\./,
+    /L1 \(Cart\) is ready to land[^]*Landing it waits for the Human\. It changes src\/auth\/login\.ts, under src\/auth[^]*Read from the lane itself:\n- 1 commit; 1 file, 1 line changed\./,
   );
   const held = await land();
   assert.match(
@@ -84,10 +84,10 @@ test("a landing sent back stays open without its READY, and held again is approv
   await h.idle(lane.lead!);
   assert.match(
     h.agents.get(lane.lead!)!.sent.join("\n"),
-    /LAND SENT BACK L1 \(Cart\): put the login change behind a flag\. The lane stays open\.\n\nNext: Act on the note, then report the lane ready again\./,
+    /The Human sent L1 \(Cart\) back before it landed: put the login change behind a flag\. The lane stays open: act on the note, then report it ready again\./,
   );
   await h.idle(sup);
-  assert.match(h.heard(sup).join("\n"), /SENT BACK L1 \(Cart\) by the Human: put the login change behind a flag/);
+  assert.match(h.heard(sup).join("\n"), /The Human sent L1 \(Cart\) back: put the login change behind a flag/);
 
   await h.call(sup, "supervisor", "set_project", { gate: "false" });
   const reason = "the Supervisor judged the red gate safe";

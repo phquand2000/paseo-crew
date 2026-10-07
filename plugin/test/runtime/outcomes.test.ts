@@ -23,8 +23,8 @@ test("what each review and ask went on to change is counted for whoever supervis
   );
   assert.equal((await h.call(lead, "lead", "answer", { ask: "A1", text: "Half up.", keepsDefault: false })).ok, true);
   assert.equal(
-    h.heard(sup).find((text) => text.startsWith("OVERRULED")),
-    "OVERRULED A1 (question) on L1-T1: the Lead answered the peer against its default.\n\nWhich rounding?\n\nTried: the spec\n\nTheir default: half down\n\nThe answer:\nHalf up.\n\nNext: Nothing, unless the answer crosses the lane's intent or the Lead keeps overruling.",
+    h.heard(sup).find((text) => text.startsWith("The Lead answered")),
+    "The Lead answered A1 (question) on L1-T1 against the peer's default:\n\n> Which rounding?\n>\n> Tried: the spec\n\nTheir default was: half down\n\nThe answer:\n\n> Half up.\n\nNothing to do, unless the answer crosses the lane's intent or the Lead keeps overruling.",
   );
   const shown = async () => {
     const flow = await h.rpc(contracts.flow, { project: h.project.slug, open: [] });

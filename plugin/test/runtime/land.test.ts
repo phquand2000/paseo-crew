@@ -93,7 +93,7 @@ test("a red gate or a red rehearsal holds a landing until the Supervisor lands o
     await h.idle(sup);
     return h
       .heard(sup)
-      .filter((text) => text.startsWith("REPORT"))
+      .filter((text) => /^L1 \(\w+\) is (ready|not ready)/.test(text))
       .at(-1)!;
   };
   await h.call(sup, "supervisor", "set_project", { riskRules: [rule(["migrations"])] });
@@ -307,11 +307,11 @@ test("what the record holds of a lane goes to whoever lands it, and never to the
   await h.idle(sup);
   const report = h
     .heard(sup)
-    .filter((text) => text.includes("REPORT L1"))
+    .filter((text) => text.includes("L1 (Build) is "))
     .at(-1)!;
   assert.match(
     report,
-    /REPORT L1 \(Build\): ready to land[^]*- Incident I\d+ on this lane is still open: claim-contradicted\./,
+    /L1 \(Build\) is ready to land[^]*- Incident I\d+ on this lane is still open: claim-contradicted\./,
   );
   assert.match(report, /L1-T2 is running: landing cuts it\./);
   assert.match(report, /L1-R1 review: accept\./);

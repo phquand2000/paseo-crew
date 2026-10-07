@@ -332,14 +332,14 @@ test("an amendment changes what a lane is asked and keeps what it was; its Lead 
   assert.equal(now.ready, undefined);
   assert.doesNotMatch(await status(), /Reported ready/);
   assert.equal(
-    h.agents.get(cart.lead!)!.sent.some((text) => text.startsWith("AMENDED")),
+    h.agents.get(cart.lead!)!.sent.some((text) => text.startsWith("I've changed")),
     false,
   );
   await h.idle(cart.lead!);
-  const letter = h.agents.get(cart.lead!)!.sent.find((text) => text.startsWith("AMENDED L1"))!;
+  const letter = h.agents.get(cart.lead!)!.sent.find((text) => text.startsWith("I've changed L1"))!;
   assert.match(
     letter,
-    /AMENDED L1 \(Cart\): the Human wants an upsert too\n\nacceptance, was:\n- a\nacceptance, now:\n- a\n- upserts an item\n\nA READY you reported before this no longer stands\.\n\nNext: Carry it into the tasks it touches \(amend_task/,
+    /I've changed L1 \(Cart\): the Human wants an upsert too\.\n\nacceptance was:\n- a\nacceptance is now:\n- a\n- upserts an item\n\nA ready you reported before this no longer stands\.\n\nCarry it into the tasks it touches \(amend_task/,
   );
   assert.doesNotMatch(letter, /supervisor/i);
 
@@ -375,15 +375,15 @@ test("a Lead amends a task: its Peer hears at its next turn, and only a task bes
   const task = h.ledger().tasks["L1-T1"]!;
   assert.deepEqual([task.goal, task.amended?.[0]?.was], ["upsert into the cart", { goal: "g" }]);
   await h.idle(peer);
-  const letter = h.agents.get(peer)!.sent.find((text) => text.startsWith("AMENDED L1-T1"))!;
-  assert.match(letter, /goal, was:\ng\ngoal, now:\nupsert into the cart\n\nNext: Work to it as it stands now/);
+  const letter = h.agents.get(peer)!.sent.find((text) => text.startsWith("I've changed L1-T1"))!;
+  assert.match(letter, /goal was:\ng\ngoal is now:\nupsert into the cart\n\nWork to it as it stands now/);
   assert.doesNotMatch(letter, /seat|supervisor|paseo/i);
 
   assert.equal((await amend({ hints: ["a.txt", "b.txt"], context: "The header parser is in b.txt." })).ok, true);
   await h.idle(peer);
   assert.match(
     h.agents.get(peer)!.sent.join("\n"),
-    /context, was:\nnone\ncontext, now:\nThe header parser is in b\.txt\./,
+    /context was:\nnone\ncontext is now:\nThe header parser is in b\.txt\./,
   );
   assert.deepEqual(h.ledger().tasks["L1-T1"]!.amended?.[1]?.was, { context: "", hints: ["a.txt"] });
   assert.equal((await amend({ acceptance: [] })).ok, true, "what a task must say is its Lead's call");

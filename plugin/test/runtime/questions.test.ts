@@ -38,7 +38,7 @@ test("a question's class decides what waits on it: a costly one stops its lane a
   await h.idle(sup);
   assert.match(
     h.agents.get(sup)!.sent.join("\n"),
-    /REPORT L1 \(Build\): ready to land\n\nIt is on hold: it went on without the Human's answer to H1/,
+    /L1 \(Build\) is ready to land\.[^]*It is on hold: it went on without the Human's answer to H1/,
   );
   h.timelineOf(sup).add({ type: "user_message", text: "No. Don't touch invoices at all.", clientMessageId: "app-2" });
   assert.match(

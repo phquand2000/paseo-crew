@@ -54,7 +54,7 @@ test("a lane's lines the Human asked for reach its Lead marked with their word, 
   );
   assert.match(
     h.heard(lead).join("\n"),
-    /AMENDED L1 \(Tax\)[^]*The Human asked for these, and this changes them without their word:\n- tax shows on the receipt \(the Human's, "the tax must show on the receipt"\)/,
+    /I've changed L1 \(Tax\)[^]*The Human asked for these, and this changes them without their word:\n- tax shows on the receipt \(the Human's, "the tax must show on the receipt"\)/,
   );
 
   await h.call(sup, "supervisor", "ask_human", question);
@@ -82,7 +82,7 @@ test("a lane's lines the Human asked for reach its Lead marked with their word, 
   assert.match(
     h.heard(sup).join("\n"),
     new RegExp(
-      `REPORT L1 \\(Tax\\): ready to land[^]*What the desk read of it:[^]*The Human asked for "tax shows on the receipt" \\(the Human's, "the tax must show on the receipt"\\), and ${sup} changed it without their word\\.`,
+      `L1 \\(Tax\\) is ready to land[^]*Read from the lane itself:[^]*The Human asked for "tax shows on the receipt" \\(the Human's, "the tax must show on the receipt"\\), and ${sup} changed it without their word\\.`,
     ),
   );
 });

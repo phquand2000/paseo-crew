@@ -1,7 +1,7 @@
 import { clip, hash, outside } from "../../core/text.ts";
 import type { Lane } from "../../domain/lane.ts";
 import { IN_QUEUE, type Task } from "../../domain/task.ts";
-import { type Letter, mail } from "./envelope.ts";
+import { type Letter, mail, quoted, say } from "./envelope.ts";
 
 /** A call a seat was told to stop waiting for: the one identity its late answer and its lost answer share. */
 type Waited = { agent: string; tool: string; started: number };
@@ -43,41 +43,27 @@ export const messageLetters = {
     );
   },
 
-  /** `reader` answers only through its own tools: words it says in its turn reach nobody. */
-  message(from: string, text: string, sending: Sending, reader: "worker" | "lead"): Letter {
-    const next =
-      reader === "worker"
-        ? "Carry it into your work from now on, and answer what it asks in your hand-back, or with ask if a reply cannot wait."
-        : "Carry it into your lane from now on, and answer what it asks with report, or with ask if you need a decision back first.";
-    const writer = `${from[0]!.toUpperCase()}${from.slice(1)}`;
-    return mail("message", sendingIds(sending, text), [`${writer} writes:`, "", text].join("\n"), next);
+  /** Someone's words to their reader, as they wrote them: how to answer is in the reader's prompt. */
+  message(text: string, sending: Sending): Letter {
+    return say("message", sendingIds(sending, text), text);
   },
 
   /** The Supervisor may reach a Peer directly but never out of the Lead's sight: this carries what the Lead needs to put its picture right. */
   reconciled(lane: Lane, task: Task, peer: string, text: string, sending: Sending): Letter {
-    const letter = [
-      `RECONCILE ${lane.id}: the owner reached your Peer on ${task.id} directly.`,
-      "",
-      sending.now
-        ? "What reached them, sent now: it interrupts the Peer where that can be done."
-        : "What reached them:",
-      clip(text, 1500),
-      "",
-      `Current intent: ${lane.outcome}`,
-      `Ownership: ${task.id} (${task.title}) is still owned by ${peer}, on ${lane.branch}. The lane is still yours.`,
-      "Topology: unchanged. Nobody was started, moved or let go.",
+    const accepted =
       task.status === "merged"
-        ? `Integration and acceptance: ${task.id} is merged already, and nothing here changed that.`
+        ? `${task.id} is merged already`
         : IN_QUEUE.includes(task.status)
-          ? `Integration and acceptance: you have already accepted ${task.id} and it is waiting to merge; nothing here changed that.`
-          : `Integration and acceptance: unchanged. Accepting ${task.id} is still yours to judge, and nothing here accepted it.`,
+          ? `you have already accepted ${task.id} and it is waiting to merge`
+          : `accepting ${task.id} is still yours to judge`;
+    const letter = [
+      `I've written to the engineer on ${task.id} directly${sending.now ? ", and cut in where they were" : ""}:`,
+      "",
+      quoted(clip(text, 1500)),
+      "",
+      `Nothing else changes: ${task.id} (${task.title}) is still ${peer}'s on ${lane.branch}, the lane is still yours, nobody was started or let go, and ${accepted}. If this changes what you were going to do, say so in your next report.`,
     ].join("\n");
-    return mail(
-      "reconcile",
-      ["message", ...sendingIds(sending, text)],
-      letter,
-      "If this changes what you were going to do, say so in your next report.",
-    );
+    return say("reconcile", ["message", ...sendingIds(sending, text)], letter);
   },
 
   /** Words the Human wrote straight into a Lead's or Peer's chat, fenced as data. */
@@ -86,18 +72,19 @@ export const messageLetters = {
     const who = task
       ? `the Peer on ${task.id} (${task.title})`
       : `the Lead ${closed ? "kept from" : "of"} ${lane.id} (${lane.title})`;
+    const then = closed
+      ? `Lane ${lane.id} is closed: if it asks for more work, open a lane for it; if it settles the concept, write it into CONTEXT.md.`
+      : task
+        ? "Its Lead was not told. If it changes what the task or the lane is asked, carry it in: tell the Lead, amend_lane, or settle it with the Human."
+        : "If it changes what the lane is asked, carry it in with amend_lane; if it settles the concept, write it into CONTEXT.md.";
     const lines = [
-      `HUMAN WROTE to ${who} directly, past you:`,
+      `The Human wrote to ${who} directly, past you:`,
       "<human>",
       outside("human", text, 1500),
       "</human>",
-      ...(task ? ["", "Its Lead was not told."] : []),
+      "",
+      then,
     ];
-    const next = closed
-      ? `Lane ${lane.id} is closed: if it asks for more work, open a lane for it; if it settles the concept, write it into CONTEXT.md.`
-      : task
-        ? "If it changes what the task or the lane is asked, carry it in: tell the Lead, amend_lane, or settle it with the Human."
-        : "If it changes what the lane is asked, carry it in with amend_lane; if it settles the concept, write it into CONTEXT.md.";
-    return mail("humanwrote", [seat, hash(text)], lines.join("\n"), next);
+    return say("humanwrote", [seat, hash(text)], lines.join("\n"));
   },
 };

@@ -135,7 +135,7 @@ test("a lane whose base moved lands only once nobody writes in its copy: main is
   h.commit(h.root, "a.txt", "one\ntwo\nthree\nfour\n");
   await h.call(lane.lead!, "lead", "report", { summary: "done", ready: true });
   await h.idle(sup);
-  assert.match(h.heard(sup).join("\n"), /REPORT L1 \(Numbers\)[^]*- 1 commit; 1 file, 1 line changed\./);
+  assert.match(h.heard(sup).join("\n"), /L1 \(Numbers\) is[^]*- 1 commit; 1 file, 1 line changed\./);
   h.commitTo("main", "other.txt", "main moved\n");
   const moved = h.git(h.root, "rev-parse", "main").trim();
 

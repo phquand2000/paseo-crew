@@ -10,9 +10,7 @@ import { directive } from "../../server/desk/letters/directive.ts";
 import { fetchIssue, issueArgs } from "../../server/core/github.ts";
 import { landLetters } from "../../server/desk/letters/land-letters.ts";
 import type { Ask } from "../../server/domain/ask.ts";
-import type { Lane } from "../../server/domain/lane.ts";
 import { tempDir } from "../tempdir.ts";
-import type { Task } from "../../server/domain/task.ts";
 import { type Letter } from "../../server/desk/letters/envelope.ts";
 import { messageLetters } from "../../server/desk/letters/message-letters.ts";
 import { workLetters } from "../../server/desk/letters/work-letters.ts";
@@ -20,43 +18,33 @@ import { seatLetters } from "../../server/desk/letters/seat-letters.ts";
 import { watchLetters } from "../../server/desk/letters/watch-letters.ts";
 import { mergeLetters } from "../../server/desk/letters/merge-letters.ts";
 import type { Question } from "../../server/domain/question.ts";
+import { gate, lane, task } from "./letter-fixtures.ts";
 
-const lane: Lane = {
-  id: "L1",
-  title: "Discounts",
-  outcome: "Orders apply a percentage discount",
-  acceptance: ["a 10% code lowers the total"],
-  outOfScope: [],
-  base: "main",
-  branch: "lane/l1-discounts",
-  writeSet: [],
-  contracts: [],
-  opener: "sup",
-  status: "open",
-  openedAt: 0,
-  tasks: 1,
-};
-const task: Task = {
-  id: "L1-T1",
-  lane: "L1",
-  kind: "code",
-  mode: "lane",
-  title: "Apply discount",
-  goal: "Totals reflect the code",
-  acceptance: ["10% off"],
-  hints: ["src/pricing.js"],
-  holds: [],
-  outOfScope: [],
-  branch: "task/l1-t1-apply-discount",
-  status: "running",
-  openedAt: 0,
-  updatedAt: 0,
-  silent: 0,
-};
-const gate = "npm test runs on the whole lane when you report it ready";
+/** Letters that carry someone's words: what they ask of their reader is their last paragraph, not a Next line. */
+const SPOKEN = new Set([
+  "message",
+  "rework",
+  "amended",
+  "hold",
+  "resumed",
+  "answer",
+  "answeredFor",
+  "reconcile",
+  "done",
+  "ask",
+  "carried",
+  "overruled",
+  "taken",
+  "released",
+  "humanwrote",
+  "humananswered",
+  "landback",
+  "report",
+]);
 
-/** The one Next line a letter ends with, what it asks of whoever reads it. */
+/** The one Next line a desk letter ends with, or the last paragraph of someone's words: what it asks of whoever reads it. */
 function nextOf(letter: Letter): string {
+  if (SPOKEN.has(letter.key.split(":")[0]!)) return letter.text.split("\n\n").at(-1)!;
   const lines = letter.text.split("\n").filter((entry) => entry.startsWith("Next: "));
   assert.equal(lines.length, 1, letter.text);
   assert.ok(letter.text.endsWith(lines[0]!), `it is the letter's last line: ${letter.text}`);
@@ -70,7 +58,7 @@ function next(letter: Letter): string {
   return said;
 }
 
-test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidden from it, and ends with one Next line the desk picks from what it knows", () => {
+test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidden from it, and a desk letter ends with one Next line the desk picks from what it knows", () => {
   const sending = { by: "agent-1", to: task.id, at: 0 };
   const call = { agent: "agent-3", tool: "done", started: 0 };
   const ask: Ask = {
@@ -107,7 +95,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     }),
     workLetters.rework(task, "fix it"),
     seatLetters.nudge(task, "done"),
-    messageLetters.message("your lead", "hi", sending, "worker"),
+    messageLetters.message("hi", sending),
     workLetters.amended(task, amendment, "worker"),
     workLetters.onHold(lane, "the migration drops a table", task),
     workLetters.resumed(lane, "go on", task),
@@ -156,7 +144,7 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     workLetters.held(task, "L1-T1 is not accepted yet.", "It starts by itself."),
     workLetters.started(task, "Started."),
     messageLetters.reconciled(lane, task, "agent-9", "stop using the old client", sending),
-    messageLetters.message("the owner", "hi", sending, "lead"),
+    messageLetters.message("hi", sending),
     askLetters.answered({ ...ask, fromRole: "lead" }),
     askLetters.answeredFor(ask, "the owner"),
     askLetters.askTo({ ...ask, status: "open" }, "the Peer on L1-T1", "lead"),
@@ -254,15 +242,6 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
   );
 
   assert.match(
-    next(messageLetters.message("your lead", "why X?", sending, "worker")),
-    /answer what it asks in your hand-back, or with ask if a reply cannot wait\.$/,
-    "a Peer answers only through its tools: a reply in its own words reaches no one",
-  );
-  assert.match(
-    next(messageLetters.message("the owner", "why X?", sending, "lead")),
-    /answer what it asks with report, or with ask if you need a decision back first\.$/,
-  );
-  assert.match(
     next(workLetters.handback(task, "Outcome: complete", "agent-7", "lead")),
     /^Judge it by what the work did/,
   );
@@ -298,15 +277,6 @@ test("every letter a Peer, a reviewer or a Lead can be sent hides the words hidd
     [false, "Nothing now: the next hand-back arrives as mail."],
     "a merge that asks nothing waits for the next hand-back",
   );
-});
-
-test("a message from one person to another opens the way a person's note would, not with a desk heading", () => {
-  const sending = { by: "agent-1", to: "L1", at: 0 };
-  assert.match(
-    messageLetters.message("the owner", "Hold off on the migration.", sending, "lead").text,
-    /^The owner writes:\n\nHold off on the migration\.\n\nNext: /,
-  );
-  assert.match(messageLetters.message("your lead", "why X?", sending, "worker").text, /^Your lead writes:\n\nwhy X\?/);
 });
 
 test("an issue resolves to gh arguments, and what it says cannot close the fence it is read inside or speak on the line above it", async () => {

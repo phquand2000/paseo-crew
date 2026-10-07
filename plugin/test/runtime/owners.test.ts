@@ -137,7 +137,7 @@ test("a seat's trouble reaches whoever owns it, named as Paseo shows it, and wha
   assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "a.txt changed" })).ok, true);
   assert.match(
     heard(h, architecture),
-    /HANDBACK L1-T1 \(Clean build\) from [^]*Next: Its Lead is gone: replace_lead puts a new Lead on the lane, this hand-back included/,
+    /Here is L1-T1 \(Clean build\) back from [^]*\n\nIts Lead is gone: replace_lead puts a new Lead on the lane, this hand-back included/,
   );
 });
 
@@ -162,12 +162,12 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   assert.match(h.agents.get(peer)!.sent.join("\n"), /banker's rounding/);
   // The Lead is not merely copied: it is given back the five things it needs to hold the room's state.
   const toLead = h.agents.get(lane.lead!)!.sent.join("\n");
-  assert.match(toLead, /RECONCILE L1/);
+  assert.match(toLead, /I've written to the engineer on/);
   assert.match(toLead, /banker's rounding/, "what reached the Peer");
-  assert.match(toLead, /Current intent: discounts round correctly/);
-  assert.match(toLead, /Ownership: L1-T1 .* is still owned by/);
-  assert.match(toLead, /Topology: unchanged/);
-  assert.match(toLead, /Integration and acceptance: unchanged/);
+  assert.match(
+    toLead,
+    /Nothing else changes: L1-T1 \(.*\) is still .*'s on .*, the lane is still yours, nobody was started or let go, and accepting L1-T1 is still yours to judge\./,
+  );
 
   // The same instruction again is a second instruction, not a repeat to drop by its words.
   await h.idle(peer);
@@ -176,7 +176,11 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   await h.idle(peer);
   await h.idle(lane.lead!);
   assert.equal(h.agents.get(peer)!.sent.join("\n").split("banker's rounding").length - 1, 2, "both reached the Peer");
-  assert.equal(h.agents.get(lane.lead!)!.sent.join("\n").split("RECONCILE L1").length - 1, 2, "the Lead is told both");
+  assert.equal(
+    h.agents.get(lane.lead!)!.sent.join("\n").split("I've written to the engineer on").length - 1,
+    2,
+    "the Lead is told both",
+  );
 
   // Mid-turn, neither is cut into, and neither is left out once its turn ends.
   for (const seat of [peer, lane.lead!]) {
@@ -188,7 +192,10 @@ test("reaching a Peer directly tells its Lead what reached it, and is refused wh
   await h.idle(peer);
   await h.idle(lane.lead!);
   assert.match(h.agents.get(peer)!.sent.join("\n"), /Round only at the end/);
-  assert.match(h.agents.get(lane.lead!)!.sent.join("\n"), /RECONCILE L1[\s\S]*Round only at the end/);
+  assert.match(
+    h.agents.get(lane.lead!)!.sent.join("\n"),
+    /I've written to the engineer on[\s\S]*Round only at the end/,
+  );
 
   // With no Lead to reconcile to, the intervention is refused rather than run behind its back.
   Object.assign(h.agents.get(lane.lead!)!, { archivedAt: new Date().toISOString(), status: "closed" });

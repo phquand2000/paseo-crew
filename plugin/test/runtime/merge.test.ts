@@ -48,10 +48,14 @@ test("a task beside others hands back what its lane would become: the lane broug
   // A Lead once read the rest of a clipped hand-back from its file, and the deny rules took the read for a write.
   const summary = `c ${"added c.txt ".repeat(300)}and nothing else.`;
   assert.equal((await h.call(side!.peer!, "peer", "done", { outcome: "complete", summary })).ok, true);
-  const handback = heard(h, lead).split("HANDBACK L1-T2")[1] ?? "";
+  const handback = heard(h, lead).split("Here is L1-T2")[1] ?? "";
   assert.ok(handback.includes(summary), "the whole hand-back, however long");
   assert.doesNotMatch(handback, /handbacks\//, "nothing left to read from a file");
-  assert.match(heard(h, lead), new RegExp(`HANDBACK L1-T2 \\(Side\\) from ${side!.peer}`), "the agent its Lead reads");
+  assert.match(
+    heard(h, lead),
+    new RegExp(`Here is L1-T2 \\(Side\\) back from ${side!.peer}`),
+    "the agent its Lead reads",
+  );
   assert.match(handback, new RegExp(`\\nBrought up to date with ${lane.branch} at [0-9a-f]{7}\\.\\n`));
   assert.match(handback, /\nChanged: c\.txt\n/, "only what the task changed, not what came in with the lane");
   assert.doesNotMatch(handback, /Note:/, "shared.txt moved on the lane, not in this task's copy");
@@ -125,7 +129,7 @@ test("a task in the lane's copy is read from where its branch meets the lane's, 
 
   assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "a" })).ok, true);
   assert.match(
-    heard(h, lead).split("HANDBACK L1-T1")[1] ?? "",
+    heard(h, lead).split("Here is L1-T1")[1] ?? "",
     /\nChanged: a\.txt\n/,
     "c.txt came in with L1-T2's merge, not from this Peer",
   );

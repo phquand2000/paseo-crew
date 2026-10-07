@@ -86,7 +86,7 @@ test("a base that conflicts with a lane leaves nothing mid-merge in the lane's c
   h.git(copy, "add", "a.txt");
   h.git(copy, "commit", "-q", "--no-edit");
   assert.equal((await h.call(take.peer!, "peer", "done", { outcome: "complete", summary: "settled" })).ok, true);
-  const handback = h.heard(lead).join("\n").split("HANDBACK L1-T2")[1] ?? "";
+  const handback = h.heard(lead).join("\n").split("Here is L1-T2")[1] ?? "";
   assert.match(handback, /\nChanged: a\.txt\n/, "what its Peer changed, not what main brought in");
   assert.match(handback, /\nNote: settled from merging main: a\.txt\./);
   assert.doesNotMatch(handback, /outside/);

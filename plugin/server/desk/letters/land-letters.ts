@@ -1,5 +1,5 @@
 import type { Lane } from "../../domain/lane.ts";
-import { type Letter, ended, fyi, mail } from "./envelope.ts";
+import { type Letter, ended, fyi, mail, say } from "./envelope.ts";
 
 /** The letters a landing sends: that it may go ahead, that it waits on the Human, and what the Human decided. */
 export const landLetters = {
@@ -38,7 +38,7 @@ export const landLetters = {
 
   /** `head` is the lane's tip it was held at: a hold is told once per commit, and asks nothing of a Lead that has stopped. */
   landHeld(lane: Lane, reason: string, head: string): Letter {
-    const text = `LAND HELD ${lane.id} (${lane.title}): the Human looks at it before it lands. ${reason} Approved, it lands and the lane closes; sent back, LAND SENT BACK brings their note. A new commit means it is looked at again from the start.`;
+    const text = `LAND HELD ${lane.id} (${lane.title}): the Human looks at it before it lands. ${reason} Approved, it lands and the lane closes; sent back, their note comes to you. A new commit means it is looked at again from the start.`;
     return fyi(mail("landheld", [lane.id, head], text, "Commit nothing more on the lane until the Human decides."));
   },
 
@@ -54,11 +54,10 @@ export const landLetters = {
   },
 
   landSentBack(lane: Lane, note: string, head: string): Letter {
-    return mail(
+    return say(
       "landback",
       [lane.id, head],
-      `LAND SENT BACK ${lane.id} (${lane.title}): ${ended(note || "the Human gave no reason; ask what to change")} The lane stays open.`,
-      "Act on the note, then report the lane ready again.",
+      `The Human sent ${lane.id} (${lane.title}) back before it landed: ${ended(note || "they gave no reason; ask what to change")} The lane stays open: act on the note, then report it ready again.`,
     );
   },
 
@@ -68,9 +67,10 @@ export const landLetters = {
       return fyi(told(`LANDED ${lane.id} (${lane.title}) after the Human approved it: ${text}`, "Nothing now."));
     if (how === "sent back")
       return fyi(
-        told(
-          `SENT BACK ${lane.id} (${lane.title}) by the Human: ${ended(text || "no reason was given")} The lane stays open, and its Lead has the note.`,
-          "Nothing now.",
+        say(
+          "land",
+          [lane.id, how, Date.now()],
+          `The Human sent ${lane.id} (${lane.title}) back: ${ended(text || "they gave no reason")} The lane stays open, and its Lead has the note.`,
         ),
       );
     if (how === "again")

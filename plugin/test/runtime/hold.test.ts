@@ -26,9 +26,9 @@ test("a lane on hold stops its seats, keeps their mail, refuses every move, and 
   assert.match((await hold("L1", reason)).text, /^Lane L1 is on hold\. 2 of its seats were told to stop/);
   assert.match(
     h.agents.get(lead)!.interrupted.join("\n"),
-    /^HOLD L1 \(Build\): the owner has stopped this lane: the migration would drop a table the Human needs\.\n\nNext: Stop where you are/,
+    /^Stop where you are on L1 \(Build\): the migration would drop a table the Human needs\. Start nothing and send nothing until I tell you to go on\./,
   );
-  assert.match(h.agents.get(peer)!.interrupted.join("\n"), /^HOLD: the work on L1-T1 is stopped: the migration/);
+  assert.match(h.agents.get(peer)!.interrupted.join("\n"), /^Stop where you are on L1-T1: the migration/);
   assert.match(
     (await h.call(sup, "supervisor", "status", {})).text,
     /On hold for 0 min: the migration would drop a table the Human needs\. resume_lane lifts it\./,
@@ -87,11 +87,11 @@ test("a lane on hold stops its seats, keeps their mail, refuses every move, and 
   assert.equal(resumed.ok, true, resumed.text);
   assert.match(
     h.agents.get(lead)!.sent.slice(told).join("\n"),
-    /Is the table backed up\?[^]*RESUMED L1 \(Build\): the owner lifted the hold\.\n\nThe Human backed it up; go on\.\n\nNext: Carry on from where you stopped\./,
+    /Is the table backed up\?[^]*Go on with L1 \(Build\) from where you stopped\.\n\nThe Human backed it up; go on\./,
   );
   assert.match(
     h.agents.get(peer)!.sent.join("\n"),
-    /RESUMED: the work on L1-T1 goes on\.\n\nThe Human backed it up; go on\.\n\nNext: Carry on from where you stopped\./,
+    /Go on with L1-T1 from where you stopped\.\n\nThe Human backed it up; go on\./,
   );
   assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);
   assert.match((await h.call(sup, "supervisor", "resume_lane", { lane: "L1" })).text, /Lane L1 is not on hold\./);

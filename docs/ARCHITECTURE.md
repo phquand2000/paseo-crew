@@ -54,30 +54,30 @@ The Human may be away. Each row is a verb a seat calls, or something the desk re
 |---|---|---|---|
 | Supervisor | `open_lane` | a lane, `open` with a working copy, a branch and a Lead the desk seats, or `waiting` until its `after` lanes land | the Lead starts from its OWNER DIRECTIVE |
 | Lead | `add_tasks` | tasks, `waiting`; each goes `running` once what it waits for has merged, with a new Peer or the kept one it names | each Peer starts from its TASK brief |
-| Peer | `done` | the task `done`, with a hand-back file and the gate's verdict | HANDBACK to the Lead, or to the Supervisor once the Lead is gone |
+| Peer | `done` | the task `done`, with a hand-back file and the gate's verdict | the hand-back to the Lead, or to the Supervisor once the Lead is gone |
 | Lead | `accept` | `queued`, then `merging` and `merged` through the lane's merge queue | MERGED, MERGE RED, MERGE CONFLICT, MERGE WAITS or MERGE FAILED to the Lead |
-| Lead | `rework`, `amend_task`, `cut` | the task back in `rework` for its Peer, changed, or `cut` | REWORK or AMENDED to the Peer; ARCHITECTURE or TURNING to the Supervisor at the moments SLP names |
-| Lead | `start_review` | a review task, `L<n>-R<k>`, `running` at once | the Reviewer starts from its REVIEW brief; its verdict comes back as HANDBACK |
-| Peer, Reviewer | `ask` | an ask, `open`, to the Lead; a Peer's `bestGuess` is its default, a Reviewer's has none | ASK to the Lead, or to the Supervisor once the Lead is gone |
-| Lead | `ask`, with the `default` it works on meanwhile | an ask to the Supervisor | ASK to the Supervisor |
-| Supervisor, Lead | `answer`, `message` | the ask `answered` | ANSWER to the asker, and ANSWERED FOR YOU to the seat it was put to when another answers; the message, opening with who wrote it, with RECONCILE to the Lead first when the Supervisor writes to a Peer |
-| Supervisor | `amend_lane` | the lane amended, its `ready` cleared | AMENDED to the Lead |
-| Supervisor | `hold_lane`, `resume_lane` | `onHold` set, or cleared | HOLD past the outbox to the Lead and each seat of a task not merged or cut; RESUMED |
+| Lead | `rework`, `amend_task`, `cut` | the task back in `rework` for its Peer, changed, or `cut` | the Lead's words, or what changed and why, to the Peer; ARCHITECTURE or TURNING to the Supervisor at the moments SLP names |
+| Lead | `start_review` | a review task, `L<n>-R<k>`, `running` at once | the Reviewer starts from its REVIEW brief; its verdict comes back as a hand-back |
+| Peer, Reviewer | `ask` | an ask, `open`, to the Lead; a Peer's `bestGuess` is its default, a Reviewer's has none | the ask to the Lead, or to the Supervisor once the Lead is gone |
+| Lead | `ask`, with the `default` it works on meanwhile | an ask to the Supervisor | the ask to the Supervisor |
+| Supervisor, Lead | `answer`, `message` | the ask `answered` | the answer to the asker, and word of it to the seat it was put to when another answers; the message, the writer's words alone, with what was sent to the Lead first when the Supervisor writes to a Peer |
+| Supervisor | `amend_lane` | the lane amended, its `ready` cleared | what changed and why to the Lead |
+| Supervisor | `hold_lane`, `resume_lane` | `onHold` set, or cleared | stop, past the outbox, to the Lead and each seat of a task not merged or cut; go on |
 | The watch | a fact in a turn or in a lane's record | an incident in `incidents.json` | INCIDENT to the Lead or the Supervisor, once it is told |
 | Turn ends, the patrol | a silent, failed or gone seat; an idle Lead | a task `stalled` | the nudge, SILENT, FAILED, LANE IDLE, LEAD GONE |
 
 The Human meets the run four ways, all under [The Human in the loop](#the-human-in-the-loop): a question the
 Supervisor queues with `ask_human`; a page to their phone, sent with no hold first as a Lead's or Peer's
-command that cannot be undone opens an incident; words they type into a Lead's or Peer's chat (HUMAN WROTE to
-the Supervisor); and a permission prompt (WAITING FOR PERMISSION to the seat's owner).
+command that cannot be undone opens an incident; words they type into a Lead's or Peer's chat (told to
+the Supervisor, their words fenced); and a permission prompt (WAITING FOR PERMISSION to the seat's owner).
 
 ### Land
 
 | Who | Verb or event | On record | Mailed |
 |---|---|---|---|
-| Lead | `report` with `ready` | queued merges settle; the lane gate and its rehearsals run; `ready` is set, red gate or not; open `costly` questions about the lane are parked and the lane held | REPORT to the Supervisor, with the gate's verdict, the `askFirst` hits and what the desk read of the lane |
+| Lead | `report` with `ready` | queued merges settle; the lane gate and its rehearsals run; `ready` is set, red gate or not; open `costly` questions about the lane are parked and the lane held | the report to the Supervisor, with the gate's verdict, the `askFirst` hits and what the desk read of the lane |
 | Supervisor | `land_lane` | base merged in, the gate run, the change read against `askFirst`, then landed on the local base: the lane `closed` and `landed`, its open questions canceled, its unsettled tasks cut and named, its Peers let go | BASE CONFLICT or LAND HELD to the Lead; CAN LAND to the Supervisor; LANE CLOSED to the Lead, which stays; CLEARED to the lane a detour served |
-| The Human | Approve or Send back on the Flow tab, or approve in the Supervisor's chat (`land_lane` with `approval`) | approved, the desk tries to land the lane at once; sent back, the hold is dropped and the lane stays open | LANDED, HELD AGAIN, APPROVED, CHANGED or SENT BACK to the Supervisor; LAND SENT BACK to the Lead |
+| The Human | Approve or Send back on the Flow tab, or approve in the Supervisor's chat (`land_lane` with `approval`) | approved, the desk tries to land the lane at once; sent back, the hold is dropped and the lane stays open | LANDED, HELD AGAIN, APPROVED, CHANGED, or the Human's note, to the Supervisor; the note to the Lead |
 | Supervisor | `drop_lane`, `release` | the lane `closed` without landing, its branch kept; a kept Lead archived, its copy put away | LANE CLOSED to the Lead; CLEARED, as on landing |
 
 A landing that touches an `askFirst` path waits for the Human's approval, on the Flow tab or in the Supervisor's chat. `ready` is evidence,
@@ -254,7 +254,7 @@ merges in the last. It is refused while a task's branch is checked out in the la
    own commits kept at `refs/crew/lanes/<id>`; a merge commit; or a fast-forward. Base moves only from
    the commit read at the start, to the head the gate saw: a lane that moved after its gate lands nothing.
 
-The rest the desk reads goes with REPORT, the Supervisor's reply and the Human's card as evidence: commits,
+The rest the desk reads goes with the report, the Supervisor's reply and the Human's card as evidence: commits,
 files and lines, deleted or weakened tests, files outside the write set, tasks accepted over a red gate, open
 incidents, what reviews leave standing, whether it was reported ready as it stands.
 
@@ -363,7 +363,7 @@ message sent `now` is. It is:
   that asks something;
 - **sent** otherwise.
 
-HOLD alone goes past the outbox, as an interrupt that cuts a running turn short where the agent allows it. A
+A hold alone goes past the outbox, as an interrupt that cuts a running turn short where the agent allows it. A
 repeat of a letter's kind and ids for the same seat is dropped while the first waits and for 30 minutes after.
 A letter untaken in 7 days is given up on; a gone seat's mail goes to no other seat, and `status.md` lists it
 until then, but for word that asks nothing, which goes with the seat. The desk picks each `Next:` line from what it knows (a red gate, an ask's kind, a Lead gone, the
@@ -406,7 +406,7 @@ The Human is asked what only they can decide and told what they cannot take back
   write set or change reaches `askFirst` becomes `costly`. At most `questionsPerDay` (3, set by hand in a
   settings layer) go out in 24 h across every project on the machine; an `irreversible` one, or one `askFirst`
   raised, goes out past it and is counted. The Human answers on the Flow tab, an
-  option or Decline with a note, and HUMAN ANSWERED tells the Supervisor what that turns round; or in its
+  option or Decline with a note, and the Supervisor is told what that turns round; or in its
   chat, which `record_human_answer` takes only with a quote found among the Human's own messages there. No Lead is mailed
   the answer, and a lane the desk held for a question stays held until `resume_lane`, refused until the Human settles it
   ([questions for the Human](REFERENCE.md#questions-for-the-human)).
@@ -414,7 +414,7 @@ The Human is asked what only they can decide and told what they cannot take back
   refused, naming where to ask: `ask_human` or its reply for the Supervisor, `ask` for a Lead, Peer or
   Reviewer.
 - **Holds.** `hold_lane` sets `onHold`, calls off a landing waiting to finish or still waiting for the Human
-  (one they approved stands), and sends HOLD to the Lead and the seat of each task not merged or cut. Until
+  (one they approved stands), and tells the Lead and the seat of each task not merged or cut to stop. Until
   `resume_lane`, their mail waits, their permission requests are refused, and nothing starts, moves or lands:
   `add_tasks`, `start_review`, `accept`, `rework`, a ready `report`, `replace_lead` and `land_lane` are
   refused, no task starts, a waiting lane does not open, and an accepted task waits queued. `cut`,
@@ -425,7 +425,7 @@ The Human is asked what only they can decide and told what they cannot take back
   chose (CHANGED to the Supervisor). Otherwise, approved, the desk tries to land the lane at once for the
   Supervisor, with the `overGate` and reason it was held with, and tells it LANDED, HELD AGAIN or APPROVED (not landed
   yet, the approval standing while the head does); sent back, the hold drops, the lane stays open with `ready`
-  as it was, and LAND SENT BACK brings the note to the Lead. A seat approves only with the Human's words, which the desk finds
+  as it was, and the note goes to the Lead. A seat approves only with the Human's words, which the desk finds
   in its chat before the landing goes on. A hold calls off a
   landing still waiting for the Human; one they approved stands.
 - **Pages.** Only `irreversible` opens one. As its incident opens, INCIDENT goes to the Supervisor whatever the
@@ -438,7 +438,7 @@ The Human is asked what only they can decide and told what they cannot take back
   Beyond a lane (page-level incidents of 24 h), and counts, among them the questions of the last 24 h across
   every project, against `questionsPerDay`. Flow shows questions and held landings only while "Follow the team live" is on.
 - **Writing in a seat's chat.** A live message a person sent into a Lead's or Peer's chat, its id not starting
-  `crew-` as the desk's do, reaches the Supervisor as HUMAN WROTE, fenced as data; for a Peer, saying its Lead
+  `crew-` as the desk's do, reaches the Supervisor fenced as data; for a Peer, saying its Lead
   was not told.
 
 ## The watch

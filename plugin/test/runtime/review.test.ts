@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { harness } from "./harness.ts";
+import { harness, lastWord } from "./harness.ts";
 import { heldGit } from "./lane-gates.ts";
 
 type Harness = ReturnType<typeof harness>;
 
 const scope = { acceptance: ["a"], outOfScope: ["the rest"] };
 const finding = { severity: "P1", where: "a.txt:1", failure: "rounds down", fix: "up", confirmedBy: "traced" };
+/** What the last letter opening with `opens` asks of its reader: its closing paragraph. */
 const reviews = (h: Harness) => Object.values(h.ledger().tasks).filter((entry) => entry.kind === "review");
 
 /** A lane opened by a supervising seat, with its Lead. */
@@ -154,10 +155,7 @@ test("a lane reported ready carries what its reviews leave standing, and each fa
     await new Promise((resolve) => setTimeout(resolve, 2));
   };
   const ready = async (summary: string) => (await h.call(lead, "lead", "report", { summary, ready: true })).text;
-  const told = () => {
-    const heard = h.heard(sup).join("\n");
-    return /\nNext: (.*)/.exec(heard.slice(heard.lastIndexOf("REPORT L1")))![1]!;
-  };
+  const told = () => lastWord(h.heard(sup), "L1 (Rounding) is ");
 
   await handBack(await start("L1-T1"), "changes");
   assert.equal((await h.call(lead, "lead", "accept", { task: "L1-T1" })).ok, true);
@@ -167,7 +165,7 @@ test("a lane reported ready carries what its reviews leave standing, and each fa
   );
   assert.match(
     h.heard(sup).join("\n"),
-    /REPORT L1 \(Rounding\): ready to land[^]*What the desk read of it:\n[^]*- No review of the whole lane is on record\.\n- The lane's latest review, L1-R1/,
+    /L1 \(Rounding\) is ready to land[^]*Read from the lane itself:\n[^]*- No review of the whole lane is on record\.\n- The lane's latest review, L1-R1/,
   );
   assert.match(
     told(),
@@ -216,8 +214,7 @@ test("only the lane's own review is the review of the whole lane, read against i
     const findings = verdict === "accept" ? {} : { findings: [finding] };
     await h.call(reviewer, "reviewer", "done", { verdict, answer: "It holds.", ...findings });
     await new Promise((resolve) => setTimeout(resolve, 2));
-    const heard = h.heard(lead).join("\n");
-    const next = /\nNext: (.*)/.exec(heard.slice(heard.lastIndexOf("HANDBACK")))![1]!;
+    const next = lastWord(h.heard(lead), "Here is ");
     return { started: started.text, brief: h.agents.get(reviewer)!.prompt ?? "", next };
   };
   const tip = () => h.git(h.root, "rev-parse", lane.branch).trim();
@@ -293,8 +290,7 @@ test("a review's changes stand until a hand-back after them or a review acceptin
   };
   const ready = async () => {
     const reply = (await h.call(lead, "lead", "report", { summary: "done", ready: true })).text;
-    const heard = h.heard(sup).join("\n");
-    return { reply, next: /\nNext: (.*)/.exec(heard.slice(heard.lastIndexOf("REPORT L1")))![1]! };
+    return { reply, next: lastWord(h.heard(sup), "L1 (Rounding) is ") };
   };
   const add = (key: string, hint: string) =>
     h.call(lead, "lead", "add_tasks", { tasks: [{ key, title: "Round", goal: "g", ...scope, hints: [hint] }] });
@@ -323,7 +319,7 @@ test("a review's changes stand until a hand-back after them or a review acceptin
   await accept("L1-T2");
   const over = await ready();
   assert.equal(
-    h.heard(sup).join("\n").split("REPORT L1 ").length - 1,
+    h.heard(sup).join("\n").split("L1 (Rounding) is ").length - 1,
     2,
     "the same summary again still reaches the Supervisor once what the desk read of the lane changed",
   );

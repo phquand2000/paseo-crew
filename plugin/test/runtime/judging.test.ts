@@ -160,7 +160,7 @@ test("a hand-back is asked about in shadow, and what the sensor says is kept, ne
     verdicts: { summary_admits_gap: "yes", summary_works_around: "no" },
   });
   await h.idle(lead);
-  assert.match(h.heard(lead).join("\n"), /HANDBACK L1-T1/);
+  assert.match(h.heard(lead).join("\n"), /Here is L1-T1/);
   assert.doesNotMatch(
     h.heard(lead).join("\n"),
     /summary_admits_gap|vendor\/model-1/,

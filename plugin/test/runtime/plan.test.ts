@@ -125,7 +125,7 @@ test("a Lead lays its lane out: tasks in the lane's copy run in turn, tasks besi
   const receipt = h.ledger().tasks["L1-T3"]!;
   assert.deepEqual([receipt.holds, receipt.amended?.[0]?.was], [["b.txt", "d.txt"], { holds: ["b.txt"] }]);
   await h.idle(receipt.peer!);
-  assert.match(h.agents.get(receipt.peer!)!.sent.join("\n"), /holds, was:\n- b\.txt\nholds, now:\n- b\.txt\n- d\.txt/);
+  assert.match(h.agents.get(receipt.peer!)!.sent.join("\n"), /holds was:\n- b\.txt\nholds is now:\n- b\.txt\n- d\.txt/);
 });
 
 test("a layout that cannot run as given is refused whole, each problem named, and nothing of it recorded", async () => {

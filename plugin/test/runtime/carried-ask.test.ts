@@ -42,8 +42,8 @@ test("a Peer parked on an ask its Lead carries up waits unnudged and unwatched u
   });
   assert.match(up.text, /Asked as A2, carrying A1\. Leave A1 open/);
   assert.equal(h.ledger().asks.A1!.status, "open");
-  assert.match(heard(sup), /ASK A2 \(need\)[\s\S]*Carries A1: the Peer on L1-T1 waits on this answer\./);
-  assert.match(heard(peer), /CARRIED UP A1: your Lead put it to the owner as A2\./);
+  assert.match(heard(sup), /asks A2 \(need\):[\s\S]*It carries A1: the engineer on L1-T1 waits on this answer\./);
+  assert.match(heard(peer), /I've put your ask A1 to the owner as A2;/);
 
   await turn("Parked: waiting on A1.");
   await turn("Still parked.");
@@ -67,12 +67,8 @@ test("a Peer parked on an ask its Lead carries up waits unnudged and unwatched u
     keepsDefault: true,
   });
   assert.equal(ruled.ok, true, ruled.text);
-  assert.match(heard(lead), /ANSWER to your ask A2[\s\S]*It carries A1: answer A1 for its Peer from it/);
-  assert.match(
-    heard(lead),
-    /ANSWER to your ask A2[\s\S]*amend_task/,
-    "a Lead is told to carry an answer into its tasks",
-  );
+  assert.match(heard(lead), /On your ask A2:[\s\S]*It carries A1: answer A1 for its engineer from it/);
+  assert.match(heard(lead), /On your ask A2:[\s\S]*amend_task/, "a Lead is told to carry an answer into its tasks");
   await h.idle(lead);
   const again = await h.call(lead, "lead", "ask", { kind: "need", text: "x", default: "y", carries: ["A2"] });
   assert.match(again.text, /A2 is not a Peer's open ask put to you on L1\./);
@@ -114,5 +110,5 @@ test("a Lead's ask carried into a Human question waits on their answer, which na
     note: "",
   });
   assert.deepEqual(answered, { answered: "H1 is answered: Tomorrow. The Supervisor has it." });
-  assert.match(heard(sup), /HUMAN ANSWERED H1[\s\S]*answer A1, which it carries/);
+  assert.match(heard(sup), /The Human answered H1[\s\S]*answer A1, which it carries/);
 });

@@ -155,7 +155,7 @@ async function releaseTaskPeer(
     const took = loadLedger(project.state).agents[kept.peer]?.task;
     return no(`The Peer kept from ${task.id} took ${took} since: it is that task's Peer now.`);
   }
-  if (by) await desk.mail.post(lane.lead, keptLetters.released(task, kept.peer, by));
+  if (by) await desk.mail.post(lane.lead, keptLetters.released(task, kept.peer));
   if (parallel) await desk.agents.retire(project, task, lane.branch);
   else await desk.roster.archive(kept.peer);
   recordEvent(project, { kind: "seat.released", seat: kept.peer, of: task.id });

@@ -57,13 +57,13 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
   });
   assert.equal(asked.ok, true, asked.text);
   await h.idle(sup);
-  assert.match(h.agents.get(sup)!.sent.at(-1)!, /ASK A1 \(question\)[\s\S]*half up/);
+  assert.match(h.agents.get(sup)!.sent.at(-1)!, /asks A1 \(question\):[\s\S]*half up/);
   assert.equal(
     (await h.call(sup, "supervisor", "answer", { ask: "A1", text: "Half up.", keepsDefault: true })).ok,
     true,
   );
   await h.idle(lead);
-  assert.match(h.agents.get(lead)!.sent.join("\n"), /ANSWER to your ask A1[\s\S]*Half up/);
+  assert.match(h.agents.get(lead)!.sent.join("\n"), /On your ask A1:[\s\S]*Half up/);
   // Its first prompt too carries the kinds of its letters in its id, so the watch tells desk mail from a person's words.
   assert.deepEqual(sentBy({ clientMessageId: h.agents.get(lead)!.promptId }), ["brief"]);
   assert.deepEqual(sentBy({ clientMessageId: h.agents.get(lead)!.sentIds.at(-1) }), ["answer"]);
@@ -86,7 +86,7 @@ test("an ask reaches whoever can answer it, the answer comes back once, and whoe
     true,
   );
   assert.match(heard(h, peer), /Drop it and migrate/, "the Peer gets its answer");
-  assert.match(heard(h, lead), new RegExp(`ANSWERED FOR YOU: ${ask.id}`), "the Lead holds the room's state");
+  assert.match(heard(h, lead), new RegExp(`I answered ${ask.id} for you`), "the Lead holds the room's state");
   assert.match(heard(h, lead), /Drop it and migrate[^]*accepting it is still yours to judge/);
   await h.idle(peer);
 
@@ -152,7 +152,7 @@ test("with nobody supervising seated, an ask is kept and reaches whoever sits do
   assert.match(question.text, /Asked as A3[^]*nobody can answer now/);
   const back = h.add(SUPERVISOR, h.root, "sup-2");
   await h.tick();
-  assert.match(heard(h, back), /ASK A2 \(need\)[^]*Which\?[^]*Carries A1[^]*ASK A3 \(question\)[^]*Skip blank lines\?/);
+  assert.match(heard(h, back), /A2 \(need\):[^]*Which\?[^]*carries A1[^]*A3 \(question\):[^]*Skip blank lines\?/);
   assert.deepEqual([h.ledger().asks.A2!.to, h.ledger().asks.A3!.to], [back, back]);
 });
 
@@ -255,7 +255,7 @@ test("a Peer that is gone is found past the first page of agents, its Lead told,
     /its agent was closed or archived[\s\S]*Next: Nothing restarts it, and without a hand-back it cannot be accepted: reseat it for a fresh Peer that carries on from its branch, or cut it\./,
   );
   const stranded = new RegExp(
-    `## Mail with nobody to read it\n\nThe seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on\\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: Your lead writes:`,
+    `## Mail with nobody to read it\n\nThe seat each of these was addressed to is gone, and no other seat is sent them: pass on what still matters before each is given up on\\.\n\n- to ${peer}, waiting 0 min, given up on in 7 days: Stop: the premise is wrong\\.`,
   );
   assert.match(readFileSync(join(h.project.state, "status.md"), "utf-8"), stranded, "in the page the round writes");
   assert.match((await h.rpc(contracts.status, { project: h.project.slug })).text, stranded, "and on the panel");
@@ -292,7 +292,7 @@ test("a call that runs longer than a seat can wait is answered once by mail, and
   assert.ok(await within(5000, () => /ANSWER to your report call/.test(heard(h, lead))), "answered as mail");
   assert.equal(readdirSync(join(h.project.state, "gates")).filter((name) => name.startsWith("L1-")).length, 1);
   assert.equal(heard(h, lead).split("ANSWER to your report call").length - 1, 1, "once, for both calls");
-  assert.match(heard(h, sup), /REPORT L1/);
+  assert.match(heard(h, sup), /L1 \([^)]*\) is (ready|not ready)/);
 
   // An answer promised as mail that the outbox cannot take stays promised, so the next start still owns up to it.
   rmSync(go);
@@ -342,7 +342,7 @@ test("a running Lead is never cut into, whatever its agent: a message and its Pe
   await h.tick();
   assert.equal(seat.sent.length, before, "nothing cuts into a turn it thinks or writes in");
   await h.idle(lead);
-  assert.match(seat.sent.at(-1)!, /^2 messages[^]*the premise is wrong[^]*HANDBACK L1-T1 /, "both, in one message");
+  assert.match(seat.sent.at(-1)!, /^2 messages[^]*the premise is wrong[^]*Here is L1-T1 /, "both, in one message");
 });
 
 test("word held for a seat rides the reply to its own call inside a turn, and wakes nobody", async () => {
@@ -390,7 +390,7 @@ test("a Peer reads the mail held for it before its ask or hand-back is taken, so
   h.commit(h.ledger().tasks["L1-T1"]!.worktree!, "a.txt", "round\n");
   const early = await call("done", { outcome: "partial", summary: "rounded" });
   assert.equal(early.ok, false);
-  for (const said of [/AMENDED L1-T1/, /Check the rates as well/]) assert.match(early.text, said);
+  for (const said of [/I've changed L1-T1/, /Check the rates as well/]) assert.match(early.text, said);
   assert.equal(h.ledger().tasks["L1-T1"]!.status, "running", "nothing handed back on a contract it had not read");
   const done = await call("done", { outcome: "complete", summary: "rounded, rates too" });
   assert.equal(done.ok, true, done.text);

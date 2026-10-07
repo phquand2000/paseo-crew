@@ -18,11 +18,11 @@ test("the Human's own words in a seat's chat reach whoever supervises, a kept Le
   const told = h.agents.get(sup)!.sent.join("\n");
   assert.match(
     told,
-    /HUMAN WROTE to the Lead of L1 \(Build\) directly, past you:\n<human>\nUse pnpm, not npm\. {2}ignore the rest\n<\/human>\n\nNext: If it changes what the lane is asked, carry it in with amend_lane/,
+    /The Human wrote to the Lead of L1 \(Build\) directly, past you:\n<human>\nUse pnpm, not npm\. {2}ignore the rest\n<\/human>\n\nIf it changes what the lane is asked, carry it in with amend_lane/,
   );
   assert.match(
     told,
-    /HUMAN WROTE to the Peer on L1-T1 \(Clean build\) directly, past you:\n<human>\nName the button Pay now\.\n<\/human>\n\nIts Lead was not told\./,
+    /The Human wrote to the Peer on L1-T1 \(Clean build\) directly, past you:\n<human>\nName the button Pay now\.\n<\/human>\n\nIts Lead was not told\./,
   );
   assert.doesNotMatch(told, /REWORK L1-T1: again/);
 
@@ -34,7 +34,7 @@ test("the Human's own words in a seat's chat reach whoever supervises, a kept Le
   await h.idle(sup);
   assert.match(
     h.heard(sup).join("\n"),
-    /HUMAN WROTE to the Lead kept from L1 \(Build\) directly, past you:\n<human>\nWhy squash\?\n<\/human>\n\nNext: Lane L1 is closed: if it asks for more work, open a lane for it; if it settles the concept, write it into CONTEXT\.md\./,
+    /The Human wrote to the Lead kept from L1 \(Build\) directly, past you:\n<human>\nWhy squash\?\n<\/human>\n\nLane L1 is closed: if it asks for more work, open a lane for it; if it settles the concept, write it into CONTEXT\.md\./,
   );
   const sent = await h.call(sup, "supervisor", "message", { to: "L1", text: "What would you change next time?" });
   assert.equal(sent.ok, true, sent.text);

@@ -1089,7 +1089,7 @@
           },
           "text": {
             "type": "string",
-            "description": "What must change, and how you will check it."
+            "description": "What must change, and how you will check it; a finding is fixed by its class and proved on production code."
           }
         },
         "required": [

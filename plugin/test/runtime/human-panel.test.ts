@@ -106,7 +106,7 @@ test("a question waits in the Human's queue, and their answer, on the panel or i
   );
   assert.match(
     h.heard(sup).join("\n"),
-    /HUMAN ANSWERED H1 \(Delete old invoices, or keep them archived\?\), on the panel: Archive\.\n\nTheir note, their own words:\nand keep a list of them\n\nNext: Carry their choice into the lane, and write it into CONTEXT\.md if it settles the concept\./,
+    /The Human answered H1 \(Delete old invoices, or keep them archived\?\) on the panel: Archive\.\n\nTheir note, their own words:\nand keep a list of them\n\nCarry their choice into the lane, and write it into CONTEXT\.md if it settles the concept\./,
   );
   assert.match((await record("H1", "decline", "archive them")).text, /H1 is already answered\./);
 
@@ -117,7 +117,7 @@ test("a question waits in the Human's queue, and their answer, on the panel or i
   assert.deepEqual(await answer("H3", "decline"), { answered: "H3 is declined. The Supervisor has it." });
   assert.match(
     h.heard(sup).join("\n"),
-    /HUMAN ANSWERED H3 \([^)]*\), on the panel: they declined to decide it\.\n\nNext: The call is yours now: decide it and carry that where it applies\./,
+    /The Human answered H3 \([^)]*\) on the panel: they declined to decide it\.\n\nThe call is yours now: decide it and carry that where it applies\./,
   );
   assert.deepEqual((await drawn(h)).questions, []);
 });

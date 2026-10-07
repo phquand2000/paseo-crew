@@ -122,7 +122,7 @@ test("a lane whose Lead is gone gets one where it stands, with the asks that wai
   assert.match(
     h.heard(now.lead!).join("\n"),
     new RegExp(
-      `ANSWERED FOR YOU: A2 \\(question\\) from ${peer}, put to the owner while your lane had no Lead, was answered by the owner\\.[^]*cents`,
+      `While your lane had no Lead, the engineer on L1-T\\d put A2 \\(question\\) to me, and I answered it\\.[^]*cents`,
     ),
     "the owner reaching a Peer past its Lead never leaves the Lead out of sight",
   );

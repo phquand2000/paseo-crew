@@ -137,7 +137,7 @@ test("what the gate did reaches the Lead: with the hand-back, when its verdict i
   await gate({ gate: "echo red; exit 1" });
   const red = await handedBack(h, lead, "B", "b.txt");
   assert.match(
-    after(h, lead, `HANDBACK ${red.id}`),
+    after(h, lead, `Here is ${red.id}`),
     /Gate: echo red; exit 1: the gate failed with exit 1\. The lane takes it red only if you accept it over the gate with a reason\./,
   );
   assert.equal((await accept(h, lead, red.id)).ok, false);
@@ -180,11 +180,11 @@ test("a change a risk rule reaches is rehearsed with its gate, and a red rehears
   const migrate = await handedBack(h, lead, "M", "db/", "db/001.sql");
   const copy = await handedBack(h, lead, "Copy", "c.txt");
   assert.match(
-    after(h, lead, `HANDBACK ${migrate.id}`),
+    after(h, lead, `Here is ${migrate.id}`),
     /Gate: true passed in \d+s; false, rehearsing that running it twice changes nothing, failed with exit 1/,
   );
   assert.doesNotMatch(
-    after(h, lead, `HANDBACK ${copy.id}`),
+    after(h, lead, `Here is ${copy.id}`),
     /rehearsing/,
     "a change the rule does not reach is not rehearsed",
   );

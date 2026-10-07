@@ -12,6 +12,13 @@ export const firstLine = (text: string) =>
 /** A person's note as a sentence: theirs often ends in a full stop already, and one more reads as a typo. */
 export const ended = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`);
 
+/** Someone's words set off as a quote, line by line. */
+export const quoted = (text: string) =>
+  text
+    .split("\n")
+    .map((line) => `> ${line}`.trimEnd())
+    .join("\n");
+
 /** Every kind of letter the desk mails. A letter's key starts with its kind, and so does the id Paseo shows for the message. */
 type Kind =
   | "answer"
@@ -93,6 +100,9 @@ export const mail = (kind: Kind, ids: (string | number)[], text: string, next: s
   key: keyOf(kind, ids),
   text: `${text}\n\nNext: ${next}`,
 });
+
+/** Someone's words, written the way a person writes them: no heading, and no Next line, since a person does not add one. */
+export const say = (kind: Kind, ids: (string | number)[], text: string): Letter => ({ key: keyOf(kind, ids), text });
 
 export const fyi = (letter: Letter): Letter => ({ ...letter, wakes: false });
 

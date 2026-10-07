@@ -3,7 +3,7 @@ import type { Amendment } from "../../domain/amendment.ts";
 import type { HumanClaim, HumanLine, Lane } from "../../domain/lane.ts";
 import type { Task } from "../../domain/task.ts";
 import { humanCite } from "./directive.ts";
-import { type Letter, fyi, list, mail } from "./envelope.ts";
+import { type Letter, ended, fyi, list, mail, say } from "./envelope.ts";
 
 const waited = (entry: Lane | Task, what: string): string => {
   const after = entry.after?.length ? ` to wait for ${entry.after.join(", ")}` : "";
@@ -31,24 +31,24 @@ function handbackNext(task: Task, reader: "lead" | "supervisor", rounds: Rounds 
 export const workLetters = {
   /** `reader` is the Lead, or whoever supervises once the Lead is no longer seated; `rounds`, for a review of a change. */
   handback(task: Task, body: string, peer: string, reader: "lead" | "supervisor", rounds?: Rounds): Letter {
-    const next = handbackNext(task, reader, rounds);
     const history = rounds?.history ? [rounds.history] : [];
-    return mail(
+    return say(
       "done",
       [task.id, hash(body)],
-      [`HANDBACK ${task.id} (${task.title}) from ${peer}`, ...history, "", body].join("\n"),
-      next,
+      [
+        `Here is ${task.id} (${task.title}) back from ${peer}.`,
+        ...history,
+        "",
+        body,
+        "",
+        handbackNext(task, reader, rounds),
+      ].join("\n"),
     );
   },
 
   /** Keyed by when it was sent, not the words: a repeated instruction is a second instruction, not a duplicate. */
   rework(task: Task, text: string): Letter {
-    return mail(
-      "rework",
-      [task.id, task.reworks ?? 0, task.updatedAt],
-      ["REWORK requested by your lead", "", text].join("\n"),
-      "Change what it names; for a finding, fix its class, and prove it on production code. Commit, then call done again.",
-    );
+    return say("rework", [task.id, task.reworks ?? 0, task.updatedAt], text);
   },
 
   /** `found` is what the desk read itself rather than took from the Lead: the gate, a park, what landing it waits for, what it brings, and whether review changes stand. */
@@ -65,12 +65,16 @@ export const workLetters = {
       changes?: boolean;
     },
   ): Letter {
-    const lines = [`REPORT ${lane.id} (${lane.title}): ${ready ? "ready to land" : "not ready"}`];
+    const lines = [
+      `${lane.id} (${lane.title}) is ${ready ? "ready to land" : "not ready yet"}.`,
+      "",
+      clip(summary, 2000),
+    ];
+    lines.push("", "Carried:", list(carried));
     if (found.parked) lines.push("", found.parked);
     if (found.gate) lines.push("", `Gate: ${found.gate.text}`);
     if (found.asks.length > 0) lines.push("", `Landing it waits for the Human. ${found.asks.join(" ")}`);
-    if (found.facts.length > 0) lines.push("", "What the desk read of it:", list(found.facts));
-    lines.push("", clip(summary, 2000), "", "Carried:", list(carried));
+    if (found.facts.length > 0) lines.push("", "Read from the lane itself:", list(found.facts));
     const next = !ready
       ? "Reply only if it needs a decision of yours or changes one."
       : found.parked
@@ -82,8 +86,9 @@ export const workLetters = {
             : found.asks.length > 0
               ? "land_lane it if acceptance is met: it then waits for the Human on the Flow tab, so tell them it waits, and why."
               : "land_lane it if acceptance is met and nothing carried loses or corrupts data; then tell the Human in two lines.";
+    lines.push("", next);
     const text = lines.join("\n");
-    const letter = mail("report", [lane.id, hash(`${text}\n${next}`)], text, next);
+    const letter = say("report", [lane.id, hash(text)], text);
     return ready ? letter : fyi(letter);
   },
 
@@ -99,12 +104,12 @@ export const workLetters = {
     const show = (value: string | string[]) => (Array.isArray(value) ? list(value) : value || "none");
     const cite = (lines: HumanClaim[]) => list(lines.map((line) => `${line.line} (${humanCite(line)})`));
     const text = [
-      `AMENDED ${entry.id} (${entry.title}): ${amendment.why}`,
+      `I've changed ${entry.id} (${entry.title}): ${ended(amendment.why)}`,
       ...Object.entries(amendment.was).flatMap(([field, was]) => [
         "",
-        `${field}, was:`,
+        `${field} was:`,
         show(was),
-        `${field}, now:`,
+        `${field} is now:`,
         show(now[field]!),
       ]),
       ...(human.claims.length > 0 ? ["", "The Human's own ask, on their word:", cite(human.claims)] : []),
@@ -112,26 +117,24 @@ export const workLetters = {
         ? ["", "The Human asked for these, and this changes them without their word:", cite(human.dropped)]
         : []),
       ...(reader === "lead" && Object.keys(amendment.was).length > 0
-        ? ["", "A READY you reported before this no longer stands."]
+        ? ["", "A ready you reported before this no longer stands."]
         : []),
-    ].join("\n");
+    ];
     const next =
       reader === "lead"
         ? "Carry it into the tasks it touches (amend_task a moved goal; cut and restart a task whose contract changed), then report ready once the lane meets it."
         : waits
           ? `Wait for ${waits.join(", ")}: stop and leave your work as it is; you will be told when they land.`
           : "Work to it as it stands now; if what you have done no longer fits it, say so in your hand-back.";
-    return mail("amended", [entry.id, entry.amended?.length ?? 0], text, next);
+    return say("amended", [entry.id, entry.amended?.length ?? 0], [...text, "", next].join("\n"));
   },
 
   /** The paths a Lead took into its lane, and the lanes beside that may write the same, told to whoever supervises without waking them. */
   taken(lane: Lane, amendment: Amendment, beside: string): Letter {
     const was = new Set(amendment.was.writeSet as string[]);
     const added = lane.writeSet.filter((path) => !was.has(path));
-    const text = `TAKEN by the Lead of ${lane.id} (${lane.title}) into its write set: ${added.join(", ")}. Why: ${amendment.why}${beside}`;
-    return fyi(
-      mail("taken", [lane.id, lane.amended?.length ?? 0], text, "Nothing, unless the lane's intent rules it out."),
-    );
+    const text = `The Lead of ${lane.id} (${lane.title}) took ${added.join(", ")} into its write set: ${ended(amendment.why)}${beside}\n\nNothing to do, unless the lane's intent rules it out.`;
+    return fyi(say("taken", [lane.id, lane.amended?.length ?? 0], text));
   },
 
   /** Why a lane or task still waits, told once per reason, and what its reader can do about it. */
@@ -162,26 +165,14 @@ export const workLetters = {
   /** Sent past the outbox, cutting a running turn short: to the Lead of `lane`, or else the Peer of `task`. */
   onHold(lane: Lane, reason: string, task?: Task): Letter {
     const what = task
-      ? `HOLD: the work on ${task.id} is stopped: ${reason}`
-      : `HOLD ${lane.id} (${lane.title}): the owner has stopped this lane: ${reason}`;
-    return mail(
-      "hold",
-      [lane.id, task?.id ?? "lead", hash(reason)],
-      what,
-      "Stop where you are now; start nothing and send nothing until you are told it resumes.",
-    );
+      ? `Stop where you are on ${task.id}: ${ended(reason)} Start nothing and send nothing until you are told to go on.`
+      : `Stop where you are on ${lane.id} (${lane.title}): ${ended(reason)} Start nothing and send nothing until I tell you to go on.`;
+    return say("hold", [lane.id, task?.id ?? "lead", hash(reason)], what);
   },
 
   resumed(lane: Lane, note: string, task?: Task): Letter {
-    const what = task
-      ? `RESUMED: the work on ${task.id} goes on.`
-      : `RESUMED ${lane.id} (${lane.title}): the owner lifted the hold.`;
-    return mail(
-      "resumed",
-      [lane.id, task?.id ?? "lead", Date.now()],
-      note ? `${what}\n\n${note}` : what,
-      "Carry on from where you stopped.",
-    );
+    const what = `Go on with ${task ? task.id : `${lane.id} (${lane.title})`} from where you stopped.`;
+    return say("resumed", [lane.id, task?.id ?? "lead", Date.now()], note ? `${what}\n\n${note}` : what);
   },
 
   /** A task beside others whose lane stopped on conflicts as it was brought in at hand-back: its Peer settles them, and nothing waits on its Lead. */

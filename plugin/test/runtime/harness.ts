@@ -337,3 +337,12 @@ export function heldCreate(h: ReturnType<typeof harness>, title: RegExp, made = 
   };
   return { reached, release };
 }
+
+/** The closing paragraph of the last letter heard that holds `opens`: what it asks of its reader. */
+export const lastWord = (heard: string[], opens: string) => {
+  const letter = heard
+    .findLast((text) => text.includes(opens))!
+    .split(opens)
+    .at(-1)!;
+  return letter.split("\n\n---\n\n")[0]!.split("\n\n").at(-1)!;
+};

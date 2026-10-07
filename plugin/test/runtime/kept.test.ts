@@ -101,7 +101,7 @@ test("a Peer whose task is accepted is kept for rework until its Lead releases i
   h.git(lane.worktree!, "merge-base", "--is-ancestor", lane.branch, "HEAD");
   assert.equal(h.ledger().lanes.L1!.ready, undefined, "a lane with a task open again is not ready");
   await h.idle(peer);
-  assert.match(h.heard(peer).join("\n"), /REWORK requested by your lead\n\nthe lane review found the total off by one/);
+  assert.match(h.heard(peer).join("\n"), /the lane review found the total off by one/);
   await acceptWork(h, lead, peer, "L1-T1", "a.txt", "fixed\n");
 
   const released = await h.call(lead, "lead", "release", { task: "L1-T1" });
@@ -193,7 +193,10 @@ test("a task its Lead gives the Peer kept from a merged one starts on that Peer,
   const released = await h.call(sup, "supervisor", "release", { task: "L1-T2" });
   assert.equal(released.ok, true, released.text);
   assert.ok(h.agents.get(peer)!.archivedAt);
-  assert.match(h.heard(lead).join("\n"), new RegExp(`RELEASED ${peer}, the Peer kept from L1-T2 \\(Second\\): ${sup}`));
+  assert.match(
+    h.heard(lead).join("\n"),
+    new RegExp(`I've let ${peer} go, the engineer you kept on after L1-T2 \\(Second\\)\\.`),
+  );
   await acceptWork(h, lead, h.ledger().tasks["L1-T3"]!.peer!, "L1-T3");
   const fourth = h.ledger().tasks["L1-T4"]!;
   assert.equal(fourth.status, "running");
@@ -233,7 +236,7 @@ test("a task beside others keeps its Peer in its own copy once merged, until its
   );
   assert.match(
     h.heard(lead).join("\n"),
-    /RECONCILE L1: [^]*Integration and acceptance: L1-T2 is merged already, and nothing here changed that\./,
+    /I've written to the engineer on L1-T2 directly[^]*and L1-T2 is merged already\./,
   );
   await h.idle(side.peer!);
   const answered = await h.call(side.peer!, "peer", "ask", { question: "b.txt only: is that enough?" });

@@ -32,10 +32,10 @@ test("a Lead takes paths into its write set on its own, told of a lane beside th
   assert.deepEqual(lane.writeSet, ["src/**", "docs/**"]);
   assert.deepEqual(lane.amended?.at(-1)?.was, { writeSet: ["src/**"] });
   assert.equal(lane.amended?.at(-1)?.by, lead);
-  const told = h.heard(sup).find((text) => text.startsWith("TAKEN"));
+  const told = h.heard(sup).find((text) => text.startsWith("The Lead of L1"));
   assert.equal(
     told,
-    "TAKEN by the Lead of L1 (Cart) into its write set: docs/**. Why: the cart ships with its page\n\nNext: Nothing, unless the lane's intent rules it out.",
+    "The Lead of L1 (Cart) took docs/** into its write set: the cart ships with its page.\n\nNothing to do, unless the lane's intent rules it out.",
   );
   assert.ok(!h.agents.get(sup)!.sent.includes(told), "the Supervisor is told without being woken");
 
@@ -52,7 +52,7 @@ test("a Lead takes paths into its write set on its own, told of a lane beside th
   );
   assert.match(
     h.heard(sup).join("\n"),
-    /TAKEN by the Lead of L1 \(Cart\)[^]*It now works beside lanes[^]*L2 \(lib\/util\.ts and lib\/\*\*\)/,
+    /The Lead of L1 \(Cart\) took[^]*It now works beside lanes[^]*L2 \(lib\/util\.ts and lib\/\*\*\)/,
   );
 
   const added = await h.call(lead, "lead", "add_tasks", { tasks: [docs] });
