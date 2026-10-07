@@ -134,7 +134,7 @@ export function rulesFor(team: Team, roleName: string): string {
     if (lines.length > 0) parts.push(lines.join("\n\n"));
   }
   if (team.rules) parts.push(`## Rules from the Human\n\n${team.rules.trim()}`);
-  if (seat.rules) parts.push(`## Rules from the Human, for the ${seat.role.label}\n\n${seat.rules}`);
+  if (seat.rules) parts.push(`## Rules from the Human, for you\n\n${seat.rules}`);
   return parts.length > 0 ? `# Working rules\n\n${parts.join("\n\n")}\n` : "";
 }
 

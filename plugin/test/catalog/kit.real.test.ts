@@ -11,7 +11,7 @@ import { providerId, toolsOf } from "../../server/catalog/kit/roles.ts";
 import { applyRole } from "../../server/catalog/seat/launch.ts";
 import { applyReconcile, seatPairs } from "../../server/catalog/paseo/providers.ts";
 import { seedRecords } from "../../server/catalog/seat/seat-files.ts";
-import { materialize, seatDir } from "../../server/catalog/seat/seats.ts";
+import { materialize, seatDir, seatProblems } from "../../server/catalog/seat/seats.ts";
 import { placeGuides } from "../../server/catalog/seat/snapshots.ts";
 import { choicesFor, serversFor } from "../../server/catalog/seat/servers.ts";
 import { resolveTeam, withHarness } from "../../server/catalog/team/team.ts";
@@ -293,4 +293,19 @@ test("the desk names each seat's fixed choices from the kit: who writes and with
   });
   assert.deepEqual(choices("supervisor"), { open_lane: { role: ["lead", "backup-lead"] } });
   assert.deepEqual(choices("peer"), {}, "a seat is named choices only for tools it has");
+});
+
+test("a rule the Human gives one role builds that role's seat, and one with a word it must not see names where it is", () => {
+  const kit = loadKit(PLUGIN);
+  const paths = { guides: "/guides", state: "/state/demo" };
+  const names = Object.keys(resolveTeam(kit, {}).roles);
+  const team = resolveTeam(kit, {
+    roles: Object.fromEntries(names.map((role) => [role, { rules: "Keep diffs small." }])),
+  });
+  assert.ok(names.includes("backup-peer"));
+  for (const role of names) assert.deepEqual(seatProblems(kit, team, role, paths), [], role);
+  const worded = resolveTeam(kit, { roles: { peer: { rules: "Stop at the end of your turn." } } });
+  assert.deepEqual(seatProblems(kit, worded, "peer", paths), [
+    "the rules section of the peer prompt contains words that role must not see: turn",
+  ]);
 });

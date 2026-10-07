@@ -42,7 +42,7 @@ const UNBUILDABLE: { role: string; layer?: Layer; file?: string; text?: string; 
   {
     role: "peer",
     layer: { rules: "Leave the Paseo config alone." },
-    refusal: "the peer prompt contains words that role must not see: paseo",
+    refusal: "the rules section of the peer prompt contains words that role must not see: paseo",
   },
   {
     role: "peer",

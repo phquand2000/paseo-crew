@@ -210,7 +210,10 @@ export function writeInstructions(
   root?: string,
 ): void {
   const { role, harness } = team.roles[roleName]!;
-  const rules = [renderText(role, rulesFor(team, roleName), paths), projectImports(harness, root)]
+  const rules = [
+    renderText(role, rulesFor(team, roleName), paths, `the rules section of the ${roleName} prompt`),
+    projectImports(harness, root),
+  ]
     .filter(Boolean)
     .join("\n");
   if (!harness.contextFile) return;

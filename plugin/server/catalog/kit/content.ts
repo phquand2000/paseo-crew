@@ -15,19 +15,24 @@ function unwritten(role: RoleSpec, text: string): string[] {
   return [...new Set(named)].filter((segment) => !writes.has(segment) && !DESK_OWNED.has(segment));
 }
 
-export function renderText(role: RoleSpec, source: string, paths: PromptPaths): string {
+export function renderText(
+  role: RoleSpec,
+  source: string,
+  paths: PromptPaths,
+  what = `the ${role.role} prompt`,
+): string {
   const text = source.replaceAll("{{guides}}", paths.guides).replaceAll("{{state}}", paths.state);
   const leftover = text.match(/\{\{[^}]*\}\}/);
-  if (leftover) throw new Error(`the ${role.role} prompt still holds the placeholder ${leftover[0]}`);
+  if (leftover) throw new Error(`${what} still holds the placeholder ${leftover[0]}`);
   // Checked in the source, not the rendered text: a repo or home path holding a hidden word made the seat unbuildable.
   const hidden = hiddenWordsIn(source, role.hidesWords ?? []);
   if (hidden.length > 0) {
-    throw new Error(`the ${role.role} prompt contains words that role must not see: ${hidden.join(", ")}`);
+    throw new Error(`${what} contains words that role must not see: ${hidden.join(", ")}`);
   }
   const loose = unwritten(role, source);
   if (loose.length > 0)
     throw new Error(
-      `the ${role.role} prompt names ${loose.join(", ")} under the project's state, which the role does not write: add it to the role's writes`,
+      `${what} names ${loose.join(", ")} under the project's state, which the role does not write: add it to the role's writes`,
     );
   return text;
 }

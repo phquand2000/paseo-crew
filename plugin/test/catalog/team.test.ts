@@ -277,7 +277,7 @@ test("each seat is told and given what its servers, its role and the Human say, 
   );
   assert.equal(
     rulesFor(team, "peer"),
-    "# Working rules\n\nPrefer the IDE for navigation.\n\nYour IDE tools: `ide_find_references`, `ide_refactor_rename`.\n\nCheck diagnostics before handing back.\n\nLook library APIs up in the docs.\n\n## Rules from the Human\n\nKeep diffs small.\n\nUse pnpm.\n\n## Rules from the Human, for the Peer\n\nNever touch the generated client.\n",
+    "# Working rules\n\nPrefer the IDE for navigation.\n\nYour IDE tools: `ide_find_references`, `ide_refactor_rename`.\n\nCheck diagnostics before handing back.\n\nLook library APIs up in the docs.\n\n## Rules from the Human\n\nKeep diffs small.\n\nUse pnpm.\n\n## Rules from the Human, for you\n\nNever touch the generated client.\n",
     "each enabled server's rule, the role's tools and notes, then the Human's rules and the ones for this seat alone",
   );
   assert.equal(

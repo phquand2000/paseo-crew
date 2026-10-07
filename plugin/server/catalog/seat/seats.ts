@@ -47,7 +47,7 @@ export function seatProblems(kit: Kit, team: Team, roleName: string, paths: Prom
   if (!seat) return [`the team has no ${roleName} seat`];
   const problems: string[] = [];
   try {
-    renderText(seat.role, rulesFor(team, roleName), paths);
+    renderText(seat.role, rulesFor(team, roleName), paths, `the rules section of the ${roleName} prompt`);
     renderPrompt(kit, seat.role, seat.harness.id, paths);
   } catch (error) {
     problems.push(errorText(error));
