@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { harness, laneWithPeer } from "./harness.ts";
 
 const LIMIT = "You've hit your session limit · resets 4:30am (Asia/Saigon)";
 const MINUTE = 60_000;
+
+/** The Human moves the Lead to Codex once lanes are open, so a Lead on Claude's limit has a Lead elsewhere to hand to. */
+const leadOnCodex = (state: string) =>
+  writeFileSync(join(state, "settings.json"), JSON.stringify({ roles: { lead: { harness: "codex" } } }));
 
 /** The limit notice as Claude Code words it, resetting at `at`'s minute on Saigon's clock. */
 function limitAt(at: number): string {
@@ -67,13 +73,14 @@ test("a Lead on its usage limit is told to whoever supervises and is not idle un
       isolate: true,
     });
   const [waits, unread] = [h.ledger().lanes.L1!.lead!, h.ledger().lanes.L2!.lead!];
+  leadOnCodex(h.project.state);
   for (const lead of [waits, unread]) h.agents.get(lead)!.status = "idle";
   const reset = Math.floor((Date.now() + 2 * 60 * MINUTE) / MINUTE) * MINUTE;
   await h.endTurn(waits, limitAt(reset));
   await h.endTurn(unread, "You've hit your session limit");
   await h.tick(Date.now() + 20 * MINUTE);
   const said = h.heard(sup).join("\n");
-  assert.match(said, /Backup Lead \(Codex\)/);
+  assert.match(said, /Lead \(Codex\)/);
   assert.match(said, /stopped on its usage limit\.\nWhen it resets could not be read/);
   assert.doesNotMatch(said, /LANE IDLE L1/);
   await h.tick(reset + 26 * 60 * MINUTE);
@@ -84,6 +91,7 @@ test("a Lead on its usage limit is told to whoever supervises and is not idle un
 test("a Lead on its usage limit with a hand-back waiting can be replaced on another agent, and is let go", async () => {
   const { h, sup, lane, peer } = await laneWithPeer();
   assert.equal((await h.call(peer, "peer", "done", { outcome: "complete", summary: "built" })).ok, true);
+  leadOnCodex(h.project.state);
   h.agents.get(lane.lead!)!.status = "idle";
   await h.endTurn(lane.lead!, limitAt(Math.floor((Date.now() + 2 * 60 * MINUTE) / MINUTE) * MINUTE));
   await h.tick(Date.now() + 20 * MINUTE);
@@ -91,12 +99,12 @@ test("a Lead on its usage limit with a hand-back waiting can be replaced on anot
     h.heard(sup).join("\n"),
     /Waiting on it: L1-T1's hand-back\.[^]*Next: If the lane cannot wait for the reset, replace_lead with a role named above/,
   );
-  const replaced = await h.call(sup, "supervisor", "replace_lead", { lane: "L1", role: "backup-lead" });
+  const replaced = await h.call(sup, "supervisor", "replace_lead", { lane: "L1", role: "lead" });
   assert.equal(replaced.ok, true, replaced.text);
   assert.match(replaced.text, /stopped on its usage limit, is let go\./);
   const now = h.ledger().lanes.L1!.lead!;
   assert.notEqual(now, lane.lead);
-  assert.equal(h.agents.get(now)!.labels?.["crew.role"], "backup-lead");
+  assert.equal(h.agents.get(now)!.provider, "crew-lead-codex");
   assert.ok(h.agents.get(lane.lead!)!.archivedAt);
 });
 

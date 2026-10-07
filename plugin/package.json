@@ -1,7 +1,7 @@
 {
   "name": "paseo-crew",
   "private": true,
-  "version": "3.46.1",
+  "version": "3.47.0",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit && tsc -p tsconfig.client.json",

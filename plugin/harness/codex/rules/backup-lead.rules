@@ -1,3 +1,0 @@
-prefix_rule(pattern = ["git", "commit"], decision = "forbidden", justification = "Commits are the engineer's; you read and decide.")
-prefix_rule(pattern = ["sleep"], decision = "forbidden", justification = "Mail wakes you; waiting only holds you up.")
-prefix_rule(pattern = ["git", ["merge", "reset", "rebase", "cherry-pick"]], decision = "forbidden", justification = "Only an engineer moves a branch, and only its own task branch.")
