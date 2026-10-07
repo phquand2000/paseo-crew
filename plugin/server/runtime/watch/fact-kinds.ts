@@ -18,6 +18,7 @@ export const FACTS = {
   "gate-rerun": { level: "note" },
   "edit-before-look": { level: "note" },
   "sandbox-denied": { level: "note" },
+  "socket-denied": { level: "note" },
 } as const satisfies Record<string, { level: "note" } | { level: Exclude<Level, "note">; title: string }>;
 
 export type FactKind = keyof typeof FACTS;

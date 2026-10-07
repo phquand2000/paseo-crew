@@ -194,14 +194,29 @@ function hits(text: string, pattern: RegExp): string[] {
   return text.match(new RegExp(pattern.source, "gi")) ?? [];
 }
 
+/** What a failed call printed and the error it ended on, line by line. */
+function failureLines(call: Call): string[] {
+  const error =
+    typeof call.error === "string" ? call.error : JSON.stringify(call.error ?? null).replaceAll("\\n", "\n");
+  return `${str(call.detail.output)}\n${error}`.split("\n");
+}
+
 const PATH = /(?:^|[\s'"`(=:])(\/(?!\/)[^\s'"`:,;()\\]+)/g;
 /** The path a failed call says it was refused, the last on the first line that says so: the tools all end such a line with it. */
 function deniedPath(call: Call, denied: RegExp): string | undefined {
-  const error =
-    typeof call.error === "string" ? call.error : JSON.stringify(call.error ?? null).replaceAll("\\n", "\n");
-  for (const line of `${str(call.detail.output)}\n${error}`.split("\n")) {
+  for (const line of failureLines(call)) {
     const path = denied.test(line) ? [...line.matchAll(PATH)].at(-1)?.[1] : undefined;
     if (path) return path.replace(/\.+$/, "");
+  }
+  return undefined;
+}
+
+const SOCKET = /unix:\/\/(\/[^\s'"`:,;()\\]+)|(\/[^\s'"`:,;()\\]+\.sock)\b/;
+/** The socket a failed call says it was refused a connection to: a grant of `sockets`, never of writes. */
+function deniedSocket(call: Call, denied: RegExp): string | undefined {
+  for (const line of failureLines(call)) {
+    const found = denied.test(line) || /permission denied/i.test(line) ? SOCKET.exec(line) : null;
+    if (found) return found[1] ?? found[2];
   }
   return undefined;
 }
@@ -213,7 +228,9 @@ export function onSettle(call: Call, rules: Rules, known?: (path: string) => str
   // The desk's refusals already told the seat why and what instead, and the desk records them.
   if (bad && !rules.desk?.(call)) {
     facts.push(fact(isGate(call, rules.gates) ? "gate-failed" : "call-failed", oneLine(describe(call))));
-    const refused = deniedPath(call, rules.denied);
+    const socket = deniedSocket(call, rules.denied);
+    const refused = socket ? undefined : deniedPath(call, rules.denied);
+    if (socket) facts.push(fact("socket-denied", socket));
     if (refused) facts.push(fact("sandbox-denied", refused));
   }
   const writes = detail.type === "edit" || detail.type === "write";

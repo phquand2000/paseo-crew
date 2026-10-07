@@ -192,3 +192,44 @@ test("a write the sandbox refused is a note, and the Supervisor's status names w
     "a granted path is not asked for again",
   );
 });
+
+test("a socket the sandbox refused is a note apart from writes, and the Supervisor's status names it at once, for the Human to grant", async (t) => {
+  const { h, sup, timeline } = await laneWithPeer();
+  const noticed = noticesOf(h, t);
+  const socket = join(homedir(), ".orbstack", "run", "docker.sock");
+  timeline.beat("turn_started", "t1");
+  timeline.add({ type: "user_message", text: "Start the database" }, "t1");
+  timeline.add(
+    {
+      type: "tool_call",
+      callId: "d1",
+      name: "Bash",
+      status: "failed",
+      detail: {
+        type: "shell",
+        command: "docker compose up -d",
+        output: `permission denied while trying to connect to the Docker daemon socket at unix://${socket}: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.47/containers/json": dial unix ${socket}: connect: operation not permitted`,
+      },
+    },
+    "t1",
+  );
+  await settle();
+  await noticed();
+  const facts = h.events("watch.fact").filter((event) => /denied$/.test(String(event.fact)));
+  assert.deepEqual(
+    facts.map((event) => [event.fact, event.quote]),
+    [["socket-denied", socket]],
+    "a refused connection is no write to grant",
+  );
+  const status = (await h.call(sup, "supervisor", "status", {})).text;
+  assert.match(status, new RegExp(`^- ${socket.replaceAll(".", "\\.")}: refused 1 times$`, "m"));
+  assert.match(status, /Only the Human can grant one, in sockets of this project's project\.json/);
+  assert.doesNotMatch(status, /Writes the sandbox refused/);
+
+  saveConfig(h.project.state, { ...loadConfig(h.project.state), sockets: [socket] });
+  assert.doesNotMatch(
+    (await h.call(sup, "supervisor", "status", {})).text,
+    /Sockets the sandbox refused/,
+    "a granted socket is not asked for again",
+  );
+});

@@ -473,6 +473,7 @@ seat did before the watch followed it, as across a plugin reload, is never judge
 | `gate-rerun` | note | The gate run `repeatsAt` times (3) since the seat's latest instruction. Evidence only, until marks show it is worth someone's attention |
 | `edit-before-look` | note | A turn's first step, desk calls and Paseo's own steps aside, changed a file before it read, searched or ran anything since an instruction the watch still holds. It opens only the `instruction_kind` question |
 | `sandbox-denied` | note | A failed call's output says a write was refused (the `denied` pattern in `catalog/ecosystem.json`: `operation not permitted` or `read-only file system`); the quote is the path its first such line ends on. A Supervisor's `status` lists the paths refused `repeatsAt` times (3) in the last day, under the deepest directory that holds the most of them and short of home, leaving out what `writableOutside` grants |
+| `socket-denied` | note | A failed call's output says a connection to a unix socket was refused (`permission denied` or the `denied` pattern, on a line naming a `unix://` address or a `.sock` path); the quote is the socket, and no `sandbox-denied` is raised for that call. A Supervisor's `status` lists each socket refused in the last day that `sockets` does not grant, from its first refusal |
 
 **From a lane's record**, read each round and filed against the lane's Lead:
 
