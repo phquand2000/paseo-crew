@@ -39,7 +39,7 @@ const refusesReading = (rules: string[]) =>
   );
 const SEARCHES = ["supervisor", "lead", "peer"];
 const STARTS = ["create_agent", "send_agent_prompt", "archive_agent", "list_providers", "list_models"];
-
+const REACHES: Record<string, string[]> = { lead: STARTS, supervisor: [...STARTS, "get_agent_activity"] };
 /** A role that does another's work on another model is held to that role's terms. */
 const TWIN: Record<string, string> = { "backup-peer": "peer", "senior-reviewer": "reviewer" };
 const BUILT_INS: Record<string, string[]> = {
@@ -81,8 +81,8 @@ test("every role builds on every agent the kit ships, each in that agent's own t
     const desks = (command: string) => Number(!MOVES.includes(command) || !can(role, "write"));
     assert.deepEqual(
       at(paseo, `agents.providers.${providerId(kit, role.role, harness.id)}.paseoTools`),
-      waits ? { enabled: false } : { disabledTools: kit.paseoTools.filter((t) => !STARTS.includes(t)) },
-      `${where}: only the Supervisor and a Lead reach Paseo's own tools, and only to start agents that talk a problem through with them`,
+      waits ? { enabled: false } : { disabledTools: kit.paseoTools.filter((t) => !REACHES[kind]!.includes(t)) },
+      `${where}: only the Supervisor and a Lead reach Paseo's own tools, to start agents that talk a problem through with them, and the Supervisor to read an earlier one's chat`,
     );
     const reasons = Object.values(harnessFileSources(kit, harness, role))
       .flat()

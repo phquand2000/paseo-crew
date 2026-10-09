@@ -38,7 +38,8 @@ on its role's name.
 Beside the desk, the Supervisor and the Leads hold five of Paseo's own tools (`paseoTools.allow` in `roles.json`):
 `create_agent`, `send_agent_prompt`, `archive_agent`, `list_providers` and `list_models`, to start agents of their own
 that talk a hard problem through with them. Paseo ties each to the seat that started it, tells that seat when it finishes,
-and archives it with that seat.
+and archives it with that seat. The Supervisor also holds `get_agent_activity`, to read the chat of a Supervisor it
+takes over from, archived or not; the Leads do not, since the Supervisor's chat holds words a Lead's seat hides.
 
 | Verb | Effect |
 |---|---|

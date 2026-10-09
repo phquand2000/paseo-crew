@@ -34,7 +34,8 @@
           "send_agent_prompt",
           "archive_agent",
           "list_providers",
-          "list_models"
+          "list_models",
+          "get_agent_activity"
         ]
       },
       "hidesWords": [],
