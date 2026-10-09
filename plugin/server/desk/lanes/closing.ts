@@ -19,7 +19,7 @@ import type { Roster } from "../seats/roster.ts";
 import type { DeskServices } from "../services.ts";
 import { recordEvent } from "../store/event-log.ts";
 import { stowCopy } from "../copies/stow.ts";
-import { openWaiting } from "../waiting/lanes.ts";
+import { openWaiting, rebaseLanes } from "../waiting/lanes.ts";
 import type { Closed } from "./land-hold.ts";
 import { type Landed, landLane } from "./landing.ts";
 
@@ -121,7 +121,10 @@ async function retire(
   }
   const reason = str(args.reason);
   recordEvent(project, { kind: "lane.closed", lane: lane.id, land: args.land, landing: landed.how, reason, writers });
-  const reply = closedReply(lane, landed, left, kept, [...branches, ...stowed.kept], stowed.note);
+  const rebased = rebaseLanes(desk, project);
+  const reply = [closedReply(lane, landed, left, kept, [...branches, ...stowed.kept], stowed.note), ...rebased].join(
+    " ",
+  );
   await openWaiting(desk, project, true);
   return ok(reply);
 }

@@ -149,6 +149,19 @@ export function landsOnto(ledger: Ledger, lane: Lane): { base: string; spent?: L
   }
 }
 
+/** Moves each lane still in use off the branch of a lane landed since, onto where that work went; what moved, as it was. */
+export function rebaseOffLanded(ledger: Ledger): { lane: Lane; from: string; spent: Lane }[] {
+  const moved: { lane: Lane; from: string; spent: Lane }[] = [];
+  for (const lane of Object.values(ledger.lanes)) {
+    if (lane.status === "closed" && !lane.restoring) continue;
+    const { base, spent } = landsOnto(ledger, lane);
+    if (!spent) continue;
+    moved.push({ lane, from: lane.base, spent });
+    lane.base = base;
+  }
+  return moved;
+}
+
 export function tasksOf(ledger: Ledger, laneId: string): Task[] {
   return Object.values(ledger.tasks).filter((task) => task.lane === laneId);
 }

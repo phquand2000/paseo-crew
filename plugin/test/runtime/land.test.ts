@@ -53,7 +53,7 @@ test("a lane lands after another moved main, gated with main's newer work in it,
   assert.equal(h.ledger().lanes.L1!.status, "open");
 });
 
-test("a lane opened on another lane's branch lands where that lane landed, not into its spent branch", async () => {
+test("a lane opened on another lane's branch moves onto where that lane landed, and lands there once its branch is gone", async () => {
   const h = harness();
   const sup = h.add("crew-supervisor-claude/claude-opus-5", h.root, "sup");
   await h.call(sup, "supervisor", "set_project", { gate: "true" });
@@ -73,10 +73,13 @@ test("a lane opened on another lane's branch lands where that lane landed, not i
   for (const lane of [first, second]) h.agents.get(lane.lead!)!.status = "idle";
   commitAll(h, first.worktree!, { "a/a.txt": "a\n" });
   commitAll(h, second.worktree!, { "b/b.txt": "b\n" });
-  assert.equal((await h.call(sup, "supervisor", "land_lane", { lane: "L1" })).ok, true);
+  const closed = await h.call(sup, "supervisor", "land_lane", { lane: "L1" });
+  assert.match(closed.text, new RegExp(`L2 is now off main, where L1 landed ${first.branch}\\.`));
+  assert.equal(h.ledger().lanes.L2!.base, "main");
+  assert.equal((await h.call(sup, "supervisor", "release", { lane: "L1" })).ok, true);
+  assert.equal(h.git(h.root, "branch", "--list", first.branch).trim(), "");
   const landed = await h.call(sup, "supervisor", "land_lane", { lane: "L2" });
   assert.equal(landed.ok, true, landed.text);
-  assert.match(landed.text, new RegExp(`L1 had landed its branch ${first.branch} into main, so this went there`));
   assert.equal(h.git(h.root, "show", "main:b/b.txt"), "b\n");
 });
 

@@ -16,6 +16,7 @@ export type DeskEvent =
   | { kind: "lane.held"; lane: string; reason: string }
   | { kind: "lane.opened"; lane: string; lead: string; branch: string; base: string; slot: string; human: number }
   | { kind: "lane.halfOpen"; lane: string; status: LaneStatus; lead: string | null }
+  | { kind: "lane.rebased"; lane: string; from: string; to: string; landed: string }
   | { kind: "lane.amended"; lane: string; fields: string[]; by: string; humanDropped: number }
   | {
       kind: "lane.report";

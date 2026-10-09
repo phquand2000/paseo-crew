@@ -3,7 +3,7 @@ import { LANE } from "../../domain/lane.ts";
 import { workKey } from "../claims.ts";
 import { fetchIssue } from "../../core/github.ts";
 import type { Lane } from "../../domain/lane.ts";
-import type { Ledger } from "../../domain/ledger.ts";
+import { type Ledger, rebaseOffLanded } from "../../domain/ledger.ts";
 import { loadLedger } from "../store/ledger.ts";
 import { workLetters } from "../letters/work-letters.ts";
 import { seatLetters } from "../letters/seat-letters.ts";
@@ -21,6 +21,7 @@ import { waitsFor } from "./rules.ts";
  * reason. A lane whose start failed is tried again only when `retryHeld`: a closing lane frees what held it, a round does not.
  */
 export async function openWaiting(desk: DeskServices, project: Project, retryHeld: boolean): Promise<void> {
+  rebaseLanes(desk, project);
   await putBackHalfOpen(desk, project);
   const ledger = loadLedger(project.state);
   const due = Object.values(ledger.lanes).filter(
@@ -33,6 +34,17 @@ export async function openWaiting(desk: DeskServices, project: Project, retryHel
     const held = typeof pending === "string" ? { why: pending, next } : await tryOpen(desk, project, waiting);
     if (held) await noteHeld(desk, project, waiting, held);
   }
+}
+
+/** Lanes off a lane's branch move onto where it landed, which outlives that branch; a sentence for each moved. */
+export function rebaseLanes({ ledgers }: Pick<DeskServices, "ledgers">, project: Project): string[] {
+  const moved = ledgers.transact(project, (ledger) =>
+    rebaseOffLanded(ledger).map(({ lane, from, spent }) => ({ id: lane.id, from, to: lane.base, landed: spent.id })),
+  );
+  return moved.map(({ id, from, to, landed }) => {
+    recordEvent(project, { kind: "lane.rebased", lane: id, from, to, landed });
+    return `${id} is now off ${to}, where ${landed} landed ${from}.`;
+  });
 }
 
 /** Placed and claimed in one transaction, so a round can ask every time and nothing opens it twice or beside another in one copy. */
